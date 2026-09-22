@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens, ported from the original DairyDrop apps.
+ *
+ * The light values are the ones those builds shipped — slate-50 page, slate-900
+ * ink, emerald brand, emerald-100 card borders. Dark is a translation of the
+ * same relationships, which the old light-only apps never had.
+ */
+:root {
+  --bg: 248 250 252;            /* #f8fafc — the old body background      */
+  --surface: 255 255 255;
+  --surface-muted: 241 245 249;
+  --border: 209 250 229;        /* emerald-100 — the old card border      */
+
+  --ink: 15 23 42;              /* #0f172a — the old body colour          */
+  --ink-muted: 71 85 105;
+  --ink-subtle: 100 116 139;
+
+  --brand: 22 163 74;           /* primary-600                            */
+  --brand-ink: 255 255 255;
+  --brand-soft: 220 252 231;    /* primary-100                            */
+
+  --positive: 22 163 74;
+  --positive-soft: 220 252 231;
+  --caution: 217 119 6;
+  --caution-soft: 254 243 199;
+  --critical: 220 38 38;
+  --critical-soft: 254 226 226;
+  --info: 37 99 235;
+  --info-soft: 219 234 254;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: 2 6 23;
+    --surface: 15 23 42;
+    --surface-muted: 30 41 59;
+    --border: 6 78 59;
+
+    --ink: 248 250 252;
+    --ink-muted: 203 213 225;
+    --ink-subtle: 148 163 184;
+
+    --brand: 52 211 153;
+    --brand-ink: 2 44 34;
+    --brand-soft: 6 78 59;
+
+    --positive: 52 211 153;
+    --positive-soft: 6 78 59;
+    --caution: 251 191 36;
+    --caution-soft: 69 46 6;
+    --critical: 248 113 113;
+    --critical-soft: 80 20 20;
+    --info: 96 165 250;
+    --info-soft: 23 46 92;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: 2 6 23;
+  --surface: 15 23 42;
+  --surface-muted: 30 41 59;
+  --border: 6 78 59;
+  --ink: 248 250 252;
+  --ink-muted: 203 213 225;
+  --ink-subtle: 148 163 184;
+  --brand: 52 211 153;
+  --brand-ink: 2 44 34;
+  --brand-soft: 6 78 59;
+  --positive: 52 211 153;
+  --positive-soft: 6 78 59;
+  --caution: 251 191 36;
+  --caution-soft: 69 46 6;
+  --critical: 248 113 113;
+  --critical-soft: 80 20 20;
+  --info: 96 165 250;
+  --info-soft: 23 46 92;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg text-ink antialiased;
+    /* The old apps ran the body at 500 — noticeably sturdier than a default. */
+    font-weight: 500;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /*
+   * Headings use Outfit at 700+ with tightened tracking, which is most of what
+   * gave the old screens their character.
+   */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading text-ink;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+  }
+
+  button, .btn { font-weight: 600; }
+
+  /* Devanagari needs its own face; Latin fonts have no coverage for it. */
+  html[data-lang='hi'] body,
+  html[data-lang='gu'] body,
+  body.lang-hi,
+  body.lang-gu {
+    @apply font-deva;
+    line-height: 1.45;
+  }
+
+  /* 16px prevents iOS Safari zooming the page when a field is focused. */
+  input, select, textarea { font-size: 16px; }
+  ::placeholder { @apply text-ink-subtle; font-weight: 400; opacity: 1; }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg;
+  }
+
+  ::-webkit-scrollbar { height: 0.5rem; width: 0.5rem; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-ink-subtle/30; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-ink-subtle/50; }
+
+  /* The milkman taps these at 5am, one-handed. Never below 44px. */
+  @media (pointer: coarse) {
+    button, [role='button'], a.tap { min-height: 44px; }
+  }
+}
+
+@layer components {
+  /*
+   * The card treatment the old apps used everywhere: generous radius, an
+   * emerald-tinted hairline, and a soft low shadow rather than a hard one.
+   */
+  .card-surface {
+    @apply rounded-2xl border border-border bg-surface shadow-card;
+  }
+
+  .card-interactive {
+    @apply card-surface transition-all duration-200
+           hover:-translate-y-0.5 hover:shadow-card-hover;
+  }
+
+  /* Numbers wanted the heading face, heavy, with tabular figures. */
+  .stat-number {
+    @apply font-heading;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* Loading placeholder with a travelling highlight. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-surface-muted;
+  }
+  .skeleton::after {
+    @apply absolute inset-0 animate-shimmer;
+    content: '';
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0) 0,
+      rgb(255 255 255 / 0.25) 20%,
+      rgb(255 255 255 / 0.45) 60%,
+      rgb(255 255 255 / 0)
+    );
+  }
+}
+
+@layer utilities {
+  /* Room for the fixed bottom bar plus the home indicator. */
+  .pb-nav { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .no-select { -webkit-user-select: none; user-select: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

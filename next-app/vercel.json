@@ -1,0 +1,9 @@
+{
+  "crons": [
+    { "path": "/api/cron/generate-deliveries", "schedule": "35 18 * * *" },
+    { "path": "/api/cron/expire-subscriptions", "schedule": "0 * * * *" },
+    { "path": "/api/cron/remind-expiring", "schedule": "30 3 * * *" },
+    { "path": "/api/cron/close-month", "schedule": "0 19 1 * *" },
+    { "path": "/api/cron/archive-notifications", "schedule": "0 20 * * 0" }
+  ]
+}

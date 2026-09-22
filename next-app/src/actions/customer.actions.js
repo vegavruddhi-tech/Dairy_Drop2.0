@@ -1,0 +1,178 @@
+'use server';
+
+/**
+ * Customer mutations.
+ *
+ * Every one is guarded by `requireCustomer`, which enforces the role *and* the
+ * approval gate. A pending or rejected customer cannot mutate anything.
+ */
+
+import { defineAction } from './action.js';
+import { requireCustomer } from '@/auth/session.js';
+import * as V from '@/validation/index.js';
+
+import * as subscriptionService from '@/services/subscription.service.js';
+import * as deliveryService from '@/services/delivery.service.js';
+import * as productService from '@/services/product.service.js';
+import * as paymentService from '@/services/payment.service.js';
+import * as requestService from '@/services/request.service.js';
+import * as onboardingService from '@/services/onboarding.service.js';
+
+// ── Subscriptions ────────────────────────────────────────────────────────────
+
+const subscribeAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.subscribeSchema,
+  handler: ({ actor, input }) => subscriptionService.subscribe(actor, input),
+  revalidate: ['/subscriptions', '/dashboard'],
+});
+
+const pauseSubscriptionAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.subscriptionActionSchema,
+  handler: ({ actor, input }) => subscriptionService.pause(actor, input),
+  revalidate: ['/subscriptions', '/dashboard'],
+});
+
+const resumeSubscriptionAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.subscriptionActionSchema,
+  handler: ({ actor, input }) => subscriptionService.resume(actor, input),
+  revalidate: ['/subscriptions', '/dashboard'],
+});
+
+const cancelSubscriptionAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.subscriptionActionSchema,
+  handler: ({ actor, input }) => subscriptionService.cancel(actor, input),
+  revalidate: ['/subscriptions', '/dashboard'],
+});
+
+// ── Deliveries ───────────────────────────────────────────────────────────────
+
+const skipDayAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.skipDaySchema,
+  handler: ({ actor, input }) => deliveryService.skipDay(actor, input),
+  revalidate: ['/dashboard', '/calendar'],
+});
+
+const resumeDayAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.skipDaySchema.pick({ deliveryId: true }),
+  handler: ({ actor, input }) => deliveryService.resumeDay(actor, input),
+  revalidate: ['/dashboard', '/calendar'],
+});
+
+/**
+ * Change one day's quantity.
+ *
+ * Applies immediately and writes only that delivery row — a one-day change is a
+ * one-day change. The milkman is told, not asked.
+ */
+const adjustQuantityAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.adjustQuantitySchema,
+  handler: ({ actor, input }) => deliveryService.adjustQuantity(actor, input),
+  revalidate: ['/dashboard', '/calendar'],
+});
+
+// ── Requests ─────────────────────────────────────────────────────────────────
+
+const requestPlanChangeAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.planChangeRequestSchema,
+  handler: ({ actor, input }) => requestService.requestPlanChange(actor, input),
+  revalidate: ['/subscriptions'],
+});
+
+// ── Shop ─────────────────────────────────────────────────────────────────────
+
+const orderProductAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.orderSchema,
+  handler: ({ actor, input }) => productService.order(actor, input),
+  revalidate: ['/shop', '/billing'],
+});
+
+// ── Payments ─────────────────────────────────────────────────────────────────
+
+const submitPaymentAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.submitPaymentSchema,
+  handler: ({ actor, input }) => paymentService.submit(actor, input),
+  revalidate: ['/billing'],
+});
+
+// ── Registration ─────────────────────────────────────────────────────────────
+
+/**
+ * Complete registration. Guarded by role only — a customer who has not yet
+ * chosen a milkman is by definition not approved, so `requireCustomer` would
+ * lock them out of the very screen that fixes it.
+ */
+const registerWithMilkmanAction = defineAction({
+  authorize: async () => {
+    const { requireRole, ROLES } = await import('@/auth/session.js');
+    return requireRole(ROLES.CUSTOMER);
+  },
+  schema: V.registerCustomerSchema,
+  handler: ({ actor, input }) => onboardingService.register(actor, input),
+  revalidate: ['/pending', '/dashboard'],
+});
+
+/**
+ * Exported Server Actions.
+ *
+ * Next requires every export of a 'use server' module to be a literal async
+ * function, so each handler above is wrapped here. The wrapper adds nothing —
+ * authorization, validation and error translation all live in `defineAction`.
+ */
+
+export async function subscribe(input) {
+  return subscribeAction(input);
+}
+
+export async function pauseSubscription(input) {
+  return pauseSubscriptionAction(input);
+}
+
+export async function resumeSubscription(input) {
+  return resumeSubscriptionAction(input);
+}
+
+export async function cancelSubscription(input) {
+  return cancelSubscriptionAction(input);
+}
+
+export async function skipDay(input) {
+  return skipDayAction(input);
+}
+
+export async function resumeDay(input) {
+  return resumeDayAction(input);
+}
+
+export async function adjustQuantity(input) {
+  return adjustQuantityAction(input);
+}
+
+export async function requestPlanChange(input) {
+  return requestPlanChangeAction(input);
+}
+
+export async function orderProduct(input) {
+  return orderProductAction(input);
+}
+
+export async function submitPayment(input) {
+  return submitPaymentAction(input);
+}
+
+export async function registerWithMilkman(input) {
+  return registerWithMilkmanAction(input);
+}
+
+export async function applyToBecomeMilkman(input) {
+  return applyToBecomeMilkmanAction(input);
+}

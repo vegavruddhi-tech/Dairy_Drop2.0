@@ -1,0 +1,18 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage/
+.vercel
+src/db/migrations/meta/_journal.json.bak
+
+# Database dumps. `backups/` holds a JSON export of the previous system's live
+# tables — real names, emails, phone numbers and payment records. It exists so
+# the schema migration was reversible; it is not something to commit.
+backups/
+.env.backup

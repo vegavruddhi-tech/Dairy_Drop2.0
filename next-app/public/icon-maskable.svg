@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DairyDrop">
+  <rect width="64" height="64" fill="#059669"/>
+  <path d="M28 20h8v4l3 6v14a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V30l3-6v-4z"
+        fill="#fff" fill-opacity=".95"/>
+  <path d="M25 34h14v10a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V34z" fill="#a7f3d0"/>
+</svg>
