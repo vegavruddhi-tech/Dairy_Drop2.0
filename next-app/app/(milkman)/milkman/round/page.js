@@ -4,6 +4,7 @@ import { formatPaise, formatMilli } from '@/domain/money.js';
 import * as deliveryService from '@/services/delivery.service.js';
 
 import { PageHeader, Card, CardBody, Stat, EmptyState } from '@/components/ui/index.jsx';
+import { DeliveryIcon } from '@/components/ui/Icons.jsx';
 import { RoundStop, DayOffButton } from '@/components/milkman/Round.jsx';
 
 export const metadata = { title: 'Round' };
@@ -54,7 +55,7 @@ export default async function RoundPage({ searchParams }) {
 
       {stops.length === 0 ? (
         <EmptyState
-          icon="🚲"
+          icon={<DeliveryIcon className="h-6 w-6 text-blue-600" />}
           title="Nothing scheduled"
           description="Deliveries are generated overnight from your customers' active plans."
         />

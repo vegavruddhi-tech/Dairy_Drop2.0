@@ -3,6 +3,7 @@ import { formatDate } from '@/domain/dates.js';
 import * as productService from '@/services/product.service.js';
 
 import { PageHeader, Card, CardBody, CardHeader, EmptyState, StatusBadge, Table, Th, Td } from '@/components/ui/index.jsx';
+import { CartIcon } from '@/components/ui/Icons.jsx';
 import { OrderCard } from '@/components/customer/OrderCard.jsx';
 
 export const metadata = { title: 'Shop' };
@@ -29,7 +30,7 @@ export default async function ShopPage() {
 
         {products.length === 0 ? (
           <EmptyState
-            icon="🧈"
+            icon={<CartIcon className="h-6 w-6 text-blue-600" />}
             title="Nothing in stock right now"
             description="Your milkman adds items here when they have them."
           />

@@ -4,16 +4,10 @@ import { getActor } from '@/auth/session.js';
 import { ROLES, ROLE_HOME } from '@/auth/roles.js';
 import { RegisterFlow } from '@/components/customer/RegisterFlow.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
+import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 
-export const metadata = { title: 'Get started' };
+export const metadata = { title: 'Get Started • DairyDrop' };
 
-/**
- * Registration.
- *
- * The account already exists — Auth.js created it on first Google sign-in with
- * PENDING approval. This screen supplies the details a milkman needs in order
- * to decide: which area, which address, and a phone number.
- */
 export default async function RegisterPage() {
   const actor = await getActor();
   if (!actor) redirect('/sign-in');
@@ -21,11 +15,12 @@ export default async function RegisterPage() {
   if (actor.tenantId) redirect('/pending');
 
   return (
-    <main className="mx-auto max-w-lg px-5 py-10">
+    <div className="relative min-h-dvh bg-[#fafcff] text-slate-900 pb-16 overflow-x-hidden">
+      <BackgroundParticles count={24} />
       <PublicBar showBrand={true} />
-      <div className="mt-4">
+      <main className="mx-auto max-w-xl px-5 pt-8 pb-12 animate-fade-in">
         <RegisterFlow defaultName={actor.name} />
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

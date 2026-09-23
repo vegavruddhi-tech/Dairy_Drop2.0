@@ -5,6 +5,7 @@ import * as onboardingService from '@/services/onboarding.service.js';
 import Link from 'next/link';
 
 import { PageHeader, Card, CardBody, EmptyState, Badge, Notice, Table, Th, Td } from '@/components/ui/index.jsx';
+import { DeliveryIcon, PaymentsIcon } from '@/components/ui/Icons.jsx';
 import { TabLinks, Button } from '@/components/ui/interactive.jsx';
 import { MilkmanActions } from '@/components/admin/Milkmen.jsx';
 
@@ -69,7 +70,7 @@ export default async function MilkmenPage({ searchParams }) {
 
       {milkmen.length === 0 ? (
         <EmptyState
-          icon={tab === 'unverified' ? '✅' : '🧑‍🌾'}
+          icon={<DeliveryIcon className="h-6 w-6 text-blue-600" />}
           title={tab === 'unverified' ? 'No applications waiting' : 'No milkmen here'}
           description={
             tab === 'unverified'

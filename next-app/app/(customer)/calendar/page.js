@@ -13,6 +13,7 @@ import { computeVariance } from '@/domain/billing.js';
 import * as deliveryService from '@/services/delivery.service.js';
 
 import { PageHeader, Card, CardBody, CardHeader, Stat, Badge } from '@/components/ui/index.jsx';
+import { CalendarVacationButton } from '@/components/customer/CalendarAction.jsx';
 
 export const metadata = { title: 'Calendar' };
 
@@ -65,19 +66,22 @@ export default async function CalendarPage({ searchParams }) {
         title="Calendar"
         description={formatMonth(month)}
         action={
-          <div className="flex gap-2">
-            <a
-              href={`/calendar?month=${addMonths(month, -1)}`}
-              className="tap rounded-lg border border-border px-3 py-2 text-sm"
-            >
-              ←
-            </a>
-            <a
-              href={`/calendar?month=${addMonths(month, 1)}`}
-              className="tap rounded-lg border border-border px-3 py-2 text-sm"
-            >
-              →
-            </a>
+          <div className="flex items-center gap-2">
+            <CalendarVacationButton />
+            <div className="flex gap-1 border-l border-border pl-2">
+              <a
+                href={`/calendar?month=${addMonths(month, -1)}`}
+                className="tap rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors"
+              >
+                ←
+              </a>
+              <a
+                href={`/calendar?month=${addMonths(month, 1)}`}
+                className="tap rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors"
+              >
+                →
+              </a>
+            </div>
           </div>
         }
       />

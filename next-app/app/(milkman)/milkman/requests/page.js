@@ -4,6 +4,7 @@ import { formatPaise } from '@/domain/money.js';
 import * as requestService from '@/services/request.service.js';
 
 import { PageHeader, EmptyState } from '@/components/ui/index.jsx';
+import { RequestsIcon } from '@/components/ui/Icons.jsx';
 import { QuantityRequest, PlanChangeRequest } from '@/components/milkman/Requests.jsx';
 
 export const metadata = { title: 'Requests' };
@@ -19,7 +20,7 @@ export default async function RequestsPage() {
       <PageHeader title="Requests" description="Things your customers have asked for." />
 
       {empty ? (
-        <EmptyState icon="✋" title="Nothing waiting" description="Customer requests appear here." />
+        <EmptyState icon={<RequestsIcon className="h-6 w-6 text-blue-600" />} title="Nothing waiting" description="Customer requests appear here." />
       ) : (
         <div className="space-y-8">
           {quantity.length > 0 ? (

@@ -75,7 +75,7 @@ export default async function RootLayout({ children }) {
         Latin faces have no coverage for either script.
       */}
       <body className={`min-h-dvh font-sans ${indic ? `lang-${locale}` : ''}`}>
-        <ClerkProvider>
+        <ClerkProvider afterSignOutUrl="/">
           <LocaleProvider locale={locale} messages={messages}>
             {children}
 

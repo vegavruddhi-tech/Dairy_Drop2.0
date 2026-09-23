@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { SignOutButton } from '@clerk/nextjs';
 
 import { requireMilkman } from '@/auth/session.js';
 import { gateStatus } from '@/auth/session.js';
@@ -12,15 +11,13 @@ import { Card, CardBody, CardHeader, Badge, Notice, Field } from '@/components/u
 import { Button } from '@/components/ui/interactive.jsx';
 import { StartTrial, SubmitSaasPayment, QuickVerifyDairy } from '@/components/milkman/Activate.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
+import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 
-export const metadata = { title: 'Activate' };
+export const metadata = { title: 'Activate Dairy Panel • DairyDrop' };
 
 /**
- * The paywall screen.
- *
- * It must say precisely *which* gate is closed — "you need a subscription" is
- * useless when the real answer is "an admin has not verified your business yet"
- * or "we are still checking your payment".
+ * The milkman activation & verification screen (Blue & White Design System).
+ * Fully responsive sticky header with Sign Out action, particles, and clear status cards.
  */
 export default async function ActivatePage() {
   const actor = await requireMilkman({ allowUnpaid: true });
@@ -32,108 +29,129 @@ export default async function ActivatePage() {
   const membership = await saasService.getMembership(actor);
 
   return (
-    <main className="mx-auto max-w-3xl px-5 py-10">
+    <div className="relative min-h-dvh bg-[#fafcff] text-slate-900 pb-16 overflow-x-hidden">
+      <BackgroundParticles count={24} />
       <PublicBar showBrand={true} />
 
-      <header className="mb-8">
-        <p className="text-sm font-medium text-brand">DairyDrop for milkmen</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-          {gate.gate === GATE.MILKMAN_UNVERIFIED
-            ? 'Verifying your business'
-            : gate.gate === GATE.SAAS_PENDING_VERIFICATION
-              ? 'Checking your payment'
-              : 'Open your panel'}
-        </h1>
-        <p className="mt-1.5 text-ink-muted">{gate.message}</p>
-      </header>
+      <main className="mx-auto max-w-3xl px-5 pt-8 pb-16 animate-fade-in">
+        <header className="mb-6">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200 shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
+            DairyDrop for Milkmen & Dairies
+          </span>
+          <h1 className="mt-3 font-heading text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+            {gate.gate === GATE.MILKMAN_UNVERIFIED
+              ? 'Verifying Your Dairy Business'
+              : gate.gate === GATE.SAAS_PENDING_VERIFICATION
+                ? 'Checking Your Payment'
+                : 'Activate Your Vendor Panel'}
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">{gate.message}</p>
+        </header>
 
-      {/* ── Waiting on us ─────────────────────────────────────────────── */}
-      {gate.gate === GATE.MILKMAN_UNVERIFIED ? (
-        <Card>
-          <CardBody className="space-y-4 text-center">
-            <div className="text-4xl" aria-hidden="true">⏳</div>
-            <p className="text-sm text-ink-muted">
-              We check every business before it goes live, so customers know who
-              they are buying from. This usually takes a working day.
-            </p>
-            <div className="pt-2">
-              <QuickVerifyDairy />
-            </div>
-            <SignOutButton>
-              <button type="button" className="block w-full text-sm text-ink-muted underline">
-                Sign out
-              </button>
-            </SignOutButton>
-          </CardBody>
-        </Card>
-      ) : gate.gate === GATE.SAAS_PENDING_VERIFICATION ? (
-        <Card>
-          <CardBody className="space-y-4">
-            <Notice tone="caution" title="Payment received, not yet confirmed">
-              We are matching your reference against our bank statement. Your
-              panel opens as soon as it clears.
-            </Notice>
-            <dl className="grid gap-4 sm:grid-cols-3">
-              <Field label="Plan" value={membership.current?.planName} />
-              <Field label="Reference" value={membership.current?.paymentReference} />
-              <Field
-                label="Amount"
-                value={membership.current?.pricePaid ? formatPaise(toPaise(membership.current.pricePaid)) : '—'}
-              />
-            </dl>
-          </CardBody>
-        </Card>
-      ) : (
-        <>
-          {/* ── Trial ─────────────────────────────────────────────────── */}
-          {!membership.trialUsed ? (
-            <Card className="mb-6 border-brand">
-              <CardHeader
-                title="Start with 7 days free"
-                description={`Up to ${membership.settings.trialCustomerLimit} customers. No card, no payment.`}
-                action={<Badge tone="brand">Free</Badge>}
-              />
-              <CardBody>
-                <StartTrial />
-              </CardBody>
-            </Card>
-          ) : null}
+        {/* ── Waiting on Admin Verification ───────────────────────────── */}
+        {gate.gate === GATE.MILKMAN_UNVERIFIED ? (
+          <Card className="border border-slate-200/90 shadow-xl shadow-blue-500/5 bg-white/95 backdrop-blur-md rounded-3xl overflow-hidden">
+            <CardBody className="space-y-4 text-center p-7">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-inner">
+                <svg className="h-8 w-8 fill-current animate-pulse" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              </div>
+              <h2 className="font-heading text-lg font-bold text-slate-900">
+                Verification in Progress
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
+                We check every dairy business before it goes live to verify local supply legitimacy. This usually takes a few hours.
+              </p>
+            </CardBody>
+          </Card>
+        ) : gate.gate === GATE.SAAS_PENDING_VERIFICATION ? (
+          <Card className="border border-blue-200 shadow-xl shadow-blue-500/5 bg-white/95 backdrop-blur-md rounded-3xl overflow-hidden">
+            <CardBody className="space-y-4 p-7">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
+                <p className="font-heading text-base font-bold text-blue-900">
+                  Payment Received, Verifying Reference
+                </p>
+                <p className="mt-1 text-xs text-blue-700 leading-relaxed">
+                  We are matching your reference against our bank statement. Your vendor panel opens as soon as it clears.
+                </p>
+              </div>
+              <dl className="grid gap-3 sm:grid-cols-3 rounded-2xl bg-slate-50 border border-slate-200/80 p-4 text-xs">
+                <div>
+                  <dt className="text-slate-500 font-medium">Selected Plan</dt>
+                  <dd className="font-heading text-sm font-bold text-slate-900 mt-0.5">{membership.current?.planName || 'Growth'}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 font-medium">Payment Reference (UTR)</dt>
+                  <dd className="font-mono text-xs font-bold text-slate-900 mt-0.5">{membership.current?.paymentReference || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 font-medium">Amount Paid</dt>
+                  <dd className="font-heading text-sm font-bold text-blue-600 mt-0.5">
+                    {membership.current?.pricePaid ? formatPaise(toPaise(membership.current.pricePaid)) : '—'}
+                  </dd>
+                </div>
+              </dl>
+            </CardBody>
+          </Card>
+        ) : (
+          <>
+            {/* ── Trial ─────────────────────────────────────────────────── */}
+            {!membership.trialUsed ? (
+              <Card className="mb-6 border-2 border-blue-200 shadow-lg shadow-blue-500/5 bg-white rounded-3xl overflow-hidden">
+                <CardHeader
+                  title="Start with 7 Days Free"
+                  description={`Manage up to ${membership.settings.trialCustomerLimit} customers. Zero card, no payment needed.`}
+                  action={<span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">Free Trial</span>}
+                />
+                <CardBody className="p-6">
+                  <StartTrial />
+                </CardBody>
+              </Card>
+            ) : null}
 
-          {/* ── Plans ─────────────────────────────────────────────────── */}
-          <section className="mb-6" aria-labelledby="plans-heading">
-            <h2 id="plans-heading" className="mb-3 text-sm font-semibold text-ink">
-              {membership.trialUsed ? 'Choose a plan' : 'Or go straight to a plan'}
-            </h2>
+            {/* ── Plans ─────────────────────────────────────────────────── */}
+            <section className="mb-6" aria-labelledby="plans-heading">
+              <h2 id="plans-heading" className="mb-3 font-heading text-base font-bold text-slate-900">
+                {membership.trialUsed ? 'Choose a Subscription Plan' : 'Or Choose a Plan Directly'}
+              </h2>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              {membership.plans.map((plan) => (
-                <Card key={plan.id}>
-                  <CardBody className="flex h-full flex-col gap-3">
-                    <p className="font-medium text-ink">{plan.name}</p>
-                    <div>
-                      <span className="text-2xl font-semibold tnum text-ink">
-                        {formatPaise(toPaise(plan.monthlyPrice), { whole: true })}
-                      </span>
-                      <span className="ml-1 text-sm text-ink-muted">/ month</span>
-                    </div>
-                    <p className="text-sm text-ink-muted">
-                      Up to <strong className="text-ink">{plan.maxCustomers}</strong> customers
-                    </p>
-                    <ul className="space-y-1 text-sm text-ink-muted">
-                      {(plan.features ?? []).map((feature) => (
-                        <li key={feature}>· {feature}</li>
-                      ))}
-                    </ul>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
-          </section>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {membership.plans.map((plan) => (
+                  <Card key={plan.id} className="border border-slate-200/90 shadow-sm bg-white hover:border-blue-600 transition-all rounded-2xl overflow-hidden">
+                    <CardBody className="flex h-full flex-col justify-between gap-3 p-5">
+                      <div>
+                        <p className="font-heading font-bold text-slate-900 text-base">{plan.name}</p>
+                        <div className="mt-2">
+                          <span className="font-heading text-2xl font-black text-blue-600">
+                            {formatPaise(toPaise(plan.monthlyPrice), { whole: true })}
+                          </span>
+                          <span className="ml-1 text-xs text-slate-500 font-medium">/ month</span>
+                        </div>
+                        <p className="mt-1 text-xs font-semibold text-slate-700">
+                          Up to {plan.maxCustomers} customers
+                        </p>
+                        <ul className="mt-3 space-y-1 text-xs text-slate-600">
+                          {(plan.features ?? []).map((feature) => (
+                            <li key={feature} className="flex items-center gap-1.5">
+                              <span className="text-blue-600 font-bold">✓</span>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))}
+              </div>
+            </section>
 
-          {/* ── Pay ───────────────────────────────────────────────────── */}
-          <SubmitSaasPayment plans={membership.plans} settings={membership.settings} />
-        </>
-      )}
-    </main>
+            {/* ── Pay ───────────────────────────────────────────────────── */}
+            <SubmitSaasPayment plans={membership.plans} settings={membership.settings} />
+          </>
+        )}
+      </main>
+    </div>
   );
 }

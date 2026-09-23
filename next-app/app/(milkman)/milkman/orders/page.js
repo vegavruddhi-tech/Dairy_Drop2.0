@@ -3,6 +3,7 @@ import { formatDate } from '@/domain/dates.js';
 import * as productService from '@/services/product.service.js';
 
 import { PageHeader, EmptyState, Card, CardBody, CardHeader, Table, Th, Td, StatusBadge } from '@/components/ui/index.jsx';
+import { OrdersIcon } from '@/components/ui/Icons.jsx';
 import { OrderActions } from '@/components/milkman/Catalog.jsx';
 
 export const metadata = { title: 'Orders' };
@@ -53,7 +54,7 @@ export default async function OrdersPage() {
       )}
 
       {pending.length === 0 && accepted.length === 0 ? (
-        <EmptyState icon="📦" title="No open orders" description="New orders appear here." />
+        <EmptyState icon={<OrdersIcon className="h-6 w-6 text-blue-600" />} title="No open orders" description="New orders appear here." />
       ) : null}
 
       {history.length > 0 ? (

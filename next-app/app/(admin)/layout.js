@@ -6,6 +6,16 @@ import { AppShell } from '@/components/layout/AppShell.jsx';
 import * as saasRepo from '@/repositories/saas.repo.js';
 import * as onboardingService from '@/services/onboarding.service.js';
 
+import {
+  EarningsIcon,
+  UsersIcon,
+  MembershipIcon,
+  PaymentsIcon,
+  PlansIcon,
+  SettingsIcon,
+  AuditIcon,
+} from '@/components/ui/Icons.jsx';
+
 export default async function AdminLayout({ children }) {
   const actor = await getActor();
   if (!actor) redirect('/sign-in');
@@ -18,16 +28,16 @@ export default async function AdminLayout({ children }) {
   ]);
 
   const nav = [
-    { href: '/admin', label: 'Overview', icon: '📊', exact: true },
-    { href: '/admin/milkmen', label: 'Milkmen', icon: '👥', count: applications },
-    { href: '/admin/verifications', label: 'Verify', icon: '✅', count: verifications.length },
-    { href: '/admin/payments', label: 'Payments', icon: '₹' },
+    { href: '/admin', label: 'Overview', icon: <EarningsIcon />, exact: true },
+    { href: '/admin/milkmen', label: 'Milkmen', icon: <UsersIcon />, count: applications },
+    { href: '/admin/verifications', label: 'Verify', icon: <MembershipIcon />, count: verifications.length },
+    { href: '/admin/payments', label: 'Payments', icon: <PaymentsIcon /> },
   ];
 
   const more = [
-    { href: '/admin/plans', label: 'Plans', icon: '📋' },
-    { href: '/admin/settings', label: 'Settings', icon: '⚙️' },
-    { href: '/admin/audit', label: 'Audit log', icon: '📜' },
+    { href: '/admin/plans', label: 'Plans', icon: <PlansIcon /> },
+    { href: '/admin/settings', label: 'Settings', icon: <SettingsIcon /> },
+    { href: '/admin/audit', label: 'Audit log', icon: <AuditIcon /> },
   ];
 
   return (

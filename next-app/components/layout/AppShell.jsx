@@ -33,21 +33,27 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
   return (
     <div className="min-h-dvh bg-bg">
       {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-surface lg:block">
-        <div className="flex h-16 items-center gap-2 border-b border-border px-5">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white shadow-[2px_0_15px_rgba(0,0,0,0.02)] lg:block">
+        <div className="flex h-16 items-center gap-2.5 border-b border-slate-100 px-5">
           <span
             aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20"
           >
-            🥛
+            <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
           </span>
-          <span className="font-heading text-[15px] font-extrabold tracking-tight text-ink">
+          <span className="font-heading text-base font-extrabold tracking-tight text-slate-900">
             DairyDrop
           </span>
-          {badge ? <Badge tone="brand">{badge}</Badge> : null}
+          {badge ? (
+            <span className="ml-auto rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+              {badge}
+            </span>
+          ) : null}
         </div>
 
-        <nav className="space-y-0.5 p-3" aria-label="Main">
+        <nav className="space-y-1 p-3 overflow-y-auto max-h-[calc(100vh-8rem)]" aria-label="Main">
           {[...nav, ...more].map((item) => (
             <NavLink key={item.href} {...item} />
           ))}
@@ -58,29 +64,31 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
           out. Rolling our own would mean reimplementing session management
           Clerk already does properly.
         */}
-        <div className="absolute inset-x-0 bottom-0 space-y-3 border-t border-border p-3">
+        <div className="absolute inset-x-0 bottom-0 space-y-2.5 border-t border-slate-100 bg-slate-50/50 p-3">
           <LanguageToggle />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-1">
             <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8' } }} showName />
           </div>
         </div>
       </aside>
 
       {/* ── Mobile header ───────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface/90 px-4 pt-safe backdrop-blur-xl lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 pt-safe backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-xs text-white"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm"
           >
-            🥛
+            <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
           </span>
-          <span className="font-heading text-[15px] font-extrabold tracking-tight text-ink">
+          <span className="font-heading text-[15px] font-extrabold tracking-tight text-slate-900">
             {title ?? 'DairyDrop'}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <LanguageToggle variant="compact" className="h-8" />
           <UserButton appearance={{ elements: { avatarBox: 'h-7 w-7' } }} />
           <MoreMenu items={more} user={user} />

@@ -47,23 +47,55 @@ const SLOTS = [
   { value: 'BOTH', label: 'Morning & evening' },
 ];
 
+import { MILK_TYPES, QUANTITY_PRESETS, generatePlanDefaults } from '@/domain/planPresets.js';
+
 export function PlanEditor({ plan, trigger }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
+  const [selectedMilkType, setSelectedMilkType] = useState('cow_milk');
+  const [selectedQtyPreset, setSelectedQtyPreset] = useState('1');
+
   const [basis, setBasis] = useState(plan?.monthlyPrice ? 'MONTHLY' : 'PER_DELIVERY');
   const [slot, setSlot] = useState(plan?.slot ?? 'MORNING');
   const [frequency, setFrequency] = useState(plan?.frequency ?? 'DAILY');
+  const [name, setName] = useState(plan?.name ?? '1L Pure Cow Milk Daily');
+  const [productName, setProductName] = useState(plan?.productName ?? 'Pure Cow Milk');
   const [quantity, setQuantity] = useState(
     plan?.quantity ? String(Number(plan.quantity)) : '1',
   );
   const [price, setPrice] = useState(
-    plan ? String(Number(plan.monthlyPrice ?? plan.pricePerDelivery)) : '',
+    plan ? String(Number(plan.monthlyPrice ?? plan.pricePerDelivery)) : '64.00',
   );
   const [unit, setUnit] = useState(plan?.unit ?? 'L');
+  const [description, setDescription] = useState(
+    plan?.description ?? 'Fresh, 100% pure cow milk directly from local dairy farms.',
+  );
 
   const showMorning = slot === 'MORNING' || slot === 'BOTH';
   const showEvening = slot === 'EVENING' || slot === 'BOTH';
+
+  function applyPreset(milkTypeId, qtyVal, freq = frequency) {
+    const defaults = generatePlanDefaults(milkTypeId, qtyVal, freq);
+    setName(defaults.name);
+    setProductName(defaults.productName);
+    setQuantity(defaults.quantity);
+    setUnit(defaults.unit);
+    setDescription(defaults.description);
+    setPrice(basis === 'MONTHLY' ? defaults.monthlyPrice : defaults.pricePerDelivery);
+  }
+
+  function handleMilkTypeChange(val) {
+    setSelectedMilkType(val);
+    applyPreset(val, quantity);
+  }
+
+  function handleQtyPresetChange(val) {
+    setSelectedQtyPreset(val);
+    if (val !== 'custom') {
+      applyPreset(selectedMilkType, val);
+    }
+  }
 
   return (
     <>
@@ -76,11 +108,11 @@ export function PlanEditor({ plan, trigger }) {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={plan ? 'Edit plan' : 'New plan'}
+        title={plan ? 'Edit Milk Plan' : 'Create New Milk Plan'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button form="plan-form" type="submit" loading={pending}>Save</Button>
+            <Button form="plan-form" type="submit" loading={pending} className="bg-blue-600 hover:bg-blue-700 font-bold">Save Plan</Button>
           </>
         }
       >
@@ -107,8 +139,67 @@ export function PlanEditor({ plan, trigger }) {
             });
           }}
         >
-          <Input name="name" label="Plan name" defaultValue={plan?.name} error={errors.name} required placeholder="1 litre daily" />
-          <Input name="productName" label="What is delivered" defaultValue={plan?.productName} error={errors.productName} required placeholder="Cow milk" />
+          {/* Quick Predefined Dropdown Selector */}
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700">
+                ⚡ Quick Presets (Auto-fills name, price & info)
+              </span>
+              <span className="text-[10px] font-medium text-slate-500">Market Rate Standard</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Select Milk Type</label>
+                <select
+                  value={selectedMilkType}
+                  onChange={(e) => handleMilkTypeChange(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                >
+                  {MILK_TYPES.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} (₹{m.defaultPricePerLitre}/L)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Select Daily Quantity</label>
+                <select
+                  value={selectedQtyPreset}
+                  onChange={(e) => handleQtyPresetChange(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                >
+                  {QUANTITY_PRESETS.map((q) => (
+                    <option key={q.value} value={q.value}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <Input
+            name="name"
+            label="Plan name (Visible to Customer)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={errors.name}
+            required
+            placeholder="1L Pure Cow Milk Daily"
+          />
+
+          <Input
+            name="productName"
+            label="What is delivered"
+            value={productName}
+            onChange={(e) => setProductName(e.target.value)}
+            error={errors.productName}
+            required
+            placeholder="Pure Cow Milk"
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -116,7 +207,10 @@ export function PlanEditor({ plan, trigger }) {
               label="Quantity per delivery"
               inputMode="decimal"
               value={quantity}
-              onChange={(event) => setQuantity(event.target.value)}
+              onChange={(event) => {
+                setQuantity(event.target.value);
+                applyPreset(selectedMilkType, event.target.value);
+              }}
               error={errors.quantity}
               required
             />
@@ -134,7 +228,10 @@ export function PlanEditor({ plan, trigger }) {
               name="frequency"
               label="How often"
               value={frequency}
-              onChange={(event) => setFrequency(event.target.value)}
+              onChange={(event) => {
+                setFrequency(event.target.value);
+                applyPreset(selectedMilkType, quantity, event.target.value);
+              }}
               options={FREQUENCIES}
             />
             <Select
@@ -145,6 +242,14 @@ export function PlanEditor({ plan, trigger }) {
               options={SLOTS}
             />
           </div>
+
+          <Textarea
+            name="description"
+            label="Plan Description (Auto-generated or custom)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={500}
+          />
 
           {/*
             The delivery window, for each slot the plan actually runs.
@@ -258,106 +363,122 @@ export function PlanEditor({ plan, trigger }) {
 
 export function PlanList({ plans, subscriberCounts = {} }) {
   const [pending, startTransition] = useTransition();
-  /*
-   * Which plan is being retired, not merely that one is.
-   *
-   * `useTransition` gives a single flag for the whole list, so every Retire
-   * button spun while any one of them was in flight — clicking one plan looked
-   * like it was retiring all three.
-   */
   const [retiringId, setRetiringId] = useState(null);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {plans.map((plan) => (
-        <Card key={plan.id} className={plan.isActive ? undefined : 'opacity-60'}>
-          <CardBody className="flex h-full flex-col gap-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-medium text-ink">{plan.name}</p>
-                <p className="mt-0.5 text-sm text-ink-muted">{plan.productName}</p>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {plans.map((plan) => {
+        const subscribers = subscriberCounts[plan.id] ?? 0;
+        return (
+          <Card
+            key={plan.id}
+            className={`border border-slate-200 bg-white shadow-sm hover:border-blue-400 hover:shadow-md transition-all rounded-3xl overflow-hidden flex flex-col ${
+              plan.isActive ? '' : 'opacity-60'
+            }`}
+          >
+            <CardBody className="flex h-full flex-col gap-3 p-5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200 uppercase">
+                    {plan.productName}
+                  </span>
+                  <h3 className="font-heading text-lg font-bold text-slate-950 mt-1.5">
+                    {plan.name}
+                  </h3>
+                  {plan.description && (
+                    <p className="mt-1 text-xs text-slate-500 line-clamp-2">{plan.description}</p>
+                  )}
+                </div>
+                {plan.isActive ? (
+                  subscribers > 0 ? (
+                    <Badge tone="positive">
+                      {subscribers} {subscribers === 1 ? 'Customer' : 'Customers'}
+                    </Badge>
+                  ) : (
+                    <Badge tone="neutral">0 Active</Badge>
+                  )
+                ) : (
+                  <Badge tone="neutral">Retired</Badge>
+                )}
               </div>
-              {plan.isActive ? null : <Badge tone="neutral">Retired</Badge>}
-            </div>
 
-            <div>
-              <span className="text-xl font-semibold tnum text-ink">
-                {plan.quotedMonthlyPaise != null
-                  ? formatPaise(plan.quotedMonthlyPaise, { whole: true })
-                  : '—'}
-              </span>
-              <span className="ml-1 text-sm text-ink-muted">/ month</span>
-            </div>
+              <div className="flex items-baseline gap-1.5 pt-2 border-t border-slate-100">
+                <span className="font-heading text-2xl font-black text-slate-900">
+                  {plan.quotedMonthlyPaise != null
+                    ? formatPaise(plan.quotedMonthlyPaise, { whole: true })
+                    : '—'}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">/ month est.</span>
+              </div>
 
-            <ul className="space-y-0.5 text-sm text-ink-muted">
-              <li>{Number(plan.quantity)} {plan.unit} per delivery</li>
-              <li>{plan.frequency.replace('_', ' ').toLowerCase()}, {plan.slot.toLowerCase()}</li>
-              {plan.unitPrice ? <li>₹{Number(plan.unitPrice).toFixed(2)} per {plan.unit}</li> : null}
-              {subscriberCounts[plan.id] > 0 ? (
-                <li className="text-ink">
-                  {subscriberCounts[plan.id]} customer
-                  {subscriberCounts[plan.id] === 1 ? '' : 's'} on this
+              <ul className="space-y-1 text-xs text-slate-600 bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
+                <li className="flex justify-between">
+                  <span>Per Delivery:</span>
+                  <span className="font-bold text-slate-900">{Number(plan.quantity)} {plan.unit}</span>
                 </li>
-              ) : null}
-              {/* Plans made before windows existed have none; say so rather
-                  than inventing a time on the milkman's behalf. */}
-              <PlanWindows plan={plan} />
-            </ul>
+                <li className="flex justify-between">
+                  <span>Frequency & Slot:</span>
+                  <span className="font-semibold text-slate-800">
+                    {plan.frequency.replace('_', ' ').toLowerCase()} · {plan.slot.toLowerCase()}
+                  </span>
+                </li>
+                {plan.unitPrice ? (
+                  <li className="flex justify-between">
+                    <span>Rate:</span>
+                    <span className="font-bold text-blue-700">₹{Number(plan.unitPrice).toFixed(2)}/{plan.unit}</span>
+                  </li>
+                ) : null}
+              </ul>
 
-            <div className="mt-auto flex gap-2 pt-2">
-              <PlanEditor
-                plan={plan}
-                trigger={<Button size="sm" variant="outline">Edit</Button>}
-              />
-              {plan.isActive ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  loading={retiringId === plan.id}
-                  // A second click on another card while one is in flight would
-                  // race the first; the list is about to re-render either way.
-                  disabled={pending && retiringId !== plan.id}
-                  onClick={() => {
-                    /*
-                     * Retiring now ends the subscriptions on this plan, so it
-                     * is no longer a tidy-up — it stops people's milk. Say how
-                     * many before doing it.
-                     */
-                    const on = subscriberCounts[plan.id] ?? 0;
-                    const warning =
-                      on > 0
-                        ? `${on} customer${on === 1 ? '' : 's'} ${on === 1 ? 'is' : 'are'} on "${plan.name}". ` +
-                          `Retiring it stops their deliveries from today. Already delivered days stay billed.\n\nRetire it anyway?`
-                        : `Retire "${plan.name}"? Nobody is on it, so nothing stops.`;
-                    if (!window.confirm(warning)) return;
+              <div className="mt-auto flex items-center gap-2 pt-2">
+                <PlanEditor
+                  plan={plan}
+                  trigger={<Button size="sm" variant="outline" className="flex-1 font-bold">Edit Plan</Button>}
+                />
+                {plan.isActive ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={retiringId === plan.id}
+                    disabled={pending && retiringId !== plan.id}
+                    className="text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      const on = subscriberCounts[plan.id] ?? 0;
+                      const warning =
+                        on > 0
+                          ? `${on} customer${on === 1 ? 'is' : 'are'} on "${plan.name}". ` +
+                            `Retiring it stops their deliveries from today. Already delivered days stay billed.\n\nRetire it anyway?`
+                          : `Retire "${plan.name}"? Nobody is on it, so nothing stops.`;
+                      if (!window.confirm(warning)) return;
 
-                    setRetiringId(plan.id);
-                    startTransition(async () => {
-                      try {
-                        const result = await retireMilkPlan({ id: plan.id });
-                        if (result.ok) {
-                          const ended = result.data?.ended ?? 0;
-                          toast.success(
-                            ended > 0
-                              ? `Plan retired. ${ended} subscription${ended === 1 ? '' : 's'} ended.`
-                              : 'Plan retired.',
-                          );
-                        } else {
-                          toast.error(result.message ?? 'Could not retire that plan.');
+                      setRetiringId(plan.id);
+                      startTransition(async () => {
+                        try {
+                          const result = await retireMilkPlan({ id: plan.id });
+                          if (result.ok) {
+                            const ended = result.data?.ended ?? 0;
+                            toast.success(
+                              ended > 0
+                                ? `Plan retired. ${ended} subscription${ended === 1 ? '' : 's'} ended.`
+                                : 'Plan retired.',
+                            );
+                          } else {
+                            toast.error(result.message ?? 'Could not retire that plan.');
+                          }
+                        } finally {
+                          setRetiringId(null);
                         }
-                      } finally {
-                        setRetiringId(null);
-                      }
-                    });
-                  }}
-                >
-                  Retire
-                </Button>
-              ) : null}
-            </div>
-          </CardBody>
-        </Card>
-      ))}
+                      });
+                    }}
+                  >
+                    Retire
+                  </Button>
+                ) : null}
+              </div>
+            </CardBody>
+          </Card>
+        );
+      })}
     </div>
   );
 }

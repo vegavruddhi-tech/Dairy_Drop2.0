@@ -26,7 +26,7 @@ export function QuickApproveCustomer() {
         })
       }
     >
-      ⚡ Instant Approve (Dev / Testing Mode)
+      Instant Approve (Dev / Testing Mode)
     </Button>
   );
 }

@@ -50,6 +50,15 @@ export async function listPlansForCustomer(actor) {
     .orderBy(asc(milkPlans.quantity));
 }
 
+/** Public / Signup helper to list active plans for a given milkman */
+export async function listActivePlansForMilkman(milkmanId) {
+  return db
+    .select()
+    .from(milkPlans)
+    .where(and(eq(milkPlans.milkmanId, milkmanId), eq(milkPlans.isActive, true)))
+    .orderBy(asc(milkPlans.monthlyPrice), asc(milkPlans.pricePerDelivery));
+}
+
 export async function findPlan(actor, planId) {
   const [row] = await db
     .select()

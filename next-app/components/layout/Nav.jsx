@@ -33,15 +33,15 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
             className={cn(
               'flex h-8 w-12 items-center justify-center rounded-full text-base transition-colors duration-150',
               active
-                ? 'bg-brand text-brand-ink shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
-                : 'text-ink-subtle group-hover:bg-brand-soft group-hover:text-brand',
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                : 'text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600',
             )}
           >
             {icon}
           </span>
 
           {count ? (
-            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] animate-pulse items-center justify-center rounded-full bg-critical px-1 text-[10px] font-extrabold text-white ring-2 ring-surface">
+            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] animate-pulse items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-extrabold text-white ring-2 ring-white">
               {count > 99 ? '99+' : count}
             </span>
           ) : null}
@@ -50,7 +50,7 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
         <span
           className={cn(
             'mt-0.5 text-[10.5px] tracking-tight transition-colors',
-            active ? 'font-extrabold text-ink' : 'font-bold text-ink-subtle',
+            active ? 'font-extrabold text-blue-700' : 'font-semibold text-slate-500',
           )}
         >
           {label}
@@ -64,14 +64,16 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors',
-        active ? 'bg-brand-soft text-brand' : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
+        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all',
+        active
+          ? 'bg-blue-50 text-blue-700 font-bold border-r-2 border-blue-600 shadow-xs'
+          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
       )}
     >
-      <span aria-hidden="true" className="w-5 text-center text-base">{icon}</span>
+      <span aria-hidden="true" className="w-5 text-center flex items-center justify-center">{icon}</span>
       <span className="flex-1">{label}</span>
       {count ? (
-        <span className="rounded-full bg-critical px-1.5 text-xs font-extrabold text-white">
+        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-extrabold text-white shadow-xs">
           {count > 99 ? '99+' : count}
         </span>
       ) : null}

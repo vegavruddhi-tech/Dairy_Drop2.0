@@ -8,6 +8,7 @@ import { formatPaise } from '@/domain/money.js';
 import { formatWindow } from '@/domain/dates.js';
 import { Button, Modal, QuantityStepper, Textarea, Select } from '@/components/ui/interactive.jsx';
 import { markDelivery, declareDayOff } from '@/actions/milkman.actions.js';
+import { HolidayManagerModal } from './HolidayManagerModal.jsx';
 
 /**
  * One stop on the round.
@@ -287,67 +288,27 @@ export function RoundStop({ stop }) {
 }
 
 /** Declare a day off — every remaining stop is skipped at no charge. */
+/** Declare a route day off or holiday — only remaining pending stops are skipped at ₹0. */
 export function DayOffButton({ date, count }) {
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
 
   return (
     <>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
-        Day off
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        className="font-semibold text-xs border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-red-700 hover:border-red-300 transition-colors"
+      >
+        Route Day Off / Holiday
       </Button>
 
-      <Modal
+      <HolidayManagerModal
         open={open}
         onClose={() => setOpen(false)}
-        title="Take the day off?"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button
-              form="dayoff-form"
-              type="submit"
-              variant="danger"
-              loading={pending}
-            >
-              Skip all {count}
-            </Button>
-          </>
-        }
-      >
-        <form
-          id="dayoff-form"
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const note = new FormData(event.currentTarget).get('note');
-            startTransition(async () => {
-              const result = await declareDayOff({
-                date,
-                reason: 'MILKMAN_DAY_OFF',
-                note: note || undefined,
-              });
-              if (result.ok) {
-                toast.success(`${result.data.skipped} deliveries skipped.`);
-                setOpen(false);
-              } else {
-                toast.error(result.message ?? 'Could not do that.');
-              }
-            });
-          }}
-        >
-          <p className="text-sm text-ink-muted">
-            All {count} remaining stops become skipped and nobody is charged.
-            Anything you have already delivered today stays as it is.
-          </p>
-          <Textarea
-            name="note"
-            label="Message to your customers"
-            placeholder="No delivery today — back tomorrow."
-            maxLength={300}
-          />
-        </form>
-      </Modal>
+        defaultDate={date}
+        remainingCount={count}
+      />
     </>
   );
 }

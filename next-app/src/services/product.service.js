@@ -18,18 +18,16 @@ import * as productsRepo from '@/repositories/products.repo.js';
 import * as usersRepo from '@/repositories/users.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
 
-/** Common Indian dairy items, offered as one-tap adds when a catalog is empty. */
-export const CATALOG_PRESETS = Object.freeze([
-  { name: 'Cow Milk', unit: 'L', pricePerUnit: '60.00' },
-  { name: 'Buffalo Milk', unit: 'L', pricePerUnit: '80.00' },
-  { name: 'Paneer', unit: 'kg', pricePerUnit: '400.00' },
-  { name: 'Ghee', unit: 'kg', pricePerUnit: '900.00' },
-  { name: 'Butter', unit: 'kg', pricePerUnit: '600.00' },
-  { name: 'Dahi', unit: 'kg', pricePerUnit: '120.00' },
-  { name: 'Chaas', unit: 'L', pricePerUnit: '40.00' },
-  { name: 'Malai', unit: 'kg', pricePerUnit: '350.00' },
-  { name: 'Mawa', unit: 'kg', pricePerUnit: '450.00' },
-]);
+import { TOP_CATALOG_PRODUCTS } from '@/domain/catalogPresets.js';
+
+export const CATALOG_PRESETS = TOP_CATALOG_PRODUCTS.map((p) => ({
+  name: p.name,
+  unit: p.unit,
+  pricePerUnit: p.defaultPrice,
+  description: p.description,
+  imageUrl: p.imageUrl,
+  defaultStock: p.defaultStock,
+}));
 
 export async function listCatalog(actor) {
   return productsRepo.listProducts(actor);
@@ -68,10 +66,12 @@ export async function addPresets(actor) {
       await productsRepo.createProduct(tx, {
         milkmanId: actor.userId,
         name: preset.name,
+        description: preset.description,
+        imageUrl: preset.imageUrl,
         unit: preset.unit,
         pricePerUnit: preset.pricePerUnit,
-        availableQuantity: '0',
-        isActive: false, // stocked deliberately, not switched on by surprise
+        availableQuantity: preset.defaultStock ?? '10',
+        isActive: true,
         availableFrom: businessDate(),
       });
     }
@@ -82,6 +82,14 @@ export async function addPresets(actor) {
 export async function updateProduct(actor, { id, patch }) {
   return transaction(async (tx) => {
     const row = await productsRepo.updateProduct(tx, actor, { id, patch });
+    if (!row) throw new NotFoundError('That product');
+    return row;
+  });
+}
+
+export async function deleteProduct(actor, { id }) {
+  return transaction(async (tx) => {
+    const row = await productsRepo.deleteProduct(tx, actor, id);
     if (!row) throw new NotFoundError('That product');
     return row;
   });

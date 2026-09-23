@@ -62,6 +62,7 @@ export const registerCustomerSchema = z.object({
   line2: z.string().trim().max(300).optional().or(z.literal('')),
   landmark: z.string().trim().max(200).optional().or(z.literal('')),
   deliveryInstructions: z.string().trim().max(500).optional().or(z.literal('')),
+  planIds: z.array(z.string()).max(2, 'A customer cannot select more than 2 plans.').optional(),
 });
 
 export const approveCustomerSchema = z.object({ customerId: uuid });
@@ -72,6 +73,18 @@ export const idSchema = z.object({ id: uuid });
 export const rejectCustomerSchema = z.object({
   customerId: uuid,
   reason: nonEmpty(500, 'Give a reason — the customer will see it.'),
+});
+
+export const updateCustomerAddressSchema = z.object({
+  customerId: uuid,
+  line1: nonEmpty(300, 'Enter house or flat number and street.'),
+  line2: z.string().trim().max(300).optional().or(z.literal('')),
+  area: nonEmpty(120, 'Enter sector or area name.'),
+  city: z.string().trim().max(120).optional().or(z.literal('')),
+  state: z.string().trim().max(120).optional().or(z.literal('')),
+  pincode: pincode,
+  landmark: z.string().trim().max(200).optional().or(z.literal('')),
+  deliveryInstructions: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
 /**
@@ -86,6 +99,7 @@ export const milkmanApplicationSchema = z.object({
   phone,
   businessAddress: z.string().trim().max(500).optional().or(z.literal('')),
   upiId: z.string().trim().max(120).optional().or(z.literal('')),
+  qrCodeUrl: z.string().trim().optional().or(z.literal('')),
   areaName: nonEmpty(120, 'Name the area you deliver to.'),
   pincode,
   city: nonEmpty(120, 'Enter the city.'),
@@ -238,9 +252,17 @@ export const markDeliverySchema = z.object({
 });
 
 export const dayOffSchema = z.object({
-  date: businessDate,
+  date: businessDate.optional(),
+  startDate: businessDate.optional(),
+  endDate: businessDate.optional(),
   reason: z.enum(['MILKMAN_DAY_OFF', 'OTHER']).default('MILKMAN_DAY_OFF'),
   note: z.string().trim().max(300).optional().or(z.literal('')),
+});
+
+export const cancelHolidaySchema = z.object({
+  date: businessDate.optional(),
+  startDate: businessDate.optional(),
+  endDate: businessDate.optional(),
 });
 
 export const adjustQuantitySchema = z.object({
@@ -254,13 +276,24 @@ export const skipDaySchema = z.object({
   note: z.string().trim().max(300).optional().or(z.literal('')),
 });
 
+export const vacationSchema = z.object({
+  startDate: businessDate,
+  endDate: businessDate,
+  note: z.string().trim().max(300).optional().or(z.literal('')),
+});
+
+export const cancelVacationSchema = z.object({
+  startDate: businessDate,
+  endDate: businessDate,
+});
+
 // ── Products ─────────────────────────────────────────────────────────────────
 
 export const productSchema = z.object({
   id: uuid.optional(),
   name: nonEmpty(120, 'Give the product a name.'),
   description: z.string().trim().max(500).optional().or(z.literal('')),
-  imageUrl: z.string().url('That is not a valid link.').optional().or(z.literal('')),
+  imageUrl: z.string().trim().max(1000).optional().or(z.literal('')),
   unit: z.enum(['L', 'ml', 'kg', 'g', 'pcs']),
   pricePerUnit: money,
   availableQuantity: z

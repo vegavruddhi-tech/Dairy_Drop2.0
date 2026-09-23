@@ -78,9 +78,13 @@ export async function listCustomers(actor, { status = 'APPROVED', search, ...pag
       deliveryArea: users.deliveryArea,
       createdAt: users.createdAt,
       addressLine1: addresses.line1,
+      addressLine2: addresses.line2,
       addressArea: addresses.area,
+      addressCity: addresses.city,
+      addressState: addresses.state,
       addressPincode: addresses.pincode,
       addressLandmark: addresses.landmark,
+      deliveryInstructions: addresses.deliveryInstructions,
     })
     .from(users)
     .leftJoin(addresses, and(eq(addresses.userId, users.id), eq(addresses.isDefault, true)))
@@ -127,6 +131,15 @@ export async function updateSelf(tx, actor, patch) {
     .set({ ...patch, updatedAt: new Date() })
     .where(eq(users.id, actor.userId))
     .returning();
+  return row ?? null;
+}
+
+export async function findUserById(userId) {
+  const [row] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
   return row ?? null;
 }
 
@@ -226,6 +239,32 @@ export async function listServiceAreas(milkmanId) {
     .from(serviceAreas)
     .where(and(eq(serviceAreas.milkmanId, milkmanId), eq(serviceAreas.isActive, true)))
     .orderBy(asc(serviceAreas.routeSequence), asc(serviceAreas.areaName));
+}
+
+export async function createServiceArea(tx, values) {
+  const [row] = await tx
+    .insert(serviceAreas)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [serviceAreas.milkmanId, serviceAreas.areaName, serviceAreas.pincode],
+      set: {
+        city: values.city,
+        state: values.state,
+        routeSequence: values.routeSequence ?? 0,
+        isActive: true,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+  return row;
+}
+
+export async function deleteServiceArea(tx, actor, id) {
+  const [row] = await tx
+    .delete(serviceAreas)
+    .where(and(eq(serviceAreas.id, id), eq(serviceAreas.milkmanId, actor.userId)))
+    .returning();
+  return row ?? null;
 }
 
 // ── Admin ────────────────────────────────────────────────────────────────────

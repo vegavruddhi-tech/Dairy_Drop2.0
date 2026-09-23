@@ -7,7 +7,7 @@
  */
 
 import 'server-only';
-import { and, eq, ne, gte, lt, inArray, asc, sql } from 'drizzle-orm';
+import { and, eq, ne, gte, lte, lt, inArray, asc, sql } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
 import { deliveries, milkSubscriptions, milkPlans, users, addresses, serviceAreas } from '@/db/schema/index.js';
@@ -348,7 +348,106 @@ export async function bulkSkip(tx, actor, { date, reason, note }) {
         eq(deliveries.status, 'PENDING'),
       ),
     )
-    .returning({ id: deliveries.id });
+    .returning({ id: deliveries.id, customerId: deliveries.customerId });
+}
+
+/** Bulk day off across a date range for a milkman. */
+export async function bulkSkipMilkmanRange(tx, actor, { startDate, endDate, reason, note }) {
+  return tx
+    .update(deliveries)
+    .set({
+      status: 'SKIPPED',
+      skipReason: reason ?? 'MILKMAN_DAY_OFF',
+      note: note ?? 'Dairy holiday / Day off',
+      deliveredQuantity: null,
+      deliveredAt: null,
+      markedBy: actor.userId,
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_BULK_DAY_OFF, columns: scopeColumns },
+        and(
+          gte(deliveries.deliveryDate, startDate),
+          lte(deliveries.deliveryDate, endDate),
+          eq(deliveries.status, 'PENDING'),
+        ),
+      ),
+    )
+    .returning({ id: deliveries.id, customerId: deliveries.customerId, deliveryDate: deliveries.deliveryDate });
+}
+
+/** Cancel a declared day off / holiday, restoring SKIPPED deliveries back to PENDING. */
+export async function cancelMilkmanDayOff(tx, actor, { startDate, endDate }) {
+  return tx
+    .update(deliveries)
+    .set({
+      status: 'PENDING',
+      skipReason: null,
+      note: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_BULK_DAY_OFF, columns: scopeColumns },
+        and(
+          gte(deliveries.deliveryDate, startDate),
+          lte(deliveries.deliveryDate, endDate),
+          eq(deliveries.status, 'SKIPPED'),
+          eq(deliveries.skipReason, 'MILKMAN_DAY_OFF'),
+        ),
+      ),
+    )
+    .returning({ id: deliveries.id, customerId: deliveries.customerId, deliveryDate: deliveries.deliveryDate });
+}
+
+/** Customer multi-day vacation mode: skip all pending deliveries in range. */
+export async function bulkSkipCustomerRange(tx, actor, { startDate, endDate, note }) {
+  return tx
+    .update(deliveries)
+    .set({
+      status: 'SKIPPED',
+      skipReason: 'CUSTOMER_REQUEST',
+      note: note ?? 'Customer Vacation Mode',
+      deliveredQuantity: null,
+      deliveredAt: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_SKIP, columns: scopeColumns },
+        and(
+          gte(deliveries.deliveryDate, startDate),
+          lte(deliveries.deliveryDate, endDate),
+          eq(deliveries.status, 'PENDING'),
+        ),
+      ),
+    )
+    .returning({ id: deliveries.id, milkmanId: deliveries.milkmanId, deliveryDate: deliveries.deliveryDate });
+}
+
+/** Cancel customer vacation mode: restore SKIPPED deliveries in range back to PENDING. */
+export async function cancelCustomerVacationRange(tx, actor, { startDate, endDate }) {
+  return tx
+    .update(deliveries)
+    .set({
+      status: 'PENDING',
+      skipReason: null,
+      note: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_SKIP, columns: scopeColumns },
+        and(
+          gte(deliveries.deliveryDate, startDate),
+          lte(deliveries.deliveryDate, endDate),
+          eq(deliveries.status, 'SKIPPED'),
+          eq(deliveries.skipReason, 'CUSTOMER_REQUEST'),
+        ),
+      ),
+    )
+    .returning({ id: deliveries.id, milkmanId: deliveries.milkmanId, deliveryDate: deliveries.deliveryDate });
 }
 
 /** Withdraw future scheduled deliveries when a subscription ends. */

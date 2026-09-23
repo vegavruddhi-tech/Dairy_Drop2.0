@@ -4,6 +4,7 @@ import { formatPaise, toPaise } from '@/domain/money.js';
 import * as adminService from '@/services/admin.service.js';
 
 import { PageHeader, EmptyState, Notice } from '@/components/ui/index.jsx';
+import { PaymentsIcon } from '@/components/ui/Icons.jsx';
 import { VerificationCard } from '@/components/admin/Verifications.jsx';
 
 export const metadata = { title: 'Verify payments' };
@@ -34,7 +35,7 @@ export default async function VerificationsPage() {
       </div>
 
       {pending.length === 0 ? (
-        <EmptyState icon="✅" title="Nothing to verify" description="Submitted payments appear here." />
+        <EmptyState icon={<PaymentsIcon className="h-6 w-6 text-blue-600" />} title="Nothing to verify" description="Submitted payments appear here." />
       ) : (
         <div className="space-y-3">
           {pending.map((item) => (

@@ -77,6 +77,20 @@ const adjustQuantityAction = defineAction({
   revalidate: ['/dashboard', '/calendar'],
 });
 
+const setVacationAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.vacationSchema,
+  handler: ({ actor, input }) => deliveryService.setVacationRange(actor, input),
+  revalidate: ['/dashboard', '/calendar'],
+});
+
+const cancelVacationAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.cancelVacationSchema,
+  handler: ({ actor, input }) => deliveryService.cancelVacation(actor, input),
+  revalidate: ['/dashboard', '/calendar'],
+});
+
 // ── Requests ─────────────────────────────────────────────────────────────────
 
 const requestPlanChangeAction = defineAction({
@@ -223,6 +237,14 @@ export async function registerWithMilkman(input) {
 
 export async function applyToBecomeMilkman(input) {
   return applyToBecomeMilkmanAction(input);
+}
+
+export async function setVacation(input) {
+  return setVacationAction(input);
+}
+
+export async function cancelVacation(input) {
+  return cancelVacationAction(input);
 }
 
 export async function quickApproveCustomer(input) {

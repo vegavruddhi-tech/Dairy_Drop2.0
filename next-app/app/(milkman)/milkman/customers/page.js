@@ -7,6 +7,7 @@ import { db } from '@/db/index.js';
 
 import { PageHeader, Card, CardBody, EmptyState, StatusBadge, Notice } from '@/components/ui/index.jsx';
 import { TabLinks } from '@/components/ui/interactive.jsx';
+import { UsersIcon } from '@/components/ui/Icons.jsx';
 import { ApprovalCard, CustomerRow } from '@/components/milkman/Customers.jsx';
 
 export const metadata = { title: 'Customers' };
@@ -57,7 +58,7 @@ export default async function CustomersPage({ searchParams }) {
 
       {customers.length === 0 ? (
         <EmptyState
-          icon={status === 'PENDING' ? '✋' : '👥'}
+          icon={<UsersIcon className="h-8 w-8 text-blue-600" />}
           title={status === 'PENDING' ? 'Nobody waiting' : 'No customers yet'}
           description={
             status === 'PENDING'

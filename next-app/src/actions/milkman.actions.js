@@ -45,6 +45,13 @@ const declareDayOffAction = defineAction({
   revalidate: ['/milkman/round', '/milkman'],
 });
 
+const cancelDayOffAction = defineAction({
+  authorize: paid,
+  schema: V.cancelHolidaySchema,
+  handler: ({ actor, input }) => deliveryService.cancelDayOff(actor, input),
+  revalidate: ['/milkman/round', '/milkman'],
+});
+
 // ── Customers ────────────────────────────────────────────────────────────────
 
 const approveCustomerAction = defineAction({
@@ -59,6 +66,13 @@ const rejectCustomerAction = defineAction({
   schema: V.rejectCustomerSchema,
   handler: ({ actor, input }) => onboardingService.rejectCustomer(actor, input),
   revalidate: ['/milkman/customers', '/milkman'],
+});
+
+const updateCustomerAddressAction = defineAction({
+  authorize: paid,
+  schema: V.updateCustomerAddressSchema,
+  handler: ({ actor, input }) => onboardingService.updateCustomerAddress(actor, input),
+  revalidate: ['/milkman/customers', '/milkman', '/milkman/round'],
 });
 
 // ── Plans ────────────────────────────────────────────────────────────────────
@@ -107,6 +121,45 @@ const addCatalogPresetsAction = defineAction({
   authorize: paid,
   handler: ({ actor }) => productService.addPresets(actor),
   revalidate: ['/milkman/catalog'],
+});
+
+const deleteProductAction = defineAction({
+  authorize: paid,
+  schema: V.idSchema,
+  handler: ({ actor, input }) => productService.deleteProduct(actor, input),
+  revalidate: ['/milkman/catalog'],
+});
+
+// ── Delivery Routes / Service Areas ──────────────────────────────────────────
+
+const addServiceAreaAction = defineAction({
+  authorize: paid,
+  schema: V.serviceAreaSchema,
+  handler: async ({ actor, input }) => {
+    const { createServiceArea } = await import('@/repositories/users.repo.js');
+    return transaction(async (tx) =>
+      createServiceArea(tx, {
+        milkmanId: actor.userId,
+        areaName: input.areaName,
+        pincode: input.pincode,
+        city: input.city,
+        state: input.state,
+        routeSequence: input.routeSequence ?? 0,
+        isActive: input.isActive ?? true,
+      }),
+    );
+  },
+  revalidate: ['/milkman/routes', '/milkman/round', '/milkman'],
+});
+
+const deleteServiceAreaAction = defineAction({
+  authorize: paid,
+  schema: V.idSchema,
+  handler: async ({ actor, input }) => {
+    const { deleteServiceArea } = await import('@/repositories/users.repo.js');
+    return transaction(async (tx) => deleteServiceArea(tx, actor, input.id));
+  },
+  revalidate: ['/milkman/routes', '/milkman/round', '/milkman'],
 });
 
 const updateOrderStatusAction = defineAction({
@@ -187,6 +240,10 @@ export async function declareDayOff(input) {
   return declareDayOffAction(input);
 }
 
+export async function cancelDayOff(input) {
+  return cancelDayOffAction(input);
+}
+
 export async function approveCustomer(input) {
   return approveCustomerAction(input);
 }
@@ -205,6 +262,10 @@ export async function retireMilkPlan(input) {
 
 export async function saveProduct(input) {
   return saveProductAction(input);
+}
+
+export async function deleteProduct(input) {
+  return deleteProductAction(input);
 }
 
 export async function addCatalogPresets(input) {
@@ -241,4 +302,16 @@ export async function cancelSaasSubscription(input) {
 
 export async function quickVerifyMyDairy(input) {
   return quickVerifyMyDairyAction(input);
+}
+
+export async function addServiceArea(input) {
+  return addServiceAreaAction(input);
+}
+
+export async function deleteServiceArea(input) {
+  return deleteServiceAreaAction(input);
+}
+
+export async function updateCustomerAddress(input) {
+  return updateCustomerAddressAction(input);
 }

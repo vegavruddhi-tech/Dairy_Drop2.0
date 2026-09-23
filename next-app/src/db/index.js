@@ -24,33 +24,23 @@ if (!process.env.DATABASE_URL) {
 }
 
 function createPool() {
-  return new Pool({
+  const p = new Pool({
     connectionString: process.env.DATABASE_URL,
-    /*
-     * Keep the pool small, recycle idle clients quickly.
-     *
-     * The ceiling that matters is the *pooler's*, not this process's. Supabase's
-     * session pooler allows 15 client connections for the whole project, shared
-     * by every instance: several serverless instances, or a dev server and a
-     * test run on one laptop, are all drawing on the same 15.
-     *
-     * The default used to be 10, so two consumers exhausted it and Postgres
-     * started refusing connections with EMAXCONNSESSION. That surfaces as a
-     * Server Component throwing mid-render, which in development takes the
-     * whole page down with it.
-     *
-     * Five leaves room for a second consumer. Raise it with DATABASE_POOL_MAX
-     * only after checking what the pooler actually allows.
-     */
-    max: Number(process.env.DATABASE_POOL_MAX ?? 5),
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
-    // Supabase and most managed Postgres require TLS but present a chain Node
-    // does not ship a root for.
+    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+    idleTimeoutMillis: 60_000,
+    connectionTimeoutMillis: 20_000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10_000,
     ssl: process.env.DATABASE_URL.includes('localhost')
       ? false
       : { rejectUnauthorized: false },
   });
+
+  p.on('error', (err) => {
+    console.error('Unexpected error on idle pg client', err);
+  });
+
+  return p;
 }
 
 const globalForDb = globalThis;

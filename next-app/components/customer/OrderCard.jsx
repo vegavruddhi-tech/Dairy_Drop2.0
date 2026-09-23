@@ -7,36 +7,54 @@ import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
 import { Button, QuantityStepper, Modal } from '@/components/ui/interactive.jsx';
 import { orderProduct } from '@/actions/customer.actions.js';
 
+import { resolveProductImage } from '@/domain/catalogPresets.js';
+
 export function OrderCard({ product }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const stock = Number(product.availableQuantity);
   const price = Number(product.pricePerUnit);
+  const img = resolveProductImage(product);
 
   return (
     <>
-      <Card>
-        <CardBody className="flex h-full flex-col gap-3">
+      <Card className="border border-slate-200 bg-white shadow-sm hover:border-blue-400 hover:shadow-md transition-all rounded-3xl overflow-hidden flex flex-col">
+        {img && (
+          <div className="relative h-44 w-full overflow-hidden bg-slate-100 border-b border-slate-100">
+            <img
+              src={img}
+              alt={product.name}
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+            />
+            <div className="absolute top-3 right-3">
+              <Badge tone={stock > 2 ? 'positive' : 'caution'}>
+                {stock} {product.unit} left
+              </Badge>
+            </div>
+          </div>
+        )}
+
+        <CardBody className="flex flex-1 flex-col gap-2.5 p-5">
           <div>
-            <p className="font-medium text-ink">{product.name}</p>
+            <h3 className="font-heading text-base font-bold text-slate-950">{product.name}</h3>
             {product.description ? (
-              <p className="mt-0.5 line-clamp-2 text-sm text-ink-muted">{product.description}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>
             ) : null}
           </div>
 
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-semibold tnum text-ink">₹{price}</span>
-            <span className="text-sm text-ink-muted">per {product.unit}</span>
+          <div className="flex items-baseline gap-1.5 pt-1">
+            <span className="font-heading text-2xl font-black text-slate-900">₹{price}</span>
+            <span className="text-xs font-semibold text-slate-500">per {product.unit}</span>
           </div>
 
-          <Badge tone={stock > 2 ? 'positive' : 'caution'}>
-            {stock} {product.unit} left
-          </Badge>
-
-          <div className="mt-auto pt-1">
-            <Button className="w-full" onClick={() => setOpen(true)}>
-              Order
+          <div className="mt-auto pt-3 border-t border-slate-100">
+            <Button
+              className="w-full bg-blue-600 hover:bg-blue-700 font-bold shadow-sm"
+              disabled={stock <= 0}
+              onClick={() => setOpen(true)}
+            >
+              {stock > 0 ? '+ Order for Tomorrow' : 'Out of Stock'}
             </Button>
           </div>
         </CardBody>

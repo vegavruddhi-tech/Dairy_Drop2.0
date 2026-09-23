@@ -5,6 +5,7 @@ import { quotedMonthlyPaise, resolveUnitPrice } from '@/domain/pricing.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 
 import { PageHeader, EmptyState } from '@/components/ui/index.jsx';
+import { PlansIcon } from '@/components/ui/Icons.jsx';
 import { PlanEditor, PlanList } from '@/components/milkman/Plans.jsx';
 
 export const metadata = { title: 'Milk plans' };
@@ -53,7 +54,7 @@ export default async function MilkPlansPage() {
 
       {priced.length === 0 ? (
         <EmptyState
-          icon="📋"
+          icon={<PlansIcon className="h-6 w-6 text-blue-600" />}
           title="No plans yet"
           description="Create one so customers in your area can subscribe."
           action={<PlanEditor />}

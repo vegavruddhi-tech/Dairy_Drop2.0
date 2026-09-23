@@ -86,7 +86,7 @@ export default {
       screens: { xs: '375px' },
 
       keyframes: {
-        fadeIn: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'none' } },
+        fadeIn: { '0%': { opacity: '0', transform: 'translateY(12px)' }, '100%': { opacity: '1', transform: 'none' } },
         scaleIn: { '0%': { opacity: '0', transform: 'scale(0.95)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
         bounceIn: {
           '0%': { opacity: '0', transform: 'scale(0.3)' },
@@ -94,12 +94,27 @@ export default {
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
         shimmer: { '100%': { transform: 'translateX(100%)' } },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
+        floatSlow: {
+          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+          '50%': { transform: 'translateY(-12px) rotate(1deg)' },
+        },
+        pulseGlow: {
+          '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.06)' },
+        },
       },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-out',
-        'scale-in': 'scaleIn 0.2s ease-out',
+        'fade-in': 'fadeIn 0.4s ease-out forwards',
+        'scale-in': 'scaleIn 0.25s ease-out forwards',
         'bounce-in': 'bounceIn 0.4s cubic-bezier(0.68,-0.55,0.265,1.55)',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+        'pulse-glow': 'pulseGlow 4s ease-in-out infinite',
+        float: 'float 4s ease-in-out infinite',
+        'float-slow': 'floatSlow 6s ease-in-out infinite',
         shimmer: 'shimmer 1.6s infinite',
       },
 

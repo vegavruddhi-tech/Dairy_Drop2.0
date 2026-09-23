@@ -29,7 +29,7 @@ export function QuickVerifyDairy() {
         })
       }
     >
-      ⚡ Instant Verify My Dairy (One-Click Activation)
+      Instant Verify My Dairy (One-Click Activation)
     </Button>
   );
 }

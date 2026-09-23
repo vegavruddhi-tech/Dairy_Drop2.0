@@ -381,36 +381,116 @@ export async function markDelivery(actor, { deliveryId, status, quantity, note, 
 }
 
 /**
- * Declare a day off — every pending stop becomes SKIPPED at ₹0.
- *
- * Only PENDING rows are touched, so a stop already delivered earlier in the
- * round is not retroactively unbilled.
+ * Declare a day off / holiday for milkman — every pending stop becomes SKIPPED at ₹0.
+ * Supports single day or date range (e.g., Diwali or maintenance).
  */
-export async function declareDayOff(actor, { date, reason, note }) {
+export async function declareDayOff(actor, { date, startDate, endDate, reason, note }) {
+  const from = startDate ?? date ?? businessDate();
+  const to = endDate ?? date ?? from;
+
   return transaction(async (tx) => {
-    const affected = await deliveriesRepo.bulkSkip(tx, actor, {
-      date,
-      reason: reason ?? 'MILKMAN_DAY_OFF',
-      note: note ?? 'No delivery today',
-    });
-
-    if (affected.length > 0) {
-      const stops = await deliveriesRepo.listRound(actor, date);
-      const customerIds = [...new Set(stops.map((s) => s.customerId))];
-
-      await notificationsRepo.create(
-        tx,
-        customerIds.map((customerId) => ({
-          userId: customerId,
-          type: 'DELIVERY',
-          title: 'No delivery today',
-          body: note ?? 'Your milkman has marked today as a day off. You will not be charged.',
-          href: '/calendar',
-        })),
-      );
+    let affected = [];
+    if (from === to) {
+      affected = await deliveriesRepo.bulkSkip(tx, actor, {
+        date: from,
+        reason: reason ?? 'MILKMAN_DAY_OFF',
+        note: note ?? 'Dairy holiday / Day off',
+      });
+    } else {
+      affected = await deliveriesRepo.bulkSkipMilkmanRange(tx, actor, {
+        startDate: from,
+        endDate: to,
+        reason: reason ?? 'MILKMAN_DAY_OFF',
+        note: note ?? 'Dairy holiday / Day off',
+      });
     }
 
-    return { date, skipped: affected.length };
+    if (affected.length > 0) {
+      const customerIds = [...new Set(affected.map((s) => s.customerId).filter(Boolean))];
+      if (customerIds.length > 0) {
+        const dateDesc = from === to ? from : `${from} to ${to}`;
+        await notificationsRepo.create(
+          tx,
+          customerIds.map((customerId) => ({
+            userId: customerId,
+            type: 'DELIVERY',
+            title: 'Dairy Holiday / Day Off Notice',
+            body: note
+              ? `${note} (${dateDesc})`
+              : `Your milkman has scheduled a day off for ${dateDesc}. You will not be charged.`,
+            href: '/calendar',
+          })),
+        );
+      }
+    }
+
+    return { startDate: from, endDate: to, skipped: affected.length };
+  });
+}
+
+/** Cancel a declared day off / holiday, restoring deliveries back to PENDING. */
+export async function cancelDayOff(actor, { date, startDate, endDate }) {
+  const from = startDate ?? date ?? businessDate();
+  const to = endDate ?? date ?? from;
+
+  return transaction(async (tx) => {
+    const restored = await deliveriesRepo.cancelMilkmanDayOff(tx, actor, {
+      startDate: from,
+      endDate: to,
+    });
+    return { startDate: from, endDate: to, restored: restored.length };
+  });
+}
+
+/** Customer multi-day vacation mode: skip all pending deliveries across a date range. */
+export async function setVacationRange(actor, { startDate, endDate, note }) {
+  if (startDate > endDate) {
+    throw new ValidationError('End date cannot be before start date.');
+  }
+  const today = businessDate();
+  if (endDate < today) {
+    throw new ValidationError('Vacation dates cannot be in the past.');
+  }
+
+  // Pre-generate deliveries for that window if not yet generated
+  try {
+    const dates = datesBetween(startDate < today ? today : startDate, endDate);
+    for (const d of dates.slice(0, 31)) {
+      await generateForDate(d);
+    }
+  } catch (err) {
+    // Best effort generation
+  }
+
+  return transaction(async (tx) => {
+    const affected = await deliveriesRepo.bulkSkipCustomerRange(tx, actor, {
+      startDate,
+      endDate,
+      note: note ?? 'Customer Vacation Mode',
+    });
+
+    if (affected.length > 0 && actor.tenantId) {
+      await notificationsRepo.create(tx, {
+        userId: actor.tenantId,
+        type: 'DELIVERY',
+        title: 'Customer Vacation / Skip Dates',
+        body: `${actor.name} paused deliveries from ${startDate} to ${endDate} (${affected.length} drop(s) skipped)${note ? `: "${note}"` : ''}.`,
+        href: `/milkman/round?date=${startDate}`,
+      });
+    }
+
+    return { startDate, endDate, skipped: affected.length };
+  });
+}
+
+/** Cancel customer vacation mode: resume skipped deliveries in that window. */
+export async function cancelVacation(actor, { startDate, endDate }) {
+  return transaction(async (tx) => {
+    const restored = await deliveriesRepo.cancelCustomerVacationRange(tx, actor, {
+      startDate,
+      endDate,
+    });
+    return { startDate, endDate, restored: restored.length };
   });
 }
 

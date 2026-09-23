@@ -15,6 +15,14 @@ import {
   Stat, Card, CardBody, CardHeader, Notice, Badge, HeroBanner, HeroAction,
 } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
+import { DayOffButton } from '@/components/milkman/Round.jsx';
+import {
+  RoutesIcon,
+  DeliveryIcon,
+  UsersIcon,
+  PaymentsIcon,
+  MilkDropIcon,
+} from '@/components/ui/Icons.jsx';
 
 export const metadata = { title: 'Milkman' };
 
@@ -78,49 +86,78 @@ export default async function MilkmanDashboard() {
       ) : null}
 
       {/* ── Today's round ─────────────────────────────────────────────── */}
-      <Card className="mb-6">
-        <CardHeader
-          title="Today's round"
-          description={formatDate(today)}
-          action={
-            <Link href="/milkman/round">
-              <Button size="sm">{remaining > 0 ? 'Start round' : 'View round'}</Button>
-            </Link>
-          }
-        />
-        <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon="📍" tone="info" label="Stops" value={round.summary.total} />
-          <Stat icon="✓" tone="positive" label="Delivered" value={round.summary.delivered} />
-          <Stat
-            icon="⏱"
-            tone={remaining > 0 ? 'caution' : 'neutral'}
-            label="Remaining"
-            value={remaining}
-          />
-          <Stat icon="🥛" tone="brand" label="Milk out" value={formatMilli(Math.round(Number(round.summary.litres) * 1000))} />
-        </CardBody>
-      </Card>
-
-      {/* ── Money ─────────────────────────────────────────────────────── */}
-      <section className="mb-6" aria-labelledby="money-heading">
-        <h2 id="money-heading" className="mb-3 text-sm font-semibold text-ink">This month</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon="₹" tone="brand" label="Billed" value={formatPaise(earnings.billedPaise, { whole: true })} />
-          <Stat icon="✓" tone="positive" label="Collected" value={formatPaise(earnings.collectedPaise, { whole: true })} />
-          <Stat
-            icon="⧗"
-            tone="caution"
-            label="Outstanding"
-            value={formatPaise(earnings.billedPaise - earnings.collectedPaise, { whole: true })}
-          />
-          <Stat
-            icon="👥"
-            tone={nearLimit ? 'caution' : 'info'}
-            label="Customers"
-            value={limit ? `${customerCount} / ${limit}` : customerCount}
-          />
+      <div className="mb-6 rounded-3xl border border-slate-200/90 bg-white/95 p-5 sm:p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="font-heading text-base font-extrabold tracking-tight text-slate-900">Today's Round</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{formatDate(today)}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <DayOffButton date={today} count={remaining} />
+              <Link href="/milkman/round">
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-bold">{remaining > 0 ? 'Start Round' : 'View Round'}</Button>
+              </Link>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat icon={<RoutesIcon className="h-5 w-5" />} tone="info" label="Stops" value={round.summary.total} />
+            <Stat
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              }
+              tone="positive"
+              label="Delivered"
+              value={round.summary.delivered}
+            />
+            <Stat
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              tone={remaining > 0 ? 'caution' : 'neutral'}
+              label="Remaining"
+              value={remaining}
+            />
+            <Stat icon={<MilkDropIcon className="h-5 w-5" />} tone="brand" label="Milk Out" value={formatMilli(Math.round(Number(round.summary.litres) * 1000))} />
+          </div>
         </div>
-      </section>
+
+        {/* ── Money ─────────────────────────────────────────────────────── */}
+        <section className="mb-6" aria-labelledby="money-heading">
+          <h2 id="money-heading" className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">This Month Overview</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label="Billed" value={formatPaise(earnings.billedPaise, { whole: true })} />
+            <Stat
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              }
+              tone="positive"
+              label="Collected"
+              value={formatPaise(earnings.collectedPaise, { whole: true })}
+            />
+            <Stat
+              icon={
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              tone="caution"
+              label="Outstanding"
+              value={formatPaise(earnings.billedPaise - earnings.collectedPaise, { whole: true })}
+            />
+            <Stat
+              icon={<UsersIcon className="h-5 w-5" />}
+              tone={nearLimit ? 'caution' : 'info'}
+              label="Customers"
+              value={limit ? `${customerCount} / ${limit}` : customerCount}
+            />
+          </div>
+        </section>
 
       {/* ── Needs attention ───────────────────────────────────────────── */}
       {requests.total > 0 || pendingCustomers > 0 ? (

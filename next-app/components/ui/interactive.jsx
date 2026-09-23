@@ -128,22 +128,22 @@ export function ActionButton({
 }
 
 // ── Form fields ──────────────────────────────────────────────────────────────
-
+ 
 export function Input({ label, hint, error, className, id, ...props }) {
   const inputId = id ?? props.name;
   return (
     <div className="space-y-1.5">
       {label ? (
-        <label htmlFor={inputId} className="block text-sm font-bold text-ink">
+        <label htmlFor={inputId} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
           {label}
         </label>
       ) : null}
       <input
         id={inputId}
         className={cn(
-          'h-11 w-full rounded-xl border bg-surface px-3.5 text-sm font-semibold text-ink',
-          'placeholder:text-ink-subtle',
-          error ? 'border-critical' : 'border-border',
+          'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all',
+          'placeholder:text-slate-400 placeholder:font-normal focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
+          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : '',
           className,
         )}
         aria-invalid={error ? 'true' : undefined}
@@ -151,11 +151,11 @@ export function Input({ label, hint, error, className, id, ...props }) {
         {...props}
       />
       {error ? (
-        <p id={`${inputId}-error`} className="text-xs text-critical">
+        <p id={`${inputId}-error`} className="text-xs font-medium text-red-600">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${inputId}-hint`} className="text-xs text-ink-muted">
+        <p id={`${inputId}-hint`} className="text-xs text-slate-500">
           {hint}
         </p>
       ) : null}
@@ -168,15 +168,16 @@ export function Select({ label, options, error, className, id, ...props }) {
   return (
     <div className="space-y-1.5">
       {label ? (
-        <label htmlFor={selectId} className="block text-sm font-bold text-ink">
+        <label htmlFor={selectId} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
           {label}
         </label>
       ) : null}
       <select
         id={selectId}
         className={cn(
-          'h-11 w-full rounded-xl border bg-surface px-3.5 text-sm font-semibold text-ink',
-          error ? 'border-critical' : 'border-border',
+          'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all',
+          'focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
+          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : '',
           className,
         )}
         {...props}
@@ -187,7 +188,7 @@ export function Select({ label, options, error, className, id, ...props }) {
           </option>
         ))}
       </select>
-      {error ? <p className="text-xs text-critical">{error}</p> : null}
+      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
     </div>
   );
 }
@@ -197,7 +198,7 @@ export function Textarea({ label, error, className, id, ...props }) {
   return (
     <div className="space-y-1.5">
       {label ? (
-        <label htmlFor={textareaId} className="block text-sm font-bold text-ink">
+        <label htmlFor={textareaId} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
           {label}
         </label>
       ) : null}
@@ -205,14 +206,14 @@ export function Textarea({ label, error, className, id, ...props }) {
         id={textareaId}
         rows={3}
         className={cn(
-          'w-full rounded-xl border bg-surface px-3.5 py-2.5 text-sm font-medium text-ink',
-          'placeholder:text-ink-subtle',
-          error ? 'border-critical' : 'border-border',
+          'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all',
+          'placeholder:text-slate-400 placeholder:font-normal focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
+          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : '',
           className,
         )}
         {...props}
       />
-      {error ? <p className="text-xs text-critical">{error}</p> : null}
+      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
     </div>
   );
 }

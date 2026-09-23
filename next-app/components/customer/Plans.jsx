@@ -205,7 +205,7 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest,
 }
 
 /** A plan on offer from the customer's milkman. */
-export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy }) {
+export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, maxPlansReached }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -235,15 +235,13 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy })
         </p>
 
         <div className="mt-auto pt-2">
-          {/*
-            * Say why it cannot be taken, before it is clicked.
-            *
-            * The server refuses a collision either way — a Server Action is a
-            * public endpoint and a disabled button protects nothing — but an
-            * error toast after the fact is a worse way to learn that a time is
-            * already spoken for.
-            */}
-          {!alreadySubscribed && blockedBy ? (
+          {alreadySubscribed ? (
+            <Badge tone="positive">
+              {subscribedRate && Number(subscribedRate) !== Number(plan.unitPrice)
+                ? `Subscribed at ₹${Number(subscribedRate).toFixed(2)}`
+                : 'Subscribed'}
+            </Badge>
+          ) : blockedBy ? (
             <>
               <Button className="w-full" disabled>
                 Already on this
@@ -253,15 +251,18 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy })
                 Change or cancel that plan to order it differently.
               </p>
             </>
-          ) : alreadySubscribed ? (
-            <Badge tone="positive">
-              {subscribedRate && Number(subscribedRate) !== Number(plan.unitPrice)
-                ? `Subscribed at ₹${Number(subscribedRate).toFixed(2)}`
-                : 'Subscribed'}
-            </Badge>
+          ) : maxPlansReached ? (
+            <>
+              <Button className="w-full bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed" disabled>
+                Max 2 Plans Active
+              </Button>
+              <p className="mt-1.5 text-[11px] text-amber-700 font-medium">
+                Limit of 2 plans reached. Cancel or change an existing plan to subscribe.
+              </p>
+            </>
           ) : (
             <Button
-              className="w-full"
+              className="w-full bg-blue-600 hover:bg-blue-700 font-semibold"
               loading={pending}
               onClick={() =>
                 startTransition(async () => {

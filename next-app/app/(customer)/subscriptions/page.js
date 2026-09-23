@@ -5,6 +5,7 @@ import * as subscriptionService from '@/services/subscription.service.js';
 import * as requestsRepo from '@/repositories/requests.repo.js';
 
 import { PageHeader, Card, CardBody, CardHeader, EmptyState, StatusBadge, Badge, Notice } from '@/components/ui/index.jsx';
+import { SubscriptionsIcon } from '@/components/ui/Icons.jsx';
 import { SubscriptionCard, PlanCard } from '@/components/customer/Plans.jsx';
 
 export const metadata = { title: 'My plans' };
@@ -50,6 +51,7 @@ export default async function SubscriptionsPage() {
   const onOffer = new Set(available.map((plan) => plan.id));
 
   const holding = mine.filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED');
+  const maxPlansReached = holding.length >= 2;
   const blockedByPlan = new Map();
   for (const plan of available) {
     if (subscribedPlanIds.has(plan.id)) continue;
@@ -66,17 +68,24 @@ export default async function SubscriptionsPage() {
     <>
       <PageHeader
         title="My plans"
-        description="You are billed only for the milk that actually arrives."
+        description="You are billed only for the milk that actually arrives. Maximum 2 active subscriptions per customer."
       />
 
       <section className="mb-10" aria-labelledby="mine-heading">
-        <h2 id="mine-heading" className="mb-3 text-sm font-semibold text-ink">
-          Active
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="mine-heading" className="text-sm font-semibold text-ink">
+            Active Subscriptions ({holding.length}/2)
+          </h2>
+          {maxPlansReached && (
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+              Maximum 2 plans limit reached
+            </span>
+          )}
+        </div>
 
         {mine.length === 0 ? (
           <EmptyState
-            icon="🔁"
+            icon={<SubscriptionsIcon className="h-6 w-6 text-blue-600" />}
             title="No plans yet"
             description="Choose one below to start daily deliveries."
           />
@@ -118,6 +127,7 @@ export default async function SubscriptionsPage() {
                 alreadySubscribed={subscribedPlanIds.has(plan.id)}
                 subscribedRate={rateByPlan.get(plan.id) ?? null}
                 blockedBy={blockedByPlan.get(plan.id) ?? null}
+                maxPlansReached={maxPlansReached}
               />
             ))}
           </div>

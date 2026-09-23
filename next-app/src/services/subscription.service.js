@@ -119,6 +119,11 @@ export async function subscribe(actor, { planId, startDate, slot }) {
     throw new ConflictError('You are already subscribed to that plan.');
   }
 
+  const activeCount = existing.filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED').length;
+  if (activeCount >= 2) {
+    throw new ValidationError('You can have a maximum of 2 active milk plans at a time. Please cancel or change an existing plan first.');
+  }
+
   assertSlotIsFree(existing, { slot: chosenSlot, productName: plan.productName });
 
   const res = await transaction(async (tx) => {

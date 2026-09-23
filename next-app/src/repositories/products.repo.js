@@ -78,6 +78,19 @@ export async function updateProduct(tx, actor, { id, patch }) {
   return row ?? null;
 }
 
+export async function deleteProduct(tx, actor, productId) {
+  const [row] = await tx
+    .delete(products)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.PRODUCT_MANAGE, columns: productScope },
+        eq(products.id, productId),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 /**
  * Reserve stock atomically.
  *

@@ -55,8 +55,8 @@ import {
  * @returns {Promise<ActorContext|null>}
  */
 export const getActor = cache(async () => {
-  const { userId: clerkId, isAuthenticated } = await clerkAuth();
-  if (!isAuthenticated || !clerkId) return null;
+  const { userId: clerkId } = await clerkAuth();
+  if (!clerkId) return null;
 
   let account = await findAccountByClerkId(clerkId);
 

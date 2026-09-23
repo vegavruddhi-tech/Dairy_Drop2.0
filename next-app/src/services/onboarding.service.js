@@ -14,9 +14,9 @@ import { eq, and, sql } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import {
-  users, addresses, serviceAreas, milkmanProfiles, milkSubscriptions,
+  users, addresses, serviceAreas, milkmanProfiles, milkSubscriptions, milkPlans,
 } from '@/db/schema/index.js';
-import { businessDate } from '@/domain/dates.js';
+import { businessDate, businessMonth } from '@/domain/dates.js';
 import {
   ValidationError,
   ConflictError,
@@ -50,18 +50,18 @@ export async function findMilkmenForPincode(pincode) {
     const count = await subscriptionsRepo.countActiveCustomers(db, milkman.id);
     if (saas.customerLimit && count >= saas.customerLimit) continue;
 
-    available.push({ ...milkman, areas: await usersRepo.listServiceAreas(milkman.id) });
+    const areas = await usersRepo.listServiceAreas(milkman.id);
+    const plans = await subscriptionsRepo.listActivePlansForMilkman(milkman.id);
+
+    available.push({ ...milkman, areas, plans });
   }
 
   return { pincode: cleaned, serviceable: available.length > 0, milkmen: available };
 }
 
 /**
- * Complete registration: attach the signed-in account to a milkman and an address.
- *
- * The account already exists — Auth.js provisioned it on first Google sign-in
- * with `approvalStatus = 'PENDING'`. This step supplies the details the milkman
- * needs in order to decide.
+ * Complete registration: attach the signed-in account to a milkman and an address,
+ * and enroll in up to 2 selected milk plans.
  */
 export async function register(actor, input) {
   if (actor.tenantId) {
@@ -72,6 +72,9 @@ export async function register(actor, input) {
   if (!milkman || !milkman.isVerified) {
     throw new NotFoundError('That milkman');
   }
+
+  // Maximum 2 plans restriction per customer
+  const planIds = Array.isArray(input.planIds) ? input.planIds.slice(0, 2) : [];
 
   let [area] = await db
     .select()
@@ -120,9 +123,16 @@ export async function register(actor, input) {
         milkmanId: input.milkmanId,
         deliveryArea: input.area,
         approvalStatus: 'PENDING',
+        rejectionReason: null,
         updatedAt: new Date(),
       })
       .where(eq(users.id, actor.userId));
+
+    // Reset old addresses default flag
+    await tx
+      .update(addresses)
+      .set({ isDefault: false })
+      .where(eq(addresses.userId, actor.userId));
 
     await tx.insert(addresses).values({
       userId: actor.userId,
@@ -139,11 +149,62 @@ export async function register(actor, input) {
       isDefault: true,
     });
 
+    // Cancel old pending/active subscriptions on re-application
+    await tx
+      .update(milkSubscriptions)
+      .set({ status: 'CANCELLED', updatedAt: new Date() })
+      .where(
+        and(
+          eq(milkSubscriptions.customerId, actor.userId),
+          ne(milkSubscriptions.status, 'CANCELLED'),
+        ),
+      );
+
+    // Enrol in the chosen plans (max 2)
+    const month = businessMonth();
+    const startDate = businessDate();
+
+    for (const planId of planIds) {
+      const [plan] = await tx
+        .select()
+        .from(milkPlans)
+        .where(and(eq(milkPlans.id, planId), eq(milkPlans.milkmanId, input.milkmanId)))
+        .limit(1);
+
+      if (plan) {
+        const { resolveUnitPrice } = await import('@/domain/pricing.js');
+        const { toPaise } = await import('@/domain/money.js');
+        const { unitPrice } = resolveUnitPrice(plan, month);
+        const subId = crypto.randomUUID();
+
+        await tx.insert(milkSubscriptions).values({
+          id: subId,
+          rootId: subId,
+          customerId: actor.userId,
+          milkmanId: input.milkmanId,
+          planId: plan.id,
+          productName: plan.productName,
+          quantity: plan.quantity,
+          unit: plan.unit,
+          frequency: plan.frequency,
+          slot: plan.slot,
+          morningStart: plan.morningStart,
+          morningEnd: plan.morningEnd,
+          eveningStart: plan.eveningStart,
+          eveningEnd: plan.eveningEnd,
+          unitPrice,
+          quotedMonthlyPrice: plan.monthlyPrice ? String(plan.monthlyPrice) : null,
+          status: 'ACTIVE',
+          effectiveFrom: startDate,
+        });
+      }
+    }
+
     await notificationsRepo.create(tx, {
       userId: input.milkmanId,
       type: 'APPROVAL',
       title: 'New customer request',
-      body: `${input.name} in ${input.area} would like to start deliveries.`,
+      body: `${input.name} in ${input.area} would like to start deliveries${planIds.length > 0 ? ` with ${planIds.length} plan(s)` : ''}.`,
       href: '/milkman/customers?status=PENDING',
       subjectType: 'user',
       subjectId: actor.userId,
@@ -254,6 +315,68 @@ export async function rejectCustomer(actor, { customerId, reason }) {
   });
 }
 
+/**
+ * Milkman updates a customer's delivery address & instructions.
+ */
+export async function updateCustomerAddress(actor, input) {
+  const customer = await usersRepo.findCustomer(actor, input.customerId);
+  if (!customer) throw new NotFoundError('That customer');
+
+  return transaction(async (tx) => {
+    // 1. Update deliveryArea in users table
+    await tx
+      .update(users)
+      .set({
+        deliveryArea: input.area,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, input.customerId));
+
+    // 2. Check if customer already has a default address
+    const [existing] = await tx
+      .select({ id: addresses.id })
+      .from(addresses)
+      .where(and(eq(addresses.userId, input.customerId), eq(addresses.isDefault, true)))
+      .limit(1);
+
+    if (existing) {
+      await tx
+        .update(addresses)
+        .set({
+          recipientName: customer.name,
+          recipientPhone: customer.phone,
+          line1: input.line1,
+          line2: input.line2 || null,
+          area: input.area,
+          city: input.city || customer.addressCity || 'Local Area',
+          state: input.state || customer.addressState || 'State',
+          pincode: input.pincode,
+          landmark: input.landmark || null,
+          deliveryInstructions: input.deliveryInstructions || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(addresses.id, existing.id));
+    } else {
+      await tx.insert(addresses).values({
+        userId: input.customerId,
+        recipientName: customer.name,
+        recipientPhone: customer.phone,
+        line1: input.line1,
+        line2: input.line2 || null,
+        area: input.area,
+        city: input.city || 'Local Area',
+        state: input.state || 'State',
+        pincode: input.pincode,
+        landmark: input.landmark || null,
+        deliveryInstructions: input.deliveryInstructions || null,
+        isDefault: true,
+      });
+    }
+
+    return { ok: true };
+  });
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Becoming a milkman
@@ -321,6 +444,7 @@ export async function applyToBecomeMilkman(actor, input) {
         businessName: input.businessName,
         businessAddress: input.businessAddress || null,
         upiId: input.upiId || null,
+        qrCodeUrl: input.qrCodeUrl || null,
         // The application. An administrator flips this.
         isVerified: false,
       })
@@ -330,6 +454,7 @@ export async function applyToBecomeMilkman(actor, input) {
           businessName: input.businessName,
           businessAddress: input.businessAddress || null,
           upiId: input.upiId || null,
+          qrCodeUrl: input.qrCodeUrl || null,
           updatedAt: new Date(),
         },
       })

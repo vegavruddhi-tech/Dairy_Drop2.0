@@ -12,6 +12,15 @@ import { AppShell } from '@/components/layout/AppShell.jsx';
  * this for navigation, but a layout must not assume middleware ran — that
  * assumption is what turns a convenience into a false sense of security.
  */
+import {
+  HomeIcon,
+  CartIcon,
+  CalendarIcon,
+  PaymentsIcon,
+  SubscriptionsIcon,
+  ProfileIcon,
+} from '@/components/ui/Icons.jsx';
+
 export default async function CustomerLayout({ children }) {
   const actor = await getActor();
   if (!actor) redirect('/sign-in');
@@ -24,15 +33,15 @@ export default async function CustomerLayout({ children }) {
   const t = await getT();
 
   const nav = [
-    { href: '/dashboard', label: t('nav.home'), icon: '🏠', exact: true },
-    { href: '/shop', label: t('nav.shopAndOrders', {}, 'Shop'), icon: '🛒' },
-    { href: '/calendar', label: t('nav.calendar'), icon: '📅' },
-    { href: '/billing', label: t('nav.billing'), icon: '₹' },
+    { href: '/dashboard', label: t('nav.home'), icon: <HomeIcon />, exact: true },
+    { href: '/shop', label: t('nav.shopAndOrders', {}, 'Shop'), icon: <CartIcon /> },
+    { href: '/calendar', label: t('nav.calendar'), icon: <CalendarIcon /> },
+    { href: '/billing', label: t('nav.billing'), icon: <PaymentsIcon /> },
   ];
 
   const more = [
-    { href: '/subscriptions', label: t('nav.mySubscription'), icon: '🔁' },
-    { href: '/profile', label: t('nav.profile'), icon: '👤' },
+    { href: '/subscriptions', label: t('nav.mySubscription'), icon: <SubscriptionsIcon /> },
+    { href: '/profile', label: t('nav.profile'), icon: <ProfileIcon /> },
   ];
 
   return (

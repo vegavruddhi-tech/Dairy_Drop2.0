@@ -1,25 +1,18 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { SignOutButton } from '@clerk/nextjs';
 
 import { getActor, gateStatus } from '@/auth/session.js';
 import { ROLES, ROLE_HOME } from '@/auth/roles.js';
 import { GATE } from '@/auth/policy.js';
-import Link from 'next/link';
-import { SignOutButton } from '@clerk/nextjs';
-
 import { Card, CardBody } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
-import { QuickApproveCustomer } from '@/components/customer/PendingClient.jsx';
+import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 import * as usersRepo from '@/repositories/users.repo.js';
 
-export const metadata = { title: 'Awaiting approval' };
+export const metadata = { title: 'Awaiting Approval • DairyDrop' };
 
-/**
- * The holding screen for a customer who is not yet approved.
- *
- * It polls nothing and issues no token. The previous system's equivalent called
- * a public endpoint that minted a 7-day JWT from an email address alone.
- */
 export default async function PendingPage() {
   const actor = await getActor();
   if (!actor) redirect('/sign-in');
@@ -29,69 +22,118 @@ export default async function PendingPage() {
   if (gate.ok) redirect('/dashboard');
   if (gate.gate === GATE.CUSTOMER_UNASSIGNED) redirect('/register');
 
-  const rejected = gate.gate === GATE.CUSTOMER_REJECTED;
-  const milkman = actor.tenantId ? await usersRepo.findMilkmanProfile(actor.tenantId) : null;
+    const rejected = gate.gate === GATE.CUSTOMER_REJECTED;
+    const user = await usersRepo.findUserById(actor.userId);
+    const milkman = actor.tenantId ? await usersRepo.findMilkmanProfile(actor.tenantId) : null;
 
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10">
-      <PublicBar showBrand={true} />
+    return (
+      <div className="relative min-h-dvh bg-[#fafcff] text-slate-900 overflow-x-hidden flex flex-col">
+        <BackgroundParticles count={24} />
+        <PublicBar showBrand={true} />
 
-      <Card>
-        <CardBody className="space-y-4 text-center">
-          <div className="text-4xl" aria-hidden="true">{rejected ? '😔' : '⏳'}</div>
-          <h1 className="text-lg font-semibold text-ink">
-            {rejected ? 'Registration declined' : 'Waiting for approval'}
-          </h1>
-          <p className="text-sm text-ink-muted">{gate.message}</p>
+        <main className="mx-auto w-full max-w-lg px-5 py-10 flex-1 flex flex-col justify-center animate-fade-in">
+          <Card className="border border-slate-200/90 shadow-xl shadow-blue-500/5 bg-white/95 backdrop-blur-md rounded-3xl overflow-hidden">
+            <CardBody className="space-y-5 text-center p-7">
+              {/* Status Header (Clean Vector SVG Icons) */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`flex h-16 w-16 items-center justify-center rounded-2xl shadow-inner ${
+                    rejected ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+                  }`}
+                >
+                  {rejected ? (
+                    <svg className="h-8 w-8 fill-current" viewBox="0 0 24 24">
+                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-8 w-8 fill-current animate-pulse" viewBox="0 0 24 24">
+                      <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                    </svg>
+                  )}
+                </div>
 
-          {milkman ? (
-            <div className="rounded-xl border border-border bg-surface-muted/60 p-3.5 text-left text-xs">
-              <p className="font-bold uppercase tracking-wider text-brand">Your Chosen Dairy</p>
-              <p className="mt-1 font-heading text-sm font-bold text-ink">{milkman.businessName}</p>
-              {milkman.upiId ? (
-                <p className="mt-0.5 text-ink-muted">UPI: {milkman.upiId}</p>
-              ) : null}
-            </div>
-          ) : null}
+                <div
+                  className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold ${
+                    rejected
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                  }`}
+                >
+                  {rejected ? 'Application Not Accepted' : 'Awaiting Milkman Confirmation'}
+                </div>
 
-          {rejected ? (
-            <Link href="/register">
-              <Button className="w-full">Choose another milkman</Button>
-            </Link>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-ink-subtle">
-                Once {milkman?.businessName || 'your milkman'} accepts your request, your daily deliveries and calendar will activate automatically.
-              </p>
-              <div className="pt-2">
-                <QuickApproveCustomer />
+                <h1 className="mt-2 font-heading text-2xl font-black text-slate-900">
+                  {rejected ? 'Registration Declined' : 'Request Sent Successfully'}
+                </h1>
+                <p className="mt-1 text-xs text-slate-600 sm:text-sm">{gate.message}</p>
               </div>
+
+              {/* Rejection Note from Milkman */}
+              {rejected && user?.rejectionReason && (
+                <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 text-left">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-700">
+                    Note from Milkman
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-red-900">
+                    "{user.rejectionReason}"
+                  </p>
+                </div>
+              )}
+
+              {/* Assigned Milkman Details Card */}
+              {milkman && (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 text-left">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                    {rejected ? 'Previous Selected Dairy' : 'Assigned Local Dairy'}
+                  </p>
+                  <p className="mt-1 font-heading text-base font-bold text-slate-900">
+                    {milkman.businessName}
+                  </p>
+                  {milkman.upiId && (
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      Billing UPI:{' '}
+                      <span className="font-mono text-slate-900 font-semibold">
+                        {milkman.upiId}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {rejected ? (
+                <div className="space-y-2.5 pt-1">
+                  <Link href="/register" className="block w-full">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20" size="lg">
+                      Re-Apply with Updated Address / Details →
+                    </Button>
+                  </Link>
+                  <p className="text-xs text-slate-500">
+                    You can adjust your delivery address/plans or choose any other milkman serving your pincode.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-1">
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Your milkman usually confirms requests in 1 to 2 hours. As soon as they
+                    accept, your daily deliveries and customer dashboard will activate
+                    automatically.
+                  </p>
+                </div>
+              )}
+
+            <div className="border-t border-slate-100 pt-3">
+              <SignOutButton redirectUrl="/">
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-slate-500 underline hover:text-slate-800 transition-colors"
+                >
+                  Sign out of account
+                </button>
+              </SignOutButton>
             </div>
-          )}
-
-          {/*
-            Someone who signed up meaning to *sell* lands here as a pending
-            customer with no obvious way out. This is that way out — it was the
-            trap the reporter fell into.
-          */}
-          <div className="border-t border-border pt-4">
-            <p className="text-xs font-medium text-ink-muted">
-              Did you mean to sell milk rather than buy it?
-            </p>
-            <Link href="/become-a-milkman">
-              <Button variant="outline" size="sm" className="mt-2 w-full">
-                Apply as a milkman
-              </Button>
-            </Link>
-          </div>
-
-          <SignOutButton>
-            <button type="button" className="block w-full text-sm text-ink-muted underline">
-              Sign out
-            </button>
-          </SignOutButton>
-        </CardBody>
-      </Card>
-    </main>
+          </CardBody>
+        </Card>
+      </main>
+    </div>
   );
 }

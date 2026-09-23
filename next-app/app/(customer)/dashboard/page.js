@@ -15,6 +15,15 @@ import {
 } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
 import { TodayCard } from '@/components/customer/TodayCard.jsx';
+import { CalendarVacationButton } from '@/components/customer/CalendarAction.jsx';
+
+import {
+  DeliveryIcon,
+  MilkDropIcon,
+  PaymentsIcon,
+  SubscriptionsIcon,
+  CalendarIcon,
+} from '@/components/ui/Icons.jsx';
 
 export const metadata = { title: 'Today' };
 
@@ -22,22 +31,25 @@ export default async function CustomerDashboard() {
   const actor = await requireCustomer();
   const today = businessDate();
 
-  const [{ deliveries }, bill, products, milkman, subscriptions] = await Promise.all([
-    deliveryService.getCustomerDay(actor, today),
-    billingService.getBill(actor, { month: businessMonth() }),
-    productService.listForCustomer(actor),
-    usersRepo.findMilkmanPaymentInfo(actor.tenantId),
-    subscriptionService.listMine(actor),
+  const [dayResult, billResult, productsResult, milkman, subscriptionsResult] = await Promise.all([
+    deliveryService.getCustomerDay(actor, today).catch(() => ({ deliveries: [] })),
+    billingService.getBill(actor, { month: businessMonth() }).catch(() => ({
+      deliveredDays: 0,
+      deliveredMilli: 0,
+      skippedDays: 0,
+      totalPaise: 0,
+      balancePaise: 0,
+    })),
+    productService.listForCustomer(actor).catch(() => []),
+    usersRepo.findMilkmanPaymentInfo(actor.tenantId).catch(() => null),
+    subscriptionService.listMine(actor).catch(() => []),
   ]);
 
-  /*
-   * "No delivery today" and "no plan" are different states, and conflating them
-   * told a subscribed customer to go and subscribe.
-   *
-   * A delivery row only exists once `generate-deliveries` has run for the day,
-   * so between subscribing and the next run there is an active plan and no row.
-   * A paused plan produces no rows either. Branch on the plan, not on the row.
-   */
+  const deliveries = dayResult?.deliveries ?? [];
+  const bill = billResult ?? { deliveredDays: 0, deliveredMilli: 0, skippedDays: 0, totalPaise: 0, balancePaise: 0 };
+  const products = productsResult ?? [];
+  const subscriptions = subscriptionsResult ?? [];
+
   const active = subscriptions.filter((s) => s.status === 'ACTIVE');
   const paused = subscriptions.filter((s) => s.status === 'PAUSED');
 
@@ -47,20 +59,23 @@ export default async function CustomerDashboard() {
         eyebrow={formatDate(today)}
         greeting={greeting()}
         name={actor.name?.split(' ')[0] ?? 'there'}
-        subtitle="Pure, direct from the farm"
-        action={<HeroAction href="/subscriptions">My plan</HeroAction>}
+        subtitle="Farm Fresh Milk & Doorstep Deliveries"
+        action={<HeroAction href="/subscriptions">My Subscription</HeroAction>}
       />
 
       {/* ── Today ─────────────────────────────────────────────────────── */}
       <section className="mb-8" aria-labelledby="today-heading">
-        <h2 id="today-heading" className="mb-3 text-sm font-semibold text-ink">
-          {formatDate(today)}
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 id="today-heading" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Today's Schedule · {formatDate(today)}
+          </h2>
+          {active.length > 0 && <CalendarVacationButton />}
+        </div>
 
         {deliveries.length === 0 ? (
           active.length > 0 ? (
             <EmptyState
-              icon="🌙"
+              icon={<DeliveryIcon className="h-8 w-8 text-blue-600" />}
               title="Nothing scheduled for today"
               description={
                 `Your plan is active. Today's round has not been drawn up yet — ` +
@@ -75,23 +90,23 @@ export default async function CustomerDashboard() {
             />
           ) : paused.length > 0 ? (
             <EmptyState
-              icon="⏸"
+              icon={<CalendarIcon className="h-8 w-8 text-amber-600" />}
               title="Your plan is paused"
               description="Resume it and your milk starts arriving again from the next round."
               action={
                 <Link href="/subscriptions">
-                  <Button>Resume my plan</Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">Resume my plan</Button>
                 </Link>
               }
             />
           ) : (
             <EmptyState
-              icon="🥛"
+              icon={<MilkDropIcon className="h-8 w-8 text-blue-600" />}
               title="No delivery scheduled today"
               description="Subscribe to a plan and your milk will arrive every morning."
               action={
                 <Link href="/subscriptions">
-                  <Button>Browse plans</Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">Browse plans</Button>
                 </Link>
               }
             />
@@ -107,15 +122,34 @@ export default async function CustomerDashboard() {
 
       {/* ── This month ────────────────────────────────────────────────── */}
       <section className="mb-8" aria-labelledby="month-heading">
-        <h2 id="month-heading" className="mb-3 text-sm font-semibold text-ink">
-          This month so far
+        <h2 id="month-heading" className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+          This Month So Far
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon="✓" tone="positive" label="Delivered" value={`${bill.deliveredDays} days`} />
-          <Stat icon="🥛" tone="info" label="Milk" value={formatMilli(bill.deliveredMilli)} />
-          <Stat icon="⤳" tone="neutral" label="Skipped" value={`${bill.skippedDays} days`} hint="Not charged" />
           <Stat
-            icon="₹"
+            icon={
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            }
+            tone="positive"
+            label="Delivered"
+            value={`${bill.deliveredDays} days`}
+          />
+          <Stat icon={<MilkDropIcon className="h-5 w-5" />} tone="info" label="Milk" value={formatMilli(bill.deliveredMilli)} />
+          <Stat
+            icon={
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+            tone="neutral"
+            label="Skipped"
+            value={`${bill.skippedDays} days`}
+            hint="Not charged"
+          />
+          <Stat
+            icon={<PaymentsIcon className="h-5 w-5" />}
             tone="brand"
             label="Bill so far"
             value={formatPaise(bill.totalPaise, { whole: true })}

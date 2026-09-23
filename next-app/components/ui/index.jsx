@@ -69,22 +69,22 @@ export function PageHeader({ title, description, action }) {
  */
 export function HeroBanner({ eyebrow, greeting, name, subtitle, action, children }) {
   return (
-    <section className="relative mb-5 overflow-hidden rounded-3xl border border-emerald-400/20 bg-hero-emerald p-4 text-white shadow-hero sm:p-5">
+    <section className="relative mb-6 overflow-hidden rounded-3xl border border-blue-500/20 bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 p-5 sm:p-6 text-white shadow-xl shadow-blue-600/10">
       {/* Ambient glow. Purely decorative. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-emerald-400/15 blur-2xl"
+        className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-blue-400/20 blur-2xl"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-teal-400/10 blur-2xl"
+        className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-indigo-400/15 blur-2xl"
       />
 
-      <div className="relative z-10 space-y-2.5">
+      <div className="relative z-10 space-y-3">
         <div className="flex items-center justify-between gap-2">
           {eyebrow ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-200 backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-blue-100 backdrop-blur-md border border-white/10">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-300" />
               {eyebrow}
             </span>
           ) : <span />}
@@ -92,12 +92,12 @@ export function HeroBanner({ eyebrow, greeting, name, subtitle, action, children
         </div>
 
         <div>
-          <h1 className="font-heading text-xl font-black leading-snug tracking-tight text-white sm:text-2xl">
+          <h1 className="font-heading text-2xl font-black leading-snug tracking-tight text-white sm:text-3xl">
             {greeting ? `${greeting}, ` : ''}
             {name}
           </h1>
           {subtitle ? (
-            <p className="mt-0.5 text-[13px] font-semibold text-emerald-100/80">{subtitle}</p>
+            <p className="mt-1 text-sm font-medium text-blue-100/80">{subtitle}</p>
           ) : null}
         </div>
 
@@ -112,10 +112,10 @@ export function HeroAction({ href, children }) {
   return (
     <a
       href={href}
-      className="tap inline-flex shrink-0 items-center gap-1 rounded-xl border border-white/20 bg-white/15 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-all hover:bg-white/25 active:scale-95"
+      className="tap inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm backdrop-blur-sm transition-all hover:bg-white/25 active:scale-95"
     >
       <span>{children}</span>
-      <span className="text-emerald-300" aria-hidden="true">→</span>
+      <span className="text-blue-200" aria-hidden="true">→</span>
     </a>
   );
 }
@@ -123,21 +123,21 @@ export function HeroAction({ href, children }) {
 // ── Status ───────────────────────────────────────────────────────────────────
 
 const TONES = {
-  neutral: { chip: 'bg-surface-muted text-ink-muted', dot: 'bg-ink-subtle' },
-  brand: { chip: 'bg-brand-soft text-brand', dot: 'bg-brand' },
-  positive: { chip: 'bg-positive-soft text-positive', dot: 'bg-positive' },
-  caution: { chip: 'bg-caution-soft text-caution', dot: 'bg-caution' },
-  critical: { chip: 'bg-critical-soft text-critical', dot: 'bg-critical' },
-  info: { chip: 'bg-info-soft text-info', dot: 'bg-info' },
+  neutral: { chip: 'bg-slate-100 text-slate-700 border border-slate-200', dot: 'bg-slate-400' },
+  brand: { chip: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-600' },
+  positive: { chip: 'bg-emerald-50 text-emerald-700 border border-emerald-200', dot: 'bg-emerald-600' },
+  caution: { chip: 'bg-amber-50 text-amber-800 border border-amber-200', dot: 'bg-amber-600' },
+  critical: { chip: 'bg-red-50 text-red-700 border border-red-200', dot: 'bg-red-600' },
+  info: { chip: 'bg-blue-50 text-blue-700 border border-blue-200', dot: 'bg-blue-600' },
 };
 
-/** Pill badge with the small status dot the old apps used. */
+/** Pill badge with the small status dot. */
 export function Badge({ tone = 'neutral', dot = false, className, children }) {
   const style = TONES[tone] ?? TONES.neutral;
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold',
         style.chip,
         className,
       )}
@@ -171,41 +171,41 @@ export function StatusBadge({ status, children }) {
 // ── Data display ─────────────────────────────────────────────────────────────
 
 const STAT_ACCENT = {
-  neutral: 'from-slate-500 to-slate-600',
-  brand: 'from-emerald-500 to-emerald-600',
-  positive: 'from-emerald-500 to-emerald-600',
+  neutral: 'from-slate-600 to-slate-700',
+  brand: 'from-blue-600 to-indigo-700',
+  positive: 'from-emerald-600 to-teal-700',
   caution: 'from-amber-500 to-amber-600',
-  critical: 'from-rose-500 to-rose-600',
-  info: 'from-blue-500 to-blue-600',
+  critical: 'from-rose-600 to-red-700',
+  info: 'from-blue-600 to-indigo-600',
 };
 
 /**
- * The horizontal stat tile from the original apps: a gradient icon square on
+ * The horizontal stat tile: a crisp rounded gradient icon square on
  * the left, label above value on the right.
  */
 export function Stat({ label, value, hint, icon, tone = 'brand' }) {
   return (
-    <Card className="flex items-center gap-3.5 p-3.5">
+    <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm hover:border-slate-300 transition-all">
       {icon ? (
         <div
           className={cn(
-            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm',
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm',
             STAT_ACCENT[tone] ?? STAT_ACCENT.brand,
           )}
           aria-hidden="true"
         >
-          <span className="text-lg">{icon}</span>
+          <span className="text-base flex items-center justify-center">{icon}</span>
         </div>
       ) : null}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
+        <p className="truncate text-[11px] font-bold uppercase tracking-wider text-slate-500">
           {label}
         </p>
-        <p className="stat-number mt-0.5 text-xl text-ink">{value}</p>
-        {hint ? <p className="mt-0.5 truncate text-[11px] font-medium text-ink-muted">{hint}</p> : null}
+        <p className="stat-number mt-0.5 text-xl font-extrabold text-slate-900">{value}</p>
+        {hint ? <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{hint}</p> : null}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -215,14 +215,20 @@ export function Stat({ label, value, hint, icon, tone = 'brand' }) {
  */
 export function EmptyState({ title, description, action, icon, tip }) {
   return (
-    <Card className="flex flex-col items-center px-5 py-10 text-center sm:px-6 sm:py-12">
+    <Card className="flex flex-col items-center px-5 py-10 text-center sm:px-6 sm:py-12 bg-white border border-slate-200 shadow-sm rounded-3xl">
       <div className="relative mb-4 flex items-center justify-center">
         <div
           aria-hidden="true"
-          className="absolute inset-0 scale-125 animate-pulse rounded-full bg-gradient-to-tr from-emerald-400/20 via-teal-300/20 to-blue-400/20 blur-xl"
+          className="absolute inset-0 scale-125 animate-pulse rounded-full bg-gradient-to-tr from-blue-400/20 via-indigo-300/20 to-sky-400/20 blur-xl"
         />
-        <div className="relative flex h-[72px] w-[72px] items-center justify-center rounded-2xl border border-emerald-100/80 bg-gradient-to-tr from-emerald-50 via-teal-50/80 to-white text-3xl shadow-md shadow-emerald-500/10">
-          <span aria-hidden="true">{icon ?? '🥛'}</span>
+        <div className="relative flex h-[72px] w-[72px] items-center justify-center rounded-2xl border border-blue-100 bg-gradient-to-tr from-blue-50 via-slate-50 to-white text-3xl shadow-md shadow-blue-500/10">
+          <span aria-hidden="true" className="flex items-center justify-center text-blue-600">
+            {icon ?? (
+              <svg className="h-8 w-8 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+              </svg>
+            )}
+          </span>
         </div>
       </div>
 
@@ -236,9 +242,13 @@ export function EmptyState({ title, description, action, icon, tip }) {
       ) : null}
 
       {tip ? (
-        <div className="mt-4 flex max-w-sm items-start gap-1.5 rounded-xl border border-amber-200/60 bg-amber-50/80 px-3 py-2 text-left">
-          <span aria-hidden="true" className="text-sm">💡</span>
-          <p className="text-[11px] font-medium leading-snug text-amber-900 sm:text-xs">{tip}</p>
+        <div className="mt-4 flex max-w-sm items-start gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-2 text-left">
+          <svg className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <p className="text-[11px] font-medium leading-snug text-blue-900 sm:text-xs">{tip}</p>
         </div>
       ) : null}
 

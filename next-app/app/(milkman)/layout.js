@@ -16,6 +16,20 @@ import * as billingRepo from '@/repositories/billing.repo.js';
  * check keeps a lapsed milkman out of the UI; the action check is what actually
  * protects the data, because actions are callable directly.
  */
+import {
+  HomeIcon,
+  DeliveryIcon,
+  UsersIcon,
+  RequestsIcon,
+  RoutesIcon,
+  OrdersIcon,
+  CatalogIcon,
+  PlansIcon,
+  PaymentsIcon,
+  EarningsIcon,
+  MembershipIcon,
+} from '@/components/ui/Icons.jsx';
+
 export default async function MilkmanLayout({ children }) {
   const actor = await getActor();
   if (!actor) redirect('/sign-in');
@@ -39,19 +53,20 @@ export default async function MilkmanLayout({ children }) {
   const t = await getT();
 
   const nav = [
-    { href: '/milkman', label: t('nav.home'), icon: '🏠', exact: true },
-    { href: '/milkman/round', label: t('nav.deliveries', {}, 'Round'), icon: '🚲' },
-    { href: '/milkman/customers', label: t('nav.customers'), icon: '👥', count: pendingCustomers },
-    { href: '/milkman/requests', label: t('nav.requests'), icon: '✋', count: requests.total },
+    { href: '/milkman', label: t('nav.home'), icon: <HomeIcon />, exact: true },
+    { href: '/milkman/round', label: t('nav.deliveries', {}, 'Round'), icon: <DeliveryIcon /> },
+    { href: '/milkman/customers', label: t('nav.customers'), icon: <UsersIcon />, count: pendingCustomers },
+    { href: '/milkman/requests', label: t('nav.requests'), icon: <RequestsIcon />, count: requests.total },
   ];
 
   const more = [
-    { href: '/milkman/orders', label: 'Orders', icon: '📦' },
-    { href: '/milkman/catalog', label: 'Catalog', icon: '🧈' },
-    { href: '/milkman/plans', label: 'Milk plans', icon: '📋' },
-    { href: '/milkman/payments', label: 'Payments', icon: '₹', count: pendingPayments },
-    { href: '/milkman/earnings', label: 'Earnings', icon: '📈' },
-    { href: '/milkman/membership', label: 'Membership', icon: '⭐' },
+    { href: '/milkman/routes', label: 'Delivery Routes', icon: <RoutesIcon /> },
+    { href: '/milkman/orders', label: 'Orders', icon: <OrdersIcon /> },
+    { href: '/milkman/catalog', label: 'Catalog', icon: <CatalogIcon /> },
+    { href: '/milkman/plans', label: 'Milk plans', icon: <PlansIcon /> },
+    { href: '/milkman/payments', label: 'Payments', icon: <PaymentsIcon />, count: pendingPayments },
+    { href: '/milkman/earnings', label: 'Earnings', icon: <EarningsIcon /> },
+    { href: '/milkman/membership', label: 'Membership', icon: <MembershipIcon /> },
   ];
 
   return (
