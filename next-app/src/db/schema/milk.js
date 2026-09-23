@@ -16,6 +16,7 @@ import {
   boolean,
   timestamp,
   date,
+  time,
   numeric,
   index,
   uniqueIndex,
@@ -52,6 +53,22 @@ export const milkPlans = pgTable(
     frequency: frequencyEnum('frequency').notNull().default('DAILY'),
     slot: deliverySlotEnum('slot').notNull().default('MORNING'),
 
+    /*
+     * When the round actually reaches the door, per slot.
+     *
+     * A window rather than an instant: one milkman covers a whole area from one
+     * bike, so "06:00" would be a promise broken at every door but the first.
+     * Nullable, because plans created before this existed have no window and a
+     * blank is more honest than a default invented on their behalf.
+     *
+     * Stored as local wall-clock `time`, not `timestamptz` — "6 am" means 6 am
+     * in APP_TIMEZONE every day, and does not shift with the date.
+     */
+    morningStart: time('morning_start'),
+    morningEnd: time('morning_end'),
+    eveningStart: time('evening_start'),
+    eveningEnd: time('evening_end'),
+
     /**
      * Exactly one pricing basis must be set, enforced by a CHECK below.
      * The old model allowed both and silently preferred `price_per_delivery`,
@@ -73,6 +90,15 @@ export const milkPlans = pgTable(
        or (${t.pricePerDelivery} is null and ${t.monthlyPrice} is not null)`,
     ),
     positiveQuantity: check('milk_plans_qty_positive', sql`${t.quantity} > 0`),
+    // Both ends together, and the end after the start. A half-filled window
+    // cannot be rendered and an inverted one cannot be met.
+    coherentWindows: check(
+      'milk_plans_windows_coherent',
+      sql`(${t.morningStart} is null) = (${t.morningEnd} is null)
+      and (${t.eveningStart} is null) = (${t.eveningEnd} is null)
+      and (${t.morningStart} is null or ${t.morningEnd} > ${t.morningStart})
+      and (${t.eveningStart} is null or ${t.eveningEnd} > ${t.eveningStart})`,
+    ),
   }),
 );
 
@@ -115,6 +141,15 @@ export const milkSubscriptions = pgTable(
     unit: varchar('unit', { length: 16 }).notNull().default('L'),
     frequency: frequencyEnum('frequency').notNull().default('DAILY'),
     slot: deliverySlotEnum('slot').notNull().default('MORNING'),
+
+    /*
+     * Snapshotted with everything else the customer agreed to. Editing the plan
+     * later must not silently move the time an existing customer was promised.
+     */
+    morningStart: time('morning_start'),
+    morningEnd: time('morning_end'),
+    eveningStart: time('evening_start'),
+    eveningEnd: time('evening_end'),
 
     /**
      * The rate, resolved once at enrolment and frozen.

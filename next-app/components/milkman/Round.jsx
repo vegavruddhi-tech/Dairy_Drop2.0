@@ -4,6 +4,8 @@ import { useState, useTransition, useOptimistic } from 'react';
 import { toast } from 'sonner';
 
 import { Card, CardBody, StatusBadge, Badge } from '@/components/ui/index.jsx';
+import { formatPaise } from '@/domain/money.js';
+import { formatWindow } from '@/domain/dates.js';
 import { Button, Modal, QuantityStepper, Textarea, Select } from '@/components/ui/interactive.jsx';
 import { markDelivery, declareDayOff } from '@/actions/milkman.actions.js';
 
@@ -20,8 +22,20 @@ export function RoundStop({ stop }) {
   const [modal, setModal] = useState(null);
 
   const planned = Number(stop.adjustedQuantity ?? stop.plannedQuantity);
-  const adjusted = stop.adjustedQuantity != null;
+  // Only a genuine difference is a change. Matching the customer's own view,
+  // which has always required this — the round flagged any non-null adjustment,
+  // so confirming the dialog without moving the stepper looked like a change.
+  const adjusted = stop.adjustedQuantity != null
+    && Number(stop.adjustedQuantity) !== Number(stop.plannedQuantity);
   const settled = status !== 'PENDING';
+
+  /*
+   * A stop with no milk exists only to carry extras — the customer ordered
+   * something but has no plan running today. There is no delivery row behind
+   * it, so it has nothing to mark; the Orders screen owns purchase status.
+   */
+  const extras = stop.extras ?? [];
+  const carryOnly = Boolean(stop.milkless);
 
   function mark(next, extra = {}) {
     startTransition(async () => {
@@ -49,6 +63,13 @@ export function RoundStop({ stop }) {
               {stop.addressLandmark ? (
                 <p className="text-xs text-ink-subtle">Near {stop.addressLandmark}</p>
               ) : null}
+              {/* The window this customer was promised, so the round can be
+                  ordered against it rather than against memory. */}
+              {stopWindow(stop) ? (
+                <p className="mt-0.5 text-xs font-medium text-ink-muted">
+                  {stopWindow(stop)}
+                </p>
+              ) : null}
               {stop.deliveryInstructions ? (
                 <p className="mt-1 rounded-lg bg-info-soft px-2 py-1 text-xs text-info">
                   {stop.deliveryInstructions}
@@ -58,6 +79,7 @@ export function RoundStop({ stop }) {
             <StatusBadge status={status} />
           </div>
 
+          {carryOnly ? null : (
           <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
             <div>
               <span className="text-xl font-semibold tnum text-ink">
@@ -66,8 +88,40 @@ export function RoundStop({ stop }) {
                   : planned}
               </span>
               <span className="ml-1 text-sm text-ink-muted">{stop.unit}</span>
+              {/*
+                * Say what it was, not just what it is. "changed today" alone
+                * left the milkman to guess whether 2 L was up from 1 or down
+                * from 3 — and once delivered, whether the number shown was
+                * what was asked for or what actually went out.
+                */}
+              {status === 'DELIVERED' && stop.deliveredQuantity
+                ? Number(stop.deliveredQuantity) !== planned && (
+                    <span className="ml-2 text-xs text-ink-muted">
+                      asked {planned} {stop.unit}
+                    </span>
+                  )
+                : adjusted && (
+                    <span className="ml-2 text-xs text-ink-muted">
+                      usually {Number(stop.plannedQuantity)} {stop.unit}
+                    </span>
+                  )}
             </div>
             <span className="text-sm text-ink-muted">{stop.productName}</span>
+            {/*
+              * The line total. Without it there was no way to see that changing
+              * the litres changed what the customer owes — the round showed a
+              * quantity and the money only appeared on another screen.
+              */}
+            {stop.unitPrice ? (
+              <span className="tnum text-sm text-ink-muted">
+                {status === 'DELIVERED'
+                  ? formatPaise(Math.round(Number(stop.amount ?? 0) * 100))
+                  : formatPaise(Math.round(planned * Number(stop.unitPrice) * 100))}
+                <span className="ml-1 text-xs text-ink-subtle">
+                  @ ₹{Number(stop.unitPrice)}/{stop.unit}
+                </span>
+              </span>
+            ) : null}
             {adjusted ? <Badge tone="caution">changed today</Badge> : null}
             {stop.customerPhone ? (
               <a
@@ -78,8 +132,44 @@ export function RoundStop({ stop }) {
               </a>
             ) : null}
           </div>
+          )}
 
-          {!settled ? (
+          {/* ── Extras to carry ──────────────────────────────────────── */}
+          {extras.length > 0 ? (
+            <div className="rounded-xl border border-border bg-surface-muted p-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
+                Also carry
+              </p>
+              <ul className="space-y-1.5">
+                {extras.map((extra) => (
+                  <li key={extra.id} className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="text-ink">
+                      <span className="font-medium tnum">{Number(extra.quantity)}</span>
+                      <span className="text-ink-muted"> {extra.unit} </span>
+                      {extra.productName}
+                    </span>
+                    <span className="tnum text-ink-muted">
+                      {formatPaise(Math.round(Number(extra.amount ?? 0) * 100))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {carryOnly ? (
+                <p className="mt-2 text-xs text-ink-subtle">
+                  No milk plan today — this stop is for the extras. Mark them on Orders.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {carryOnly ? (
+            <a
+              href="/milkman/orders"
+              className="tap block rounded-lg border border-border px-3 py-2 text-center text-sm text-ink-muted"
+            >
+              Open orders
+            </a>
+          ) : !settled ? (
             <div className="grid grid-cols-3 gap-2">
               <Button size="lg" loading={pending} onClick={() => mark('DELIVERED')}>
                 Delivered
@@ -101,7 +191,7 @@ export function RoundStop({ stop }) {
 
       {/* ── Delivered a different amount ─────────────────────────────── */}
       <Modal
-        open={modal === 'partial'}
+        open={!carryOnly && modal === 'partial'}
         onClose={() => setModal(null)}
         title={`How much for ${stop.customerName}?`}
         footer={
@@ -131,7 +221,7 @@ export function RoundStop({ stop }) {
 
       {/* ── Not delivered ────────────────────────────────────────────── */}
       <Modal
-        open={modal === 'not'}
+        open={!carryOnly && modal === 'not'}
         onClose={() => setModal(null)}
         title="Why was it not delivered?"
         footer={
@@ -236,4 +326,19 @@ export function DayOffButton({ date, count }) {
       </Modal>
     </>
   );
+}
+
+/**
+ * The window a stop is due in, for the slot it actually runs.
+ *
+ * Empty for a stop with no window — plans predate this — and for a carry-only
+ * stop, which has no subscription behind it.
+ */
+function stopWindow(stop) {
+  const morning = formatWindow(stop.morningStart, stop.morningEnd);
+  const evening = formatWindow(stop.eveningStart, stop.eveningEnd);
+
+  if (stop.slot === 'MORNING') return morning;
+  if (stop.slot === 'EVENING') return evening;
+  return [morning, evening].filter(Boolean).join(' · ');
 }

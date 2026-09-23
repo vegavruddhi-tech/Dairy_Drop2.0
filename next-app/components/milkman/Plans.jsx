@@ -7,6 +7,7 @@ import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
 import { Button, Modal, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
 import { saveMilkPlan, retireMilkPlan } from '@/actions/milkman.actions.js';
 import { formatPaise } from '@/domain/money.js';
+import { formatWindow } from '@/domain/dates.js';
 
 const UNITS = [
   { value: 'L', label: 'Litres' },
@@ -33,6 +34,10 @@ export function PlanEditor({ plan, trigger }) {
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
   const [basis, setBasis] = useState(plan?.monthlyPrice ? 'MONTHLY' : 'PER_DELIVERY');
+  const [slot, setSlot] = useState(plan?.slot ?? 'MORNING');
+
+  const showMorning = slot === 'MORNING' || slot === 'BOTH';
+  const showEvening = slot === 'EVENING' || slot === 'BOTH';
 
   return (
     <>
@@ -86,7 +91,75 @@ export function PlanEditor({ plan, trigger }) {
 
           <div className="grid grid-cols-2 gap-3">
             <Select name="frequency" label="How often" defaultValue={plan?.frequency ?? 'DAILY'} options={FREQUENCIES} />
-            <Select name="slot" label="When" defaultValue={plan?.slot ?? 'MORNING'} options={SLOTS} />
+            <Select
+              name="slot"
+              label="When"
+              value={slot}
+              onChange={(event) => setSlot(event.target.value)}
+              options={SLOTS}
+            />
+          </div>
+
+          {/*
+            The delivery window, for each slot the plan actually runs.
+
+            A window rather than a single time: one bike covers the whole area,
+            so a fixed "06:00" would be a promise broken at every door but the
+            first. Only the slots in use are asked for, and switching away from
+            a slot clears its times server-side rather than leaving them stale.
+          */}
+          <div className="space-y-3 rounded-2xl border border-border bg-surface-muted/50 p-3.5">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
+              When do you reach the door?
+            </p>
+
+              {showMorning ? (
+                <div>
+                  <p className="mb-1.5 text-sm font-bold text-ink">Morning</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      type="time"
+                      name="morningStart"
+                      label="From"
+                      defaultValue={toTimeValue(plan?.morningStart) || '06:00'}
+                      error={errors.morningStart}
+                    />
+                    <Input
+                      type="time"
+                      name="morningEnd"
+                      label="To"
+                      defaultValue={toTimeValue(plan?.morningEnd) || '07:30'}
+                      error={errors.morningEnd}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {showEvening ? (
+                <div>
+                  <p className="mb-1.5 text-sm font-bold text-ink">Evening</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      type="time"
+                      name="eveningStart"
+                      label="From"
+                      defaultValue={toTimeValue(plan?.eveningStart) || '17:30'}
+                      error={errors.eveningStart}
+                    />
+                    <Input
+                      type="time"
+                      name="eveningEnd"
+                      label="To"
+                      defaultValue={toTimeValue(plan?.eveningEnd) || '19:00'}
+                      error={errors.eveningEnd}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+            <p className="text-xs text-ink-muted">
+              Your customers see this on their plan, so give yourself a range you can keep.
+            </p>
           </div>
 
           {/*
@@ -154,6 +227,9 @@ export function PlanList({ plans }) {
               <li>{Number(plan.quantity)} {plan.unit} per delivery</li>
               <li>{plan.frequency.replace('_', ' ').toLowerCase()}, {plan.slot.toLowerCase()}</li>
               {plan.unitPrice ? <li>₹{Number(plan.unitPrice).toFixed(2)} per {plan.unit}</li> : null}
+              {/* Plans made before windows existed have none; say so rather
+                  than inventing a time on the milkman's behalf. */}
+              <PlanWindows plan={plan} />
             </ul>
 
             <div className="mt-auto flex gap-2 pt-2">
@@ -182,5 +258,28 @@ export function PlanList({ plans }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+/** Postgres `time` comes back as 'HH:MM:SS'; a time input wants 'HH:MM'. */
+function toTimeValue(value) {
+  return typeof value === 'string' ? value.slice(0, 5) : '';
+}
+
+/**
+ * The delivery windows on a plan card, one line per slot it runs.
+ *
+ * Silent when the plan predates windows — an unset time is not "midnight".
+ */
+function PlanWindows({ plan }) {
+  const morning = formatWindow(plan.morningStart, plan.morningEnd);
+  const evening = formatWindow(plan.eveningStart, plan.eveningEnd);
+  if (!morning && !evening) return null;
+
+  return (
+    <>
+      {morning ? <li className="text-ink">Morning {morning}</li> : null}
+      {evening ? <li className="text-ink">Evening {evening}</li> : null}
+    </>
   );
 }

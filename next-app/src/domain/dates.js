@@ -212,6 +212,51 @@ export function greeting(instant = new Date()) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Delivery windows
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ISO_TIME = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+
+/** Is this a wall-clock time this module will accept? */
+export function isClockTime(value) {
+  return typeof value === 'string' && ISO_TIME.test(value.trim());
+}
+
+/**
+ * '06:00' or '06:00:00' → '6:00 am'.
+ *
+ * A plain wall-clock time, not an instant: it is 6 am in APP_TIMEZONE whatever
+ * the date, so it is formatted directly rather than pushed through a timezone
+ * conversion that would shift it.
+ */
+export function formatClockTime(value) {
+  if (!isClockTime(value)) return '';
+  const [hourText, minuteText] = value.trim().split(':');
+  const hour = Number(hourText);
+  const suffix = hour < 12 ? 'am' : 'pm';
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display}:${minuteText} ${suffix}`;
+}
+
+/**
+ * A delivery window, as the customer reads it: '6:00 – 7:30 am'.
+ *
+ * The meridiem is printed once when both ends share it, which is the common
+ * case and how a person would say it out loud. Returns '' when the window is
+ * not set, so a caller can fall back to the bare slot name.
+ */
+export function formatWindow(start, end) {
+  if (!isClockTime(start) || !isClockTime(end)) return '';
+
+  const from = formatClockTime(start);
+  const to = formatClockTime(end);
+  const [fromTime, fromSuffix] = from.split(' ');
+  const [, toSuffix] = to.split(' ');
+
+  return fromSuffix === toSuffix ? `${fromTime} – ${to}` : `${from} – ${to}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function assertDate(value) {
   if (!ISO_DATE.test(value)) {

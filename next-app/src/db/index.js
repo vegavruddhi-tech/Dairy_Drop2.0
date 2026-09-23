@@ -26,8 +26,23 @@ if (!process.env.DATABASE_URL) {
 function createPool() {
   return new Pool({
     connectionString: process.env.DATABASE_URL,
-    // Serverless-friendly: keep the pool small, recycle idle clients quickly.
-    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+    /*
+     * Keep the pool small, recycle idle clients quickly.
+     *
+     * The ceiling that matters is the *pooler's*, not this process's. Supabase's
+     * session pooler allows 15 client connections for the whole project, shared
+     * by every instance: several serverless instances, or a dev server and a
+     * test run on one laptop, are all drawing on the same 15.
+     *
+     * The default used to be 10, so two consumers exhausted it and Postgres
+     * started refusing connections with EMAXCONNSESSION. That surfaces as a
+     * Server Component throwing mid-render, which in development takes the
+     * whole page down with it.
+     *
+     * Five leaves room for a second consumer. Raise it with DATABASE_POOL_MAX
+     * only after checking what the pooler actually allows.
+     */
+    max: Number(process.env.DATABASE_POOL_MAX ?? 5),
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
     // Supabase and most managed Postgres require TLS but present a chain Node

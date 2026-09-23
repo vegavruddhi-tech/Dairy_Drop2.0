@@ -43,7 +43,13 @@ export default async function RoundPage({ searchParams }) {
         <Stat label="Stops" value={summary.total} />
         <Stat label="Done" value={summary.delivered} tone="positive" />
         <Stat label="Left" value={remaining.length} tone={remaining.length ? 'caution' : 'neutral'} />
-        <Stat label="Milk out" value={formatMilli(Math.round(Number(summary.litres) * 1000))} />
+        <Stat
+          label="Milk out"
+          value={formatMilli(Math.round(Number(summary.litres) * 1000))}
+          hint={summary.extrasCount > 0
+            ? `+ ${summary.extrasCount} extra${summary.extrasCount === 1 ? '' : 's'}`
+            : undefined}
+        />
       </div>
 
       {stops.length === 0 ? (
@@ -72,8 +78,13 @@ export default async function RoundPage({ searchParams }) {
             <div className="mb-8 rounded-2xl bg-positive-soft px-5 py-6 text-center">
               <p className="text-2xl" aria-hidden="true">✓</p>
               <p className="mt-1 font-medium text-positive">Round complete</p>
+              {/* Milk and extras, because both are billed. */}
               <p className="mt-0.5 text-sm text-ink-muted">
-                {formatPaise(Math.round(Number(summary.amount) * 100))} billed today.
+                {formatPaise(summary.billedPaise)} billed today
+                {summary.extrasPaise > 0
+                  ? ` — ${formatPaise(summary.milkPaise)} milk, ${formatPaise(summary.extrasPaise)} extras`
+                  : ''}
+                .
               </p>
             </div>
           )}

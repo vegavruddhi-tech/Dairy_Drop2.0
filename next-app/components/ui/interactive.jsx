@@ -220,13 +220,31 @@ export function Textarea({ label, error, className, id, ...props }) {
 /**
  * A stepper for litres.
  *
- * Deliberately not a free-text number input: the milkman is tapping this
- * outdoors, one-handed, and 0.5 L steps cover almost every real adjustment.
+ * Big tap targets first: the milkman is using this outdoors, one-handed, and
+ * 0.5 L steps cover almost every real adjustment. The number itself is also
+ * editable, because "tap targets are enough" was not true — anything off the
+ * step grid was unreachable, and a customer who wanted 2.5 L from a 2 L plan
+ * had to find a small `+` on a phone. Typing is the reliable path; the buttons
+ * are the fast one.
  */
 export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5, max = 20, unit = 'L' }) {
   const [value, setValue] = useState(Number(defaultValue));
+  /*
+   * The number is typeable, not only tappable.
+   *
+   * With buttons alone, 2.5 from a plan of 2 meant finding a small `+` on a
+   * phone, and anything not a multiple of `step` was unreachable. Held as text
+   * while editing so an in-progress "2." is not clamped to 2 mid-keystroke.
+   */
+  const [draft, setDraft] = useState(null);
 
   const clamp = (next) => Math.min(max, Math.max(min, Math.round(next * 1000) / 1000));
+
+  function commitDraft() {
+    const parsed = Number(draft);
+    setValue(draft !== null && draft !== '' && Number.isFinite(parsed) ? clamp(parsed) : value);
+    setDraft(null);
+  }
 
   return (
     <div className="flex items-center gap-3">
@@ -234,26 +252,41 @@ export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5,
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => setValue((v) => clamp(v - step))}
+        onClick={() => { commitDraft(); setValue((v) => clamp(v - step)); }}
         aria-label={`Decrease by ${step} ${unit}`}
         className="w-11"
       >
         −
       </Button>
-      <div className="min-w-[5rem] text-center">
-        <span className="stat-number text-2xl text-ink">{value}</span>
+      <div className="flex min-w-[5rem] items-baseline justify-center">
+        <input
+          type="text"
+          inputMode="decimal"
+          aria-label={`Quantity in ${unit}`}
+          value={draft ?? value}
+          onChange={(event) => setDraft(event.target.value.replace(/[^0-9.]/g, ''))}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitDraft();
+            }
+          }}
+          className="stat-number w-16 bg-transparent text-center text-2xl text-ink outline-none focus:underline"
+        />
         <span className="ml-1 text-sm text-ink-muted">{unit}</span>
       </div>
       <Button
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => setValue((v) => clamp(v + step))}
+        onClick={() => { commitDraft(); setValue((v) => clamp(v + step)); }}
         aria-label={`Increase by ${step} ${unit}`}
         className="w-11"
       >
         +
       </Button>
+      {/* Always the committed number, never a half-typed draft. */}
       <input type="hidden" name={name} value={value} />
     </div>
   );

@@ -106,6 +106,17 @@ export const subscriptionActionSchema = z.object({
   reason: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+/** 'HH:MM' from a native <input type="time">, or blank. */
+const clockTime = z
+  .string()
+  .trim()
+  .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Use a time like 06:00.')
+  .optional()
+  .or(z.literal(''));
+
+/** '' → null, so a cleared field clears the column rather than storing ''. */
+const blankToNull = (value) => (value === '' || value === undefined ? null : value);
+
 export const milkPlanSchema = z
   .object({
     id: uuid.optional(),
@@ -116,13 +127,57 @@ export const milkPlanSchema = z
     unit: z.enum(['L', 'ml', 'kg', 'g', 'pcs']).default('L'),
     frequency: z.enum(['DAILY', 'ALTERNATE_DAYS', 'WEEKLY', 'MONTHLY']).default('DAILY'),
     slot: z.enum(['MORNING', 'EVENING', 'BOTH']).default('MORNING'),
+    morningStart: clockTime,
+    morningEnd: clockTime,
+    eveningStart: clockTime,
+    eveningEnd: clockTime,
     pricingBasis: z.enum(['MONTHLY', 'PER_DELIVERY']),
     price: money,
     isActive: z.boolean().default(true),
   })
+  /*
+   * A window is required for each slot the plan actually runs, and only those.
+   *
+   * Checked here as well as by the database CHECK because a field error can say
+   * which box to fill in; a constraint violation can only say the row was bad.
+   */
+  .superRefine((value, ctx) => {
+    const needs = {
+      morning: value.slot === 'MORNING' || value.slot === 'BOTH',
+      evening: value.slot === 'EVENING' || value.slot === 'BOTH',
+    };
+
+    for (const [prefix, required] of Object.entries(needs)) {
+      const startKey = `${prefix}Start`;
+      const endKey = `${prefix}End`;
+      const start = value[startKey] || '';
+      const end = value[endKey] || '';
+
+      if (required) {
+        if (!start) {
+          ctx.addIssue({ code: 'custom', path: [startKey], message: 'When does the round start?' });
+        }
+        if (!end) {
+          ctx.addIssue({ code: 'custom', path: [endKey], message: 'And when does it finish?' });
+        }
+        if (start && end && end <= start) {
+          // 'HH:MM' compares correctly as a string, which is why it is stored
+          // zero-padded. A round that ends before it starts cannot be met.
+          ctx.addIssue({ code: 'custom', path: [endKey], message: 'The end must be after the start.' });
+        }
+      }
+    }
+  })
   // Exactly one pricing basis reaches the database, matching the CHECK constraint.
-  .transform(({ pricingBasis, price, ...rest }) => ({
+  .transform(({ pricingBasis, price, slot, ...rest }) => ({
     ...rest,
+    slot,
+    // Drop the window for a slot this plan does not run, so switching from
+    // "both" to "morning" does not leave a stale evening time behind.
+    morningStart: slot === 'EVENING' ? null : blankToNull(rest.morningStart),
+    morningEnd: slot === 'EVENING' ? null : blankToNull(rest.morningEnd),
+    eveningStart: slot === 'MORNING' ? null : blankToNull(rest.eveningStart),
+    eveningEnd: slot === 'MORNING' ? null : blankToNull(rest.eveningEnd),
     monthlyPrice: pricingBasis === 'MONTHLY' ? price : null,
     pricePerDelivery: pricingBasis === 'PER_DELIVERY' ? price : null,
   }));

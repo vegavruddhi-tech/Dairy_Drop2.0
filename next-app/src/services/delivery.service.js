@@ -14,6 +14,7 @@ import { NotFoundError, ValidationError, ConflictError } from '@/domain/errors.j
 import * as deliveriesRepo from '@/repositories/deliveries.repo.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
+import * as productsRepo from '@/repositories/products.repo.js';
 
 /**
  * Generate delivery rows for a date.
@@ -68,13 +69,77 @@ export async function generateForRange(from, to) {
   return results;
 }
 
-/** The milkman's round for a day, with a summary header. */
+/**
+ * The milkman's round for a day, with a summary header.
+ *
+ * Extras ordered for the date are attached to the stop they belong to, so the
+ * person loading the bike sees the whole load in one place. A customer who
+ * ordered only extras and has no milk that day still gets a stop — otherwise
+ * the round would not take the milkman to their door at all.
+ */
 export async function getRound(actor, date = businessDate()) {
-  const [stops, summary] = await Promise.all([
+  const [milkStops, summary, extras] = await Promise.all([
     deliveriesRepo.listRound(actor, date),
     deliveriesRepo.roundSummary(actor, date),
+    productsRepo.listRoundExtras(actor, date),
   ]);
-  return { date, stops, summary };
+
+  const byCustomer = new Map();
+  for (const extra of extras) {
+    const list = byCustomer.get(extra.customerId) ?? [];
+    list.push(extra);
+    byCustomer.set(extra.customerId, list);
+  }
+
+  const stops = milkStops.map((stop) => ({
+    ...stop,
+    extras: byCustomer.get(stop.customerId) ?? [],
+  }));
+
+  /*
+   * Extras-only stops.
+   *
+   * These carry no delivery row, so they have no id to mark and no milk
+   * quantity. `milkless` tells the UI to render them as a carry-list rather
+   * than as something with delivery buttons; the order itself is marked on the
+   * Orders screen, which owns purchase status.
+   */
+  const visited = new Set(milkStops.map((stop) => stop.customerId));
+  for (const [customerId, list] of byCustomer) {
+    if (visited.has(customerId)) continue;
+    const [first] = list;
+    stops.push({
+      id: `extras:${customerId}`,
+      customerId,
+      customerName: first.customerName,
+      customerPhone: first.customerPhone,
+      addressLine1: first.deliveryAddress ?? null,
+      addressArea: null,
+      routeSequence: 9999,
+      status: 'PENDING',
+      milkless: true,
+      extras: list,
+    });
+  }
+
+  const extrasPaise = extras
+    .filter((extra) => extra.status !== 'CANCELLED')
+    .reduce((total, extra) => total + Math.round(Number(extra.amount ?? 0) * 100), 0);
+
+  return {
+    date,
+    stops,
+    summary: {
+      ...summary,
+      // The header counted milk stops only, which under-reported the round the
+      // moment anyone ordered an extra.
+      total: stops.length,
+      extrasCount: extras.length,
+      extrasPaise,
+      milkPaise: Math.round(Number(summary.amount ?? 0) * 100),
+      billedPaise: Math.round(Number(summary.amount ?? 0) * 100) + extrasPaise,
+    },
+  };
 }
 
 /** A customer's own view of a day, across every plan they hold. */
@@ -210,10 +275,28 @@ export async function adjustQuantity(actor, { deliveryId, quantity, note }) {
   if (milli <= 0) throw new ValidationError('Enter a quantity greater than zero.');
   if (milli > 100_000) throw new ValidationError('That quantity is too large.');
 
+  const plannedMilli = toMilli(delivery.plannedQuantity);
+  const currentMilli = toMilli(delivery.adjustedQuantity ?? delivery.plannedQuantity);
+
+  /*
+   * Confirming the dialog without moving the stepper is not a change.
+   *
+   * It used to write `adjusted_quantity = planned_quantity`, which put a
+   * "changed today" badge on the milkman's round and sent them a notification
+   * saying the customer had set the amount they were always getting. The
+   * milkman then went looking for a difference that was not there.
+   *
+   * Setting it back to the plan is the opposite of an adjustment, so it clears
+   * the field rather than storing a redundant copy of the planned amount.
+   */
+  if (milli === currentMilli && note == null) return delivery;
+
+  const isBackToPlan = milli === plannedMilli;
+
   return transaction(async (tx) => {
     const updated = await deliveriesRepo.setAdjustedQuantity(tx, actor, {
       id: deliveryId,
-      quantity: milliToDecimal(milli),
+      quantity: isBackToPlan ? null : milliToDecimal(milli),
       note,
     });
     if (!updated) throw new NotFoundError('That delivery');
@@ -221,8 +304,10 @@ export async function adjustQuantity(actor, { deliveryId, quantity, note }) {
     await notificationsRepo.create(tx, {
       userId: updated.milkmanId,
       type: 'QUANTITY_CHANGE',
-      title: 'Quantity changed for one day',
-      body: `${actor.name} set ${Number(updated.adjustedQuantity)} ${updated.unit} for ${updated.deliveryDate}.`,
+      title: isBackToPlan ? 'Back to the usual amount' : 'Quantity changed for one day',
+      body: isBackToPlan
+        ? `${actor.name} is back to ${Number(updated.plannedQuantity)} ${updated.unit} for ${updated.deliveryDate}.`
+        : `${actor.name} set ${Number(updated.adjustedQuantity)} ${updated.unit} for ${updated.deliveryDate} (usually ${Number(updated.plannedQuantity)}).`,
       href: `/milkman/round?date=${updated.deliveryDate}`,
       subjectType: 'delivery',
       subjectId: updated.id,

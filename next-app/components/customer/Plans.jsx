@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Card, CardBody, StatusBadge, Badge, Notice } from '@/components/ui/index.jsx';
 import { Button, Modal, Select, Textarea } from '@/components/ui/interactive.jsx';
 import { formatPaise } from '@/domain/money.js';
+import { formatWindow } from '@/domain/dates.js';
 import {
   subscribe,
   pauseSubscription,
@@ -45,6 +46,9 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest 
                 {subscription.frequency.replace('_', ' ').toLowerCase()} ·{' '}
                 {subscription.slot.toLowerCase()}
               </p>
+              {/* The hours this customer was promised, snapshotted at
+                  enrolment — not whatever the plan says today. */}
+              <DeliveryWindows source={subscription} className="mt-1" />
             </div>
             <StatusBadge status={subscription.status} />
           </div>
@@ -198,6 +202,7 @@ export function PlanCard({ plan, alreadySubscribed }) {
           <li>{Number(plan.quantity)} {plan.unit} per delivery</li>
           <li>{plan.frequency.replace('_', ' ').toLowerCase()}</li>
           <li>{plan.slot.toLowerCase()} delivery</li>
+          <WindowItems source={plan} />
         </ul>
 
         <p className="text-xs text-ink-subtle">
@@ -225,5 +230,37 @@ export function PlanCard({ plan, alreadySubscribed }) {
         </div>
       </CardBody>
     </Card>
+  );
+}
+
+/**
+ * The delivery hours held on a plan or a subscription.
+ *
+ * Renders nothing when no window is set, which is the case for anything
+ * created before windows existed — a missing time is not midnight.
+ */
+function DeliveryWindows({ source, className }) {
+  const morning = formatWindow(source.morningStart, source.morningEnd);
+  const evening = formatWindow(source.eveningStart, source.eveningEnd);
+  if (!morning && !evening) return null;
+
+  return (
+    <p className={`text-sm text-ink ${className ?? ''}`}>
+      {[morning && `Morning ${morning}`, evening && `Evening ${evening}`]
+        .filter(Boolean)
+        .join(' · ')}
+    </p>
+  );
+}
+
+/** The same thing as list items, for the plan card's feature list. */
+function WindowItems({ source }) {
+  const morning = formatWindow(source.morningStart, source.morningEnd);
+  const evening = formatWindow(source.eveningStart, source.eveningEnd);
+  return (
+    <>
+      {morning ? <li className="text-ink">Morning {morning}</li> : null}
+      {evening ? <li className="text-ink">Evening {evening}</li> : null}
+    </>
   );
 }

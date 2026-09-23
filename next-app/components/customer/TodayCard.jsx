@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Card, CardBody, StatusBadge } from '@/components/ui/index.jsx';
 import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/interactive.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
+import { formatWindow } from '@/domain/dates.js';
 
 /**
  * One plan's delivery for today.
@@ -41,8 +42,14 @@ export function TodayCard({ delivery }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-medium text-ink">{delivery.productName}</p>
+              {/*
+                * The slot with the hour attached, because "Morning" alone does
+                * not tell anyone whether to leave the gate unlocked at six or
+                * at eight. Falls back to the bare slot for plans created before
+                * windows existed.
+                */}
               <p className="mt-0.5 text-sm text-ink-muted">
-                {delivery.slot === 'MORNING' ? 'Morning' : delivery.slot === 'EVENING' ? 'Evening' : 'Morning & evening'}
+                <SlotLine delivery={delivery} />
               </p>
             </div>
             <StatusBadge status={delivery.status} />
@@ -179,6 +186,25 @@ export function TodayCard({ delivery }) {
           </div>
         </form>
       </Modal>
+    </>
+  );
+}
+
+/** 'Morning 6:00 – 7:30 am', or just 'Morning' when no window is set. */
+function SlotLine({ delivery }) {
+  const morning = formatWindow(delivery.morningStart, delivery.morningEnd);
+  const evening = formatWindow(delivery.eveningStart, delivery.eveningEnd);
+
+  if (delivery.slot === 'MORNING') return <>Morning{morning ? ` · ${morning}` : ''}</>;
+  if (delivery.slot === 'EVENING') return <>Evening{evening ? ` · ${evening}` : ''}</>;
+
+  // Both slots: show each window on its own, since they are different hours.
+  if (!morning && !evening) return <>Morning &amp; evening</>;
+  return (
+    <>
+      {morning ? `Morning · ${morning}` : 'Morning'}
+      {' · '}
+      {evening ? `Evening · ${evening}` : 'Evening'}
     </>
   );
 }

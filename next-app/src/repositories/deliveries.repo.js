@@ -49,9 +49,23 @@ export async function listRound(actor, date) {
       skipReason: deliveries.skipReason,
       note: deliveries.note,
       deliveredAt: deliveries.deliveredAt,
+      /*
+       * The promised window, read from the subscription version this delivery
+       * was generated from rather than copied onto every delivery row. The
+       * subscription already snapshots it at enrolment, so it cannot drift;
+       * duplicating it per day would be a second copy to keep in step.
+       */
+      morningStart: milkSubscriptions.morningStart,
+      morningEnd: milkSubscriptions.morningEnd,
+      eveningStart: milkSubscriptions.eveningStart,
+      eveningEnd: milkSubscriptions.eveningEnd,
     })
     .from(deliveries)
     .innerJoin(users, eq(users.id, deliveries.customerId))
+    .leftJoin(
+      milkSubscriptions,
+      eq(milkSubscriptions.id, deliveries.subscriptionVersionId),
+    )
     .leftJoin(
       addresses,
       and(eq(addresses.userId, deliveries.customerId), eq(addresses.isDefault, true)),
@@ -150,8 +164,22 @@ export async function listCustomerDay(actor, date) {
       skipReason: deliveries.skipReason,
       note: deliveries.note,
       deliveredAt: deliveries.deliveredAt,
+      /*
+       * The promised window, read from the subscription version this delivery
+       * was generated from rather than copied onto every delivery row. The
+       * subscription already snapshots it at enrolment, so it cannot drift;
+       * duplicating it per day would be a second copy to keep in step.
+       */
+      morningStart: milkSubscriptions.morningStart,
+      morningEnd: milkSubscriptions.morningEnd,
+      eveningStart: milkSubscriptions.eveningStart,
+      eveningEnd: milkSubscriptions.eveningEnd,
     })
     .from(deliveries)
+    .leftJoin(
+      milkSubscriptions,
+      eq(milkSubscriptions.id, deliveries.subscriptionVersionId),
+    )
     .where(
       scoped(
         { actor, permission: PERMISSIONS.DELIVERY_READ, columns: scopeColumns },

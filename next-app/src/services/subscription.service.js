@@ -41,6 +41,24 @@ export async function listMine(actor) {
  * A customer may hold several subscriptions at once — the bill sums all of them.
  * Each one is its own `rootId`.
  */
+/**
+ * The delivery windows a subscription inherits, for the slot it actually runs.
+ *
+ * A customer on the morning half of a "both" plan is promised the morning
+ * window and nothing else — carrying the evening one would render a time they
+ * never receive milk at.
+ */
+function windowsFor(plan, slot) {
+  const morning = slot === 'MORNING' || slot === 'BOTH';
+  const evening = slot === 'EVENING' || slot === 'BOTH';
+  return {
+    morningStart: morning ? plan.morningStart ?? null : null,
+    morningEnd: morning ? plan.morningEnd ?? null : null,
+    eveningStart: evening ? plan.eveningStart ?? null : null,
+    eveningEnd: evening ? plan.eveningEnd ?? null : null,
+  };
+}
+
 export async function subscribe(actor, { planId, startDate, slot }) {
   const plan = await subscriptionsRepo.findPlan(actor, planId);
   if (!plan || !plan.isActive) throw new NotFoundError('That plan');
@@ -68,6 +86,9 @@ export async function subscribe(actor, { planId, startDate, slot }) {
       unit: plan.unit,
       frequency: plan.frequency,
       slot: slot ?? plan.slot,
+      // Snapshotted with the rest of the agreed terms: editing the plan later
+      // must not silently move the time this customer was promised.
+      ...windowsFor(plan, slot ?? plan.slot),
       unitPrice,
       quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise(plan, month)),
       status: 'ACTIVE',
@@ -229,6 +250,8 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
     unit: overrides.unit ?? plan.unit,
     frequency: overrides.frequency ?? plan.frequency,
     slot: overrides.slot ?? plan.slot,
+    // The successor takes the new plan's windows, like every other agreed term.
+    ...windowsFor(plan, overrides.slot ?? plan.slot),
     unitPrice,
     quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise({ ...plan, quantity }, month)),
     status: 'ACTIVE',

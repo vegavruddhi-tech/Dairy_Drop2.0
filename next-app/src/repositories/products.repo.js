@@ -209,6 +209,46 @@ export async function listOrders(actor, { status, ...page } = {}) {
     .offset(offset);
 }
 
+/**
+ * The extras a milkman has to carry on one day's round.
+ *
+ * Purchases live on their own screen, so nothing put them in front of the
+ * person actually doing the round: a customer could order paneer and the
+ * milkman would cycle past without it. The customer app already promises
+ * "extras your milkman can bring with tomorrow's milk", so the round is where
+ * they belong.
+ *
+ * Cancelled orders are excluded — they are not to be carried and are not
+ * billed. Everything else for the date is returned, whatever its status.
+ */
+export async function listRoundExtras(actor, date) {
+  return db
+    .select({
+      id: purchases.id,
+      customerId: purchases.customerId,
+      customerName: users.name,
+      customerPhone: users.phone,
+      productName: purchases.productName,
+      unit: purchases.unit,
+      quantity: purchases.quantity,
+      unitPrice: purchases.unitPrice,
+      amount: purchases.amount,
+      deliveryAddress: purchases.deliveryAddress,
+      orderDate: purchases.orderDate,
+      status: purchases.status,
+    })
+    .from(purchases)
+    .innerJoin(users, eq(users.id, purchases.customerId))
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.PURCHASE_READ, columns: purchaseScope },
+        eq(purchases.orderDate, date),
+        sql`${purchases.status} <> 'CANCELLED'`,
+      ),
+    )
+    .orderBy(asc(users.name));
+}
+
 /** A customer's own order history. */
 export async function listMyOrders(actor, page = {}) {
   const { limit, offset } = paginate(page);
