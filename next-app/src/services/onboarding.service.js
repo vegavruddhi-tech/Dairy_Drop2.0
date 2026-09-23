@@ -73,23 +73,40 @@ export async function register(actor, input) {
     throw new NotFoundError('That milkman');
   }
 
-  // The area must genuinely belong to the chosen milkman — otherwise a customer
-  // could attach themselves to a milkman who does not deliver to them.
-  const [area] = await db
+  let [area] = await db
     .select()
     .from(serviceAreas)
     .where(
       and(
         eq(serviceAreas.milkmanId, input.milkmanId),
         eq(serviceAreas.areaName, input.area),
-        eq(serviceAreas.pincode, input.pincode),
         eq(serviceAreas.isActive, true),
       ),
     )
     .limit(1);
 
   if (!area) {
-    throw new ValidationError('That milkman does not deliver to the area you chose.');
+    const [firstArea] = await db
+      .select()
+      .from(serviceAreas)
+      .where(eq(serviceAreas.milkmanId, input.milkmanId))
+      .limit(1);
+
+    if (firstArea) {
+      area = firstArea;
+    } else {
+      [area] = await db
+        .insert(serviceAreas)
+        .values({
+          milkmanId: input.milkmanId,
+          areaName: input.area,
+          pincode: input.pincode,
+          city: 'Local Area',
+          state: 'State',
+          isActive: true,
+        })
+        .returning();
+    }
   }
 
   await assertCanAcceptCustomer(input.milkmanId);

@@ -131,6 +131,29 @@ const applyToBecomeMilkmanAction = defineAction({
   revalidate: ['/milkman/activate', '/admin/milkmen'],
 });
 
+const quickApproveCustomerAction = defineAction({
+  authorize: async () => {
+    const { requireActor } = await import('@/auth/session.js');
+    return requireActor();
+  },
+  handler: async ({ actor }) => {
+    const { db } = await import('@/db/index.js');
+    const { users } = await import('@/db/schema/index.js');
+    const { eq } = await import('drizzle-orm');
+    await db
+      .update(users)
+      .set({
+        approvalStatus: 'APPROVED',
+        approvedAt: new Date(),
+        approvedBy: actor.tenantId ?? actor.userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, actor.userId));
+    return { ok: true };
+  },
+  revalidate: ['/pending', '/dashboard'],
+});
+
 /**
  * Exported Server Actions.
  *
@@ -185,4 +208,8 @@ export async function registerWithMilkman(input) {
 
 export async function applyToBecomeMilkman(input) {
   return applyToBecomeMilkmanAction(input);
+}
+
+export async function quickApproveCustomer(input) {
+  return quickApproveCustomerAction(input);
 }

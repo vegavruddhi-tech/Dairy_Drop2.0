@@ -307,16 +307,35 @@ export function RegisterFlow({ defaultName }) {
               required
             />
 
-            <Select
-              name="area"
-              label="Delivery area / sector"
-              options={milkman.areas
-                .filter((area) => area.pincode === pincode)
-                .map((area) => ({ value: area.areaName, label: area.areaName }))}
-            />
+            {(() => {
+              const matched = milkman.areas?.filter((a) => a.pincode === pincode) || [];
+              const options = (matched.length > 0 ? matched : milkman.areas || []).map((a) => ({
+                value: a.areaName,
+                label: a.pincode ? `${a.areaName} (${a.pincode})` : a.areaName,
+              }));
+
+              if (options.length > 0) {
+                return (
+                  <Select
+                    name="area"
+                    label="Delivery area / sector"
+                    options={options}
+                    required
+                  />
+                );
+              }
+              return (
+                <Input
+                  name="area"
+                  label="Delivery area / sector"
+                  placeholder="e.g. Sector 45, Green Park"
+                  required
+                />
+              );
+            })()}
 
             <Input name="line1" label="House / flat number and building" error={errors.line1} placeholder="Flat 402, Tower B, Green Valley" required />
-            <Input name="line2" label="Street or landmark (optional)" placeholder="Near Central Park" />
+            <Input name="line2" label="Street / Society (optional)" placeholder="Near Central Park" />
             <Input name="landmark" label="Landmark (optional)" placeholder="Opposite the temple" />
 
             <Textarea

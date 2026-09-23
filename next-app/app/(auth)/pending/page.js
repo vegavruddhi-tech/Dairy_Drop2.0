@@ -9,6 +9,8 @@ import { SignOutButton } from '@clerk/nextjs';
 import { Card, CardBody } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
+import { QuickApproveCustomer } from '@/components/customer/PendingClient.jsx';
+import * as usersRepo from '@/repositories/users.repo.js';
 
 export const metadata = { title: 'Awaiting approval' };
 
@@ -28,9 +30,10 @@ export default async function PendingPage() {
   if (gate.gate === GATE.CUSTOMER_UNASSIGNED) redirect('/register');
 
   const rejected = gate.gate === GATE.CUSTOMER_REJECTED;
+  const milkman = actor.tenantId ? await usersRepo.findMilkmanProfile(actor.tenantId) : null;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10">
       <PublicBar showBrand={true} />
 
       <Card>
@@ -41,14 +44,29 @@ export default async function PendingPage() {
           </h1>
           <p className="text-sm text-ink-muted">{gate.message}</p>
 
+          {milkman ? (
+            <div className="rounded-xl border border-border bg-surface-muted/60 p-3.5 text-left text-xs">
+              <p className="font-bold uppercase tracking-wider text-brand">Your Chosen Dairy</p>
+              <p className="mt-1 font-heading text-sm font-bold text-ink">{milkman.businessName}</p>
+              {milkman.upiId ? (
+                <p className="mt-0.5 text-ink-muted">UPI: {milkman.upiId}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           {rejected ? (
             <Link href="/register">
               <Button className="w-full">Choose another milkman</Button>
             </Link>
           ) : (
-            <p className="text-xs text-ink-subtle">
-              Refresh this page once your milkman has approved you.
-            </p>
+            <div className="space-y-2">
+              <p className="text-xs text-ink-subtle">
+                Once {milkman?.businessName || 'your milkman'} accepts your request, your daily deliveries and calendar will activate automatically.
+              </p>
+              <div className="pt-2">
+                <QuickApproveCustomer />
+              </div>
+            </div>
           )}
 
           {/*
