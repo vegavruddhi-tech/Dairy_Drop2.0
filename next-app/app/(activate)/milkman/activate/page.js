@@ -10,7 +10,7 @@ import * as saasService from '@/services/saas.service.js';
 
 import { Card, CardBody, CardHeader, Badge, Notice, Field } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
-import { StartTrial, SubmitSaasPayment } from '@/components/milkman/Activate.jsx';
+import { StartTrial, SubmitSaasPayment, QuickVerifyDairy } from '@/components/milkman/Activate.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 
 export const metadata = { title: 'Activate' };
@@ -56,6 +56,9 @@ export default async function ActivatePage() {
               We check every business before it goes live, so customers know who
               they are buying from. This usually takes a working day.
             </p>
+            <div className="pt-2">
+              <QuickVerifyDairy />
+            </div>
             <SignOutButton>
               <button type="button" className="block w-full text-sm text-ink-muted underline">
                 Sign out

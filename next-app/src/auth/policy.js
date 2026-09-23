@@ -112,8 +112,8 @@ export function evaluateGates(account, now = new Date()) {
 
   if (account.role === ROLES.CUSTOMER) {
     if (account.approvalStatus === 'REJECTED') return deny(GATE.CUSTOMER_REJECTED);
-    if (account.approvalStatus === 'PENDING') return deny(GATE.CUSTOMER_PENDING);
     if (!account.milkmanId) return deny(GATE.CUSTOMER_UNASSIGNED);
+    if (account.approvalStatus === 'PENDING') return deny(GATE.CUSTOMER_PENDING);
   }
 
   if (account.role === ROLES.MILKMAN) {

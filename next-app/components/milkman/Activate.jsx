@@ -5,8 +5,34 @@ import { toast } from 'sonner';
 
 import { Card, CardBody, CardHeader, Field, Notice } from '@/components/ui/index.jsx';
 import { Button, Input, Select } from '@/components/ui/interactive.jsx';
-import { startTrial, submitSaasPayment } from '@/actions/milkman.actions.js';
+import { startTrial, submitSaasPayment, quickVerifyMyDairy } from '@/actions/milkman.actions.js';
 import { formatPaise, toPaise } from '@/domain/money.js';
+
+export function QuickVerifyDairy() {
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <Button
+      variant="outline"
+      size="md"
+      className="w-full font-semibold"
+      loading={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await quickVerifyMyDairy();
+          if (result.ok) {
+            toast.success('Your dairy is now verified! You can start your free trial.');
+            window.location.reload();
+          } else {
+            toast.error(result.message ?? 'Could not verify dairy.');
+          }
+        })
+      }
+    >
+      ⚡ Instant Verify My Dairy (One-Click Activation)
+    </Button>
+  );
+}
 
 export function StartTrial() {
   const [pending, startTransition] = useTransition();

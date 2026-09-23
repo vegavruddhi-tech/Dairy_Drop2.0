@@ -121,6 +121,16 @@ const registerWithMilkmanAction = defineAction({
   revalidate: ['/pending', '/dashboard'],
 });
 
+const applyToBecomeMilkmanAction = defineAction({
+  authorize: async () => {
+    const { requireActor } = await import('@/auth/session.js');
+    return requireActor();
+  },
+  schema: V.milkmanApplicationSchema,
+  handler: ({ actor, input }) => onboardingService.applyToBecomeMilkman(actor, input),
+  revalidate: ['/milkman/activate', '/admin/milkmen'],
+});
+
 /**
  * Exported Server Actions.
  *

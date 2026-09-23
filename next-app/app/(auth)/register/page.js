@@ -23,18 +23,9 @@ export default async function RegisterPage() {
   return (
     <main className="mx-auto max-w-lg px-5 py-10">
       <PublicBar showBrand={true} />
-
-      <header className="mb-8">
-        <p className="text-sm font-medium text-brand">Almost there</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">
-          Find your milkman
-        </h1>
-        <p className="mt-1.5 text-ink-muted">
-          Tell us where you live and we will show you who delivers there.
-        </p>
-      </header>
-
-      <RegisterFlow defaultName={actor.name} />
+      <div className="mt-4">
+        <RegisterFlow defaultName={actor.name} />
+      </div>
     </main>
   );
 }
