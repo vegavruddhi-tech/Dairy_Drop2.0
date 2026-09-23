@@ -72,7 +72,7 @@ export async function subscribe(actor, { planId, startDate, slot }) {
     throw new ConflictError('You are already subscribed to that plan.');
   }
 
-  return transaction(async (tx) => {
+  const res = await transaction(async (tx) => {
     const rootId = randomUUID();
 
     const subscription = await subscriptionsRepo.insertSubscription(tx, {
@@ -107,6 +107,15 @@ export async function subscribe(actor, { planId, startDate, slot }) {
 
     return subscription;
   });
+
+  try {
+    const { generateForDate } = await import('./delivery.service.js');
+    await generateForDate(effectiveFrom);
+  } catch (err) {
+    console.error('Error generating deliveries on subscribe:', err);
+  }
+
+  return res;
 }
 
 /** Pause deliveries. Future scheduled days are withdrawn. */

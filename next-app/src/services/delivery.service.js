@@ -78,6 +78,12 @@ export async function generateForRange(from, to) {
  * the round would not take the milkman to their door at all.
  */
 export async function getRound(actor, date = businessDate()) {
+  try {
+    await generateForDate(date);
+  } catch (err) {
+    console.error('Error generating deliveries for round:', err);
+  }
+
   const [milkStops, summary, extras] = await Promise.all([
     deliveriesRepo.listRound(actor, date),
     deliveriesRepo.roundSummary(actor, date),
@@ -144,6 +150,11 @@ export async function getRound(actor, date = businessDate()) {
 
 /** A customer's own view of a day, across every plan they hold. */
 export async function getCustomerDay(actor, date = businessDate()) {
+  try {
+    await generateForDate(date);
+  } catch (err) {
+    console.error('Error generating deliveries for customer day:', err);
+  }
   const rows = await deliveriesRepo.listCustomerDay(actor, date);
   return { date, deliveries: rows };
 }
