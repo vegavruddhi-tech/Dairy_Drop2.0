@@ -121,14 +121,29 @@ const registerWithMilkmanAction = defineAction({
   revalidate: ['/pending', '/dashboard'],
 });
 
+/**
+ * Apply to trade as a milkman.
+ *
+ * Signed-in is the only guard, deliberately. `requireCustomer` would refuse a
+ * PENDING customer the one screen that fixes their state, and narrowing to
+ * CUSTOMER would turn "you have already applied" into a blank Forbidden. The
+ * service already rejects the cases that matter — an existing milkman, an
+ * administrator, or a customer with a live subscription — with a message the
+ * form can actually show.
+ *
+ * `options` is passed through so the guard throws in action mode rather than
+ * redirecting; a mutation's refusal is an error the caller must see.
+ */
 const applyToBecomeMilkmanAction = defineAction({
-  authorize: async () => {
+  authorize: async (options) => {
     const { requireActor } = await import('@/auth/session.js');
-    return requireActor();
+    return requireActor(options);
   },
   schema: V.milkmanApplicationSchema,
   handler: ({ actor, input }) => onboardingService.applyToBecomeMilkman(actor, input),
-  revalidate: ['/milkman/activate', '/admin/milkmen'],
+  // The applicant's role changed and an application is now waiting on an
+  // administrator, so both sides of the screen are stale.
+  revalidate: ['/milkman/activate', '/dashboard', '/admin', '/admin/milkmen'],
 });
 
 const quickApproveCustomerAction = defineAction({

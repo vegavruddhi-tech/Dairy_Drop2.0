@@ -1,5 +1,5 @@
 import { requireCustomer } from '@/auth/session.js';
-import { formatDate } from '@/domain/dates.js';
+import { businessDate, formatDate } from '@/domain/dates.js';
 import * as usersRepo from '@/repositories/users.repo.js';
 
 import { PageHeader, Card, CardBody, CardHeader, Field, Divider } from '@/components/ui/index.jsx';
@@ -26,7 +26,17 @@ export default async function ProfilePage() {
               <Field label="Name" value={customer?.name} />
               <Field label="Email" value={customer?.email} />
               <Field label="Phone" value={customer?.phone} />
-              <Field label="Customer since" value={customer?.createdAt ? formatDate(String(customer.createdAt).slice(0, 10)) : '—'} />
+              {/*
+                * `createdAt` is a JS Date, so String(…).slice(0, 10) produced
+                * 'Wed Sep 23' rather than a date string. `businessDate` is the
+                * only sanctioned way to get 'YYYY-MM-DD', and it resolves in
+                * APP_TIMEZONE — slicing an ISO string would report yesterday
+                * for anyone who signed up between midnight and 05:30 IST.
+                */}
+              <Field
+                label="Customer since"
+                value={customer?.createdAt ? formatDate(businessDate(customer.createdAt)) : '—'}
+              />
             </dl>
           </CardBody>
         </Card>
