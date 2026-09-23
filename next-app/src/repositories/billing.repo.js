@@ -12,6 +12,8 @@ import { and, eq, desc, asc, sql, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
 import { monthlyBills, payments, users, milkmanProfiles } from '@/db/schema/index.js';
+import { billStatusEnum } from '@/db/schema/enums.js';
+import { APP_SCHEMA } from '@/db/schema/_schema.js';
 import { PERMISSIONS } from '@/auth/roles.js';
 import { scoped, paginate } from './base.js';
 
@@ -109,19 +111,39 @@ export async function recalculatePaidAmount(tx, billId) {
     .from(payments)
     .where(eq(payments.billId, billId));
 
+  /*
+   * `sum()` over a numeric column comes back as a decimal *string* ('60.00'),
+   * and every use below crosses back into SQL as a bound parameter. Postgres
+   * infers a parameter's type from what it is compared against, so a bare
+   * `${totals.paid} > 0` was inferred as integer and threw 22P02 on the first
+   * payment that was not a whole number of rupees. Binding it once, explicitly
+   * numeric, is what stops the comparison deciding the type.
+   */
+  const paid = sql`${totals.paid}::numeric`;
+
   const [row] = await tx
     .update(monthlyBills)
     .set({
       paidAmount: totals.paid,
-      status: sql`case
+      /*
+       * The cast is not decoration. `status` is the `bill_status` enum, and a
+       * bare CASE over string literals is `text`, so Postgres rejected the whole
+       * statement with 42804 — every payment verification failed inside the
+       * transaction and the milkman's button did nothing.
+       *
+       * Qualified with APP_SCHEMA because the type lives in `app`, and nothing
+       * here may depend on a search_path: the Supabase transaction pooler
+       * ignores the one on the connection string.
+       */
+      status: sql`(case
         when ${monthlyBills.closedAt} is null then 'OPEN'
-        when ${totals.paid} >= ${monthlyBills.totalAmount} then 'PAID'
-        when ${totals.paid} > 0 then 'PARTIALLY_PAID'
+        when ${paid} >= ${monthlyBills.totalAmount} then 'PAID'
+        when ${paid} > 0 then 'PARTIALLY_PAID'
         when ${monthlyBills.dueDate} < current_date then 'OVERDUE'
         else 'UNPAID'
-      end`,
+      end)::${sql.raw(`"${APP_SCHEMA}"."${billStatusEnum.enumName}"`)}`,
       paidAt: sql`case
-        when ${totals.paid} >= ${monthlyBills.totalAmount} and ${monthlyBills.totalAmount} > 0
+        when ${paid} >= ${monthlyBills.totalAmount} and ${monthlyBills.totalAmount} > 0
         then coalesce(${monthlyBills.paidAt}, now())
         else ${monthlyBills.paidAt}
       end`,
@@ -212,6 +234,51 @@ export async function listSubmitted(actor, page = {}) {
       ),
     )
     .orderBy(asc(payments.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+/**
+ * Every payment recorded against a given month's bills, newest first.
+ *
+ * This is the collections ledger for a month. `listOutstanding` deliberately
+ * returns only what is still *owed*, so summing its `paidAmount` answers the
+ * opposite question — the moment a customer paid in full their bill dropped out
+ * of that list and their money disappeared from the milkman's "collected"
+ * figure. Money received is a fact about payments, so read payments.
+ *
+ * Returns rejected rows too: a milkman looking at a month wants to see the
+ * payment they turned away, not a gap. Callers filter on `status`.
+ */
+export async function listPaymentsForMonth(actor, month, page = {}) {
+  const { limit, offset } = paginate(page, 200);
+  return db
+    .select({
+      id: payments.id,
+      billId: payments.billId,
+      customerId: payments.customerId,
+      customerName: users.name,
+      customerPhone: users.phone,
+      month: monthlyBills.month,
+      amount: payments.amount,
+      method: payments.method,
+      reference: payments.reference,
+      customerNote: payments.customerNote,
+      status: payments.status,
+      rejectionReason: payments.rejectionReason,
+      verifiedAt: payments.verifiedAt,
+      createdAt: payments.createdAt,
+    })
+    .from(payments)
+    .innerJoin(users, eq(users.id, payments.customerId))
+    .innerJoin(monthlyBills, eq(monthlyBills.id, payments.billId))
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.PAYMENT_READ, columns: paymentScope },
+        eq(monthlyBills.month, month),
+      ),
+    )
+    .orderBy(desc(payments.createdAt))
     .limit(limit)
     .offset(offset);
 }

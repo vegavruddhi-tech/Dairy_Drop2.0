@@ -1,9 +1,9 @@
 import { requireMilkman } from '@/auth/session.js';
-import { businessMonth, formatMonth, recentMonths, addMonths } from '@/domain/dates.js';
+import { businessMonth, formatMonth, recentMonths, addMonths, formatInstant } from '@/domain/dates.js';
 import { formatPaise, formatMilli, toPaise } from '@/domain/money.js';
 import * as billingService from '@/services/billing.service.js';
 
-import { PageHeader, Card, CardBody, CardHeader, Stat, Table, Th, Td, EmptyState } from '@/components/ui/index.jsx';
+import { PageHeader, Card, CardBody, CardHeader, Stat, Table, Th, Td, EmptyState, StatusBadge } from '@/components/ui/index.jsx';
 
 export const metadata = { title: 'Earnings' };
 
@@ -39,7 +39,7 @@ export default async function EarningsPage({ searchParams }) {
         <Stat label="Collected" value={formatPaise(earnings.collectedPaise, { whole: true })} tone="positive" />
         <Stat
           label="Outstanding"
-          value={formatPaise(Math.max(0, earnings.billedPaise - earnings.collectedPaise), { whole: true })}
+          value={formatPaise(earnings.outstandingPaise, { whole: true })}
           tone="caution"
         />
         <Stat label="Deliveries" value={earnings.deliveredCount} />
@@ -94,6 +94,74 @@ export default async function EarningsPage({ searchParams }) {
           </CardBody>
         </Card>
       </div>
+
+      {/* ── Collections history ───────────────────────────────────────── */}
+      <section className="mt-5">
+        <Card>
+          <CardHeader
+            title="Payment history"
+            description={`Everything recorded against ${formatMonth(month)}`}
+          />
+          <CardBody className="p-0">
+            {earnings.payments.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-ink-muted">
+                No payments recorded for this month yet.
+              </p>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Customer</Th>
+                    <Th>Recorded</Th>
+                    <Th>Method</Th>
+                    <Th>Reference</Th>
+                    <Th>State</Th>
+                    <Th numeric>Amount</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {earnings.payments.map((payment) => (
+                    <tr key={payment.id}>
+                      <Td>
+                        <span className="font-medium">{payment.customerName}</span>
+                        {payment.customerPhone ? (
+                          <a href={`tel:${payment.customerPhone}`} className="block text-xs text-brand">
+                            {payment.customerPhone}
+                          </a>
+                        ) : null}
+                      </Td>
+                      <Td>
+                        <span className="text-sm">{formatInstant(payment.createdAt)}</span>
+                        {payment.verifiedAt ? (
+                          <span className="block text-xs text-ink-muted">
+                            Confirmed {formatInstant(payment.verifiedAt)}
+                          </span>
+                        ) : null}
+                      </Td>
+                      <Td>{payment.method}</Td>
+                      <Td>
+                        <span className="tnum text-sm">{payment.reference ?? '—'}</span>
+                      </Td>
+                      <Td>
+                        <StatusBadge status={payment.status} />
+                        {payment.rejectionReason ? (
+                          <span className="block text-xs text-ink-muted">{payment.rejectionReason}</span>
+                        ) : null}
+                      </Td>
+                      <Td
+                        numeric
+                        className={payment.status === 'VERIFIED' ? 'font-medium' : 'text-ink-muted'}
+                      >
+                        {formatPaise(payment.amountPaise)}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </CardBody>
+        </Card>
+      </section>
     </>
   );
 }

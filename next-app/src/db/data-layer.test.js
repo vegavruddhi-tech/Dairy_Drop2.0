@@ -17,12 +17,14 @@ const suite = hasDatabase ? describe : describe.skip;
 suite('data layer', () => {
   let admin, milkman, customer, month, today;
   let services;
+  // Hoisted: tests below build raw statements too, not just the setup.
+  let sql;
 
   beforeAll(async () => {
     const { ROLES, roleHas, scopeFor } = await import('@/auth/roles.js');
     const { businessMonth, businessDate } = await import('@/domain/dates.js');
     const { db } = await import('@/db/index.js');
-    const { sql } = await import('drizzle-orm');
+    ({ sql } = await import('drizzle-orm'));
 
     month = businessMonth();
     today = businessDate();
@@ -72,6 +74,25 @@ suite('data layer', () => {
       billRepo: await import('@/repositories/billing.repo.js'),
       saasRepo: await import('@/repositories/saas.repo.js'),
       db,
+
+      /**
+       * A pincode some verified, unsuspended milkman actually covers, or null.
+       * Mirrors the conditions `findMilkmenForPincode` itself filters on.
+       */
+      async coveredPincode() {
+        const result = await db.execute(sql`
+          select sa.pincode
+            from "app".service_areas sa
+            join "app".users u on u.id = sa.milkman_id
+            join "app".milkman_profiles p on p.milkman_id = sa.milkman_id
+           where sa.is_active
+             and u.is_active
+             and p.is_verified
+             and p.suspended_at is null
+           limit 1
+        `);
+        return (result.rows ?? result)[0]?.pincode ?? null;
+      },
     };
   });
 
@@ -189,9 +210,117 @@ suite('data layer', () => {
     });
   });
 
+  describe('payments', () => {
+    /*
+     * Guards the two bugs that made the milkman's "I received this" button dead.
+     * Both lived in `recalculatePaidAmount`, and both only fired on a real
+     * verification, which is why nothing else caught them:
+     *
+     *   42804 — the bill status is derived with a CASE over string literals,
+     *           typed `text`, assigned to the `bill_status` enum column.
+     *   22P02 — `sum()` returns a decimal string, and comparing the bound
+     *           parameter against the literal 0 made Postgres infer it as
+     *           integer, so '60.00' failed to parse.
+     *
+     * The second only appears once a payment is actually VERIFIED and the total
+     * is not a whole number, so the test creates that state itself — inside a
+     * transaction it then rolls back, so the suite never settles a real bill.
+     */
+    it('recalculates a decimal paid total onto the enum status', async () => {
+      const result = await services.db.execute(
+        sql`select id, customer_id, milkman_id, total_amount
+              from "app".monthly_bills limit 1`,
+      );
+      const bill = (result.rows ?? result)[0];
+      if (!bill) return;
+
+      const ROLLBACK = Symbol('rollback');
+      let updated = null;
+
+      await expect(
+        services.db.transaction(async (tx) => {
+          // A verified payment with paise, which is what broke the comparison.
+          await tx.execute(sql`
+            insert into "app".payments
+              (bill_id, customer_id, milkman_id, amount, method, status)
+            values (${bill.id}, ${bill.customer_id}, ${bill.milkman_id},
+                    '60.50', 'UPI', 'VERIFIED')
+          `);
+
+          updated = await services.billRepo.recalculatePaidAmount(tx, bill.id);
+          throw ROLLBACK;
+        }),
+      ).rejects.toBe(ROLLBACK);
+
+      expect(updated).toBeTruthy();
+      // Enum round-tripped, not text.
+      expect(['OPEN', 'UNPAID', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'])
+        .toContain(updated.status);
+      // The paise survived rather than being truncated or rejected.
+      expect(Number(updated.paidAmount)).toBeCloseTo(60.5, 2);
+    });
+  });
+
+  describe('earnings', () => {
+    /*
+     * Guards a bug where "Collected" fell as customers paid.
+     *
+     * The figure was summed from `listOutstanding`, which returns only bills
+     * that still owe money — so settling a bill in full removed it from the
+     * list and subtracted that customer's payment from the milkman's takings.
+     * With everyone paid up it read ₹0 while the money was in the bank.
+     *
+     * Collections are a fact about payments, so the check is against payments.
+     */
+    it('collected equals verified payments for the month', async () => {
+      const earnings = await services.billing.getEarnings(milkman, { month });
+
+      const expected = await services.db.execute(sql`
+        select coalesce(sum(p.amount) filter (where p.status = 'VERIFIED'), 0)::text as verified,
+               count(*)::int as total
+          from "app".payments p
+          join "app".monthly_bills b on b.id = p.bill_id
+         where p.milkman_id = ${milkman.userId} and b.month = ${month}`);
+      const row = (expected.rows ?? expected)[0];
+
+      expect(earnings.collectedPaise).toBe(Math.round(Number(row.verified) * 100));
+      // Never negative, even when a customer has paid in advance.
+      expect(earnings.outstandingPaise).toBe(
+        Math.max(0, earnings.billedPaise - earnings.collectedPaise),
+      );
+      expect(earnings.outstandingPaise).toBeGreaterThanOrEqual(0);
+    });
+
+    it('returns the month payment history the earnings page lists', async () => {
+      const earnings = await services.billing.getEarnings(milkman, { month });
+      expect(earnings.payments).toBeInstanceOf(Array);
+      for (const payment of earnings.payments) {
+        expect(payment.customerName).toBeTruthy();
+        expect(payment.amountPaise).toBeTypeOf('number');
+        expect(['SUBMITTED', 'VERIFIED', 'REJECTED']).toContain(payment.status);
+      }
+    });
+  });
+
   describe('public', () => {
+    /*
+     * Read the pincode out of the database rather than hardcoding one.
+     *
+     * This used to assert on '122003', a pincode that only existed because the
+     * sample seed created it. Re-seeding, or clearing the samples to use real
+     * accounts, made a green test go red while serviceability itself was fine.
+     * The behaviour under test is "a covered pincode resolves to its milkman",
+     * which does not depend on which pincode that is.
+     */
     it('serviceability finds a milkman for a served pincode', async () => {
-      const result = await services.onboarding.findMilkmenForPincode('122003');
+      const covered = await services.coveredPincode();
+      if (!covered) {
+        expect(await services.onboarding.findMilkmenForPincode('122003'))
+          .toMatchObject({ serviceable: false });
+        return;
+      }
+
+      const result = await services.onboarding.findMilkmenForPincode(covered);
       expect(result.serviceable).toBe(true);
       expect(result.milkmen.length).toBeGreaterThan(0);
     });

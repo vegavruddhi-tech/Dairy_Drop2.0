@@ -16,7 +16,7 @@ import 'server-only';
 import { db, transaction } from '@/db/index.js';
 import { computeBill, computeVariance, computeEarnings } from '@/domain/billing.js';
 import { businessMonth, monthEnd, monthOf, businessDate } from '@/domain/dates.js';
-import { paiseToDecimal, milliToDecimal } from '@/domain/money.js';
+import { paiseToDecimal, milliToDecimal, toPaise } from '@/domain/money.js';
 import { NotFoundError, ForbiddenError } from '@/domain/errors.js';
 import { PERMISSIONS } from '@/auth/roles.js';
 
@@ -179,10 +179,11 @@ export async function listInvoices(actor, { customerId, limit, offset } = {}) {
 export async function getEarnings(actor, { month } = {}) {
   const targetMonth = month ?? businessMonth();
 
-  const [deliveryRows, purchaseRows, outstanding] = await Promise.all([
+  const [deliveryRows, purchaseRows, outstanding, paymentRows] = await Promise.all([
     deliveriesRepo.listTenantMonth(actor, targetMonth),
     productsRepo.listTenantMonth(actor, targetMonth),
     billingRepo.listOutstanding(actor, { limit: 100 }),
+    billingRepo.listPaymentsForMonth(actor, targetMonth),
   ]);
 
   const earnings = computeEarnings({
@@ -191,10 +192,18 @@ export async function getEarnings(actor, { month } = {}) {
     payments: [],
   });
 
-  // Collections come from the bill ledger rather than being re-derived, so the
-  // "collected" figure always matches what customers were credited with.
-  const collectedPaise = outstanding.reduce(
-    (total, row) => total + Math.round(Number(row.paidAmount ?? 0) * 100),
+  /*
+   * Collections are the sum of VERIFIED payments against this month's bills.
+   *
+   * This used to sum `paidAmount` over `listOutstanding`, which returns only
+   * bills that still owe money. A customer paying in full dropped off that list
+   * and took their payment out of the total with them, so "Collected" fell as
+   * more people paid and hit ₹0 once everyone had settled. It was also
+   * unscoped by month, so any figure it did produce mixed months together.
+   */
+  const collected = paymentRows.filter((row) => row.status === 'VERIFIED');
+  const collectedPaise = collected.reduce(
+    (total, row) => total + toPaise(row.amount),
     0,
   );
 
@@ -211,6 +220,22 @@ export async function getEarnings(actor, { month } = {}) {
     month: targetMonth,
     ...earnings,
     collectedPaise,
+    // Outstanding is what was billed and not yet collected, floored at zero —
+    // an advance payment is not negative debt.
+    outstandingPaise: Math.max(0, earnings.billedPaise - collectedPaise),
+    /** The month's collections ledger, newest first. Drives the history table. */
+    payments: paymentRows.map((row) => ({
+      id: row.id,
+      customerName: row.customerName,
+      customerPhone: row.customerPhone,
+      amountPaise: toPaise(row.amount),
+      method: row.method,
+      reference: row.reference,
+      status: row.status,
+      rejectionReason: row.rejectionReason,
+      verifiedAt: row.verifiedAt,
+      createdAt: row.createdAt,
+    })),
     topProducts: [...byProduct.values()].sort((a, b) => b.paise - a.paise).slice(0, 5),
     outstanding,
   };
