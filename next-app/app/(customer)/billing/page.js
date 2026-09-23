@@ -175,6 +175,7 @@ export default async function BillingPage({ searchParams }) {
           <PayForm
             month={month}
             balancePaise={bill.balancePaise}
+            awaitingPaise={bill.awaitingPaise ?? 0}
             milkman={paymentInfo}
           />
 

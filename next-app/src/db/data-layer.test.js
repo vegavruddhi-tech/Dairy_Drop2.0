@@ -234,6 +234,14 @@ suite('data layer', () => {
       const bill = (result.rows ?? result)[0];
       if (!bill) return;
 
+      // Relative to whatever this bill has already been paid — the absolute
+      // figure depends on live rows, and asserting on it made this test fail
+      // the moment a real payment was verified.
+      const before = await services.db.execute(sql`
+        select coalesce(sum(amount) filter (where status = 'VERIFIED'), 0)::text as paid
+          from "app".payments where bill_id = ${bill.id}`);
+      const alreadyPaid = Number((before.rows ?? before)[0].paid);
+
       const ROLLBACK = Symbol('rollback');
       let updated = null;
 
@@ -257,7 +265,7 @@ suite('data layer', () => {
       expect(['OPEN', 'UNPAID', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'])
         .toContain(updated.status);
       // The paise survived rather than being truncated or rejected.
-      expect(Number(updated.paidAmount)).toBeCloseTo(60.5, 2);
+      expect(Number(updated.paidAmount)).toBeCloseTo(alreadyPaid + 60.5, 2);
     });
   });
 

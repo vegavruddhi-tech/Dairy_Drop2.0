@@ -14,10 +14,18 @@ import { formatPaise } from '@/domain/money.js';
  * The money moves by UPI or cash directly between customer and milkman; the
  * platform only records the claim and waits for the milkman to confirm it.
  */
-export function PayForm({ month, balancePaise, milkman }) {
+export function PayForm({ month, balancePaise, awaitingPaise = 0, milkman }) {
   const [method, setMethod] = useState('UPI');
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
+
+  /*
+   * What is genuinely still payable. A payment already recorded and waiting on
+   * the milkman has not reduced `balancePaise` yet — it only counts once
+   * confirmed — so offering the form again would invite a duplicate the server
+   * now refuses anyway.
+   */
+  const stillDuePaise = Math.max(0, balancePaise - awaitingPaise);
 
   function onSubmit(event) {
     event.preventDefault();
@@ -65,13 +73,25 @@ export function PayForm({ month, balancePaise, milkman }) {
           </p>
         )}
 
+        {stillDuePaise <= 0 ? (
+          <div className="rounded-xl border border-border bg-surface-muted p-4 text-center">
+            <p className="text-sm font-medium text-ink">
+              {awaitingPaise > 0 ? 'Payment recorded' : 'Nothing to pay'}
+            </p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {awaitingPaise > 0
+                ? `${formatPaise(awaitingPaise)} is with your milkman to confirm.`
+                : 'This month is settled. Anything delivered from here will appear on next month\u2019s bill.'}
+            </p>
+          </div>
+        ) : (
         <form onSubmit={onSubmit} className="space-y-4">
           <Input
             name="amount"
             label="Amount paid"
             inputMode="decimal"
-            placeholder={balancePaise ? String(balancePaise / 100) : '0'}
-            defaultValue={balancePaise ? String(balancePaise / 100) : ''}
+            placeholder={String(stillDuePaise / 100)}
+            defaultValue={String(stillDuePaise / 100)}
             error={errors.amount}
             required
           />
@@ -100,13 +120,14 @@ export function PayForm({ month, balancePaise, milkman }) {
           <Textarea name="note" label="Note (optional)" maxLength={300} />
 
           <Button type="submit" className="w-full" loading={pending}>
-            {balancePaise > 0 ? `Record ${formatPaise(balancePaise)}` : 'Record payment'}
+            Record {formatPaise(stillDuePaise)}
           </Button>
 
           <p className="text-xs text-ink-muted">
             Your milkman confirms the payment before it is credited.
           </p>
         </form>
+        )}
       </CardBody>
     </Card>
   );

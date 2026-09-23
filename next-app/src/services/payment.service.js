@@ -42,11 +42,33 @@ export async function submit(actor, { month, amount, method, reference, note }) 
   }
 
   return transaction(async (tx) => {
-    const { bill } = await materialiseBill(tx, actor, {
+    const { bill, computed } = await materialiseBill(tx, actor, {
       customerId: actor.userId,
       milkmanId: actor.tenantId,
       month: targetMonth,
     });
+
+    /*
+     * Refuse a payment against a month that owes nothing.
+     *
+     * `balancePaise` counts only VERIFIED payments, so it alone would let a
+     * customer record the same bill twice while the milkman had not yet
+     * confirmed the first — two notifications, two rows in the queue, and a
+     * bogus credit once both were confirmed. Subtracting what is already
+     * awaiting confirmation is what makes the second submission impossible.
+     *
+     * Enforced here rather than by hiding the form, because a Server Action is
+     * a public HTTP endpoint: the form is the courtesy, this is the control.
+     */
+    const stillDuePaise = Math.max(0, computed.balancePaise - computed.awaitingPaise);
+
+    if (stillDuePaise <= 0) {
+      throw new ConflictError(
+        computed.awaitingPaise > 0
+          ? `You have already recorded ${formatPaise(computed.awaitingPaise)} for ${formatMonth(targetMonth)}. Your milkman is confirming it.`
+          : `There is nothing left to pay for ${formatMonth(targetMonth)}.`,
+      );
+    }
 
     const payment = await billingRepo.createPayment(tx, {
       billId: bill.id,
