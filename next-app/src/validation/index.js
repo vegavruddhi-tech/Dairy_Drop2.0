@@ -131,7 +131,7 @@ export const milkPlanSchema = z
     morningEnd: clockTime,
     eveningStart: clockTime,
     eveningEnd: clockTime,
-    pricingBasis: z.enum(['MONTHLY', 'PER_DELIVERY']),
+    pricingBasis: z.enum(['MONTHLY', 'PER_DELIVERY', 'PER_UNIT']),
     price: money,
     isActive: z.boolean().default(true),
   })
@@ -167,6 +167,29 @@ export const milkPlanSchema = z
         }
       }
     }
+
+    /*
+     * On a two-slot plan the morning must finish before the evening begins.
+     *
+     * Each window can be individually sensible and the pair still nonsense —
+     * morning 02:00–17:30 beside evening 17:30–19:00 passes every check above,
+     * and tells the customer their morning delivery arrives at half past five
+     * in the afternoon. Overlapping rounds also leave no answer to which one a
+     * given delivery belongs in.
+     */
+    if (needs.morning && needs.evening) {
+      const morningEnd = value.morningEnd || '';
+      const eveningStart = value.eveningStart || '';
+      // `>=`, not `>`: touching windows leave a delivery on the boundary
+      // belonging to neither round.
+      if (morningEnd && eveningStart && morningEnd >= eveningStart) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['eveningStart'],
+          message: 'The evening round has to start after the morning one ends.',
+        });
+      }
+    }
   })
   // Exactly one pricing basis reaches the database, matching the CHECK constraint.
   .transform(({ pricingBasis, price, slot, ...rest }) => ({
@@ -179,8 +202,28 @@ export const milkPlanSchema = z
     eveningStart: slot === 'MORNING' ? null : blankToNull(rest.eveningStart),
     eveningEnd: slot === 'MORNING' ? null : blankToNull(rest.eveningEnd),
     monthlyPrice: pricingBasis === 'MONTHLY' ? price : null,
-    pricePerDelivery: pricingBasis === 'PER_DELIVERY' ? price : null,
+    /*
+     * A per-unit rate is a per-delivery price in disguise.
+     *
+     * ₹30 a litre on a 2 L plan is ₹60 a drop, and the database still holds
+     * exactly one basis — the CHECK constraint and the whole "no ambiguous
+     * pricing" rule survive. Converting here rather than adding a third column
+     * keeps one definition of what a plan costs.
+     */
+    pricePerDelivery:
+      pricingBasis === 'PER_DELIVERY'
+        ? price
+        : pricingBasis === 'PER_UNIT'
+          ? perUnitToPerDelivery(price, rest.quantity)
+          : null,
   }));
+
+/** '30' a litre × 2 L → '60.00'. Paise-exact, rounded once. */
+function perUnitToPerDelivery(price, quantity) {
+  const paisePerUnit = Math.round(Number(price) * 100);
+  const milli = Math.round(Number(quantity) * 1000);
+  return (Math.round((paisePerUnit * milli) / 1000) / 100).toFixed(2);
+}
 
 // ── Deliveries ───────────────────────────────────────────────────────────────
 

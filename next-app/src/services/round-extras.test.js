@@ -113,6 +113,34 @@ suite('round extras', () => {
     expect(summary.billedPaise).toBe(summary.milkPaise + summary.extrasPaise);
   });
 
+  it('carries each extra on one stop, not on every stop of the day', async () => {
+    if (made.length === 0) return;
+    const { stops } = await delivery.getRound(actor, today);
+
+    /*
+     * A "morning & evening" customer has two stops. Attaching their extras to
+     * both showed the same paneer twice, so the milkman would load it twice
+     * and expect paying for two.
+     */
+    const appearances = new Map();
+    for (const stop of stops) {
+      for (const extra of stop.extras ?? []) {
+        appearances.set(extra.id, (appearances.get(extra.id) ?? 0) + 1);
+      }
+    }
+    for (const [id, count] of appearances) {
+      expect(count, `purchase ${id} appears on ${count} stops`).toBe(1);
+    }
+
+    // And it rides with the first stop of the day, not the last.
+    for (const row of made) {
+      const theirs = stops.filter((s) => s.customerId === row.customerId);
+      const carrying = theirs.find((s) => (s.extras ?? []).length > 0);
+      expect(carrying).toBeTruthy();
+      expect(carrying.slot === 'EVENING' && theirs.length > 1).toBe(false);
+    }
+  });
+
   it('leaves cancelled orders off the round', async () => {
     const row = made[0];
     if (!row) return;

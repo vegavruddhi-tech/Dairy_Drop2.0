@@ -1,0 +1,4 @@
+ALTER TABLE "app"."milk_subscriptions" ADD COLUMN "occupies_morning" boolean GENERATED ALWAYS AS (slot in ('MORNING', 'BOTH')) STORED;--> statement-breakpoint
+ALTER TABLE "app"."milk_subscriptions" ADD COLUMN "occupies_evening" boolean GENERATED ALWAYS AS (slot in ('EVENING', 'BOTH')) STORED;--> statement-breakpoint
+CREATE UNIQUE INDEX "milk_subs_one_morning_per_customer" ON "app"."milk_subscriptions" USING btree ("customer_id") WHERE occupies_morning and effective_to is null and status in ('ACTIVE', 'PAUSED');--> statement-breakpoint
+CREATE UNIQUE INDEX "milk_subs_one_evening_per_customer" ON "app"."milk_subscriptions" USING btree ("customer_id") WHERE occupies_evening and effective_to is null and status in ('ACTIVE', 'PAUSED');

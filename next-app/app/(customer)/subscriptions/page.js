@@ -1,5 +1,6 @@
 import { requireCustomer } from '@/auth/session.js';
 import { formatPaise } from '@/domain/money.js';
+import { clashingSlots, slotLabel } from '@/domain/pricing.js';
 import * as subscriptionService from '@/services/subscription.service.js';
 import * as requestsRepo from '@/repositories/requests.repo.js';
 
@@ -22,6 +23,44 @@ export default async function SubscriptionsPage() {
   );
 
   const subscribedPlanIds = new Set(mine.filter((s) => s.status !== 'CANCELLED').map((s) => s.planId));
+
+  // The rate each subscribed plan was actually taken at, so a plan whose price
+  // has moved since can say which one applies to this customer.
+  const rateByPlan = new Map(
+    mine.filter((s) => s.status !== 'CANCELLED').map((s) => [s.planId, s.unitPrice]),
+  );
+
+  /*
+   * Which plans the customer cannot take, and what is in the way.
+   *
+   * A paused plan still holds its time — it is coming back, and freeing the
+   * slot would let something else take it with no way to resume. Computed with
+   * the same `clashingSlots` the service refuses on, so the picker and the
+   * server never disagree about what is available.
+   */
+  /*
+   * Plans the milkman has withdrawn since this customer signed up.
+   *
+   * Retiring a plan is a catalog action: it stops new customers taking it and
+   * leaves existing agreements alone. Correct, but from the customer's side it
+   * looked like a fault — their plan carried on working while "Change plan"
+   * quietly vanished, because there was nothing left to change to, and nothing
+   * said why.
+   */
+  const onOffer = new Set(available.map((plan) => plan.id));
+
+  const holding = mine.filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED');
+  const blockedByPlan = new Map();
+  for (const plan of available) {
+    if (subscribedPlanIds.has(plan.id)) continue;
+    const wanted = { slot: plan.slot, productName: plan.productName };
+    const clashes = clashingSlots(holding, wanted);
+    if (clashes.length === 0) continue;
+    blockedByPlan.set(plan.id, {
+      times: clashes.map(slotLabel).join(' and '),
+      productName: plan.productName,
+    });
+  }
 
   return (
     <>
@@ -49,6 +88,7 @@ export default async function SubscriptionsPage() {
                 subscription={subscription}
                 availablePlans={available}
                 pendingRequest={pendingByRoot.get(subscription.rootId) ?? null}
+                withdrawn={Boolean(subscription.planId) && !onOffer.has(subscription.planId)}
               />
             ))}
           </div>
@@ -61,7 +101,14 @@ export default async function SubscriptionsPage() {
         </h2>
 
         {available.length === 0 ? (
-          <EmptyState title="No plans on offer yet" description="Your milkman has not published any plans." />
+          <EmptyState
+            title={mine.length > 0 ? 'Nothing else on offer' : 'No plans on offer yet'}
+            description={
+              mine.length > 0
+                ? 'Your milkman is not offering any other plans right now. What you already have keeps running.'
+                : 'Your milkman has not published any plans.'
+            }
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {available.map((plan) => (
@@ -69,6 +116,8 @@ export default async function SubscriptionsPage() {
                 key={plan.id}
                 plan={plan}
                 alreadySubscribed={subscribedPlanIds.has(plan.id)}
+                subscribedRate={rateByPlan.get(plan.id) ?? null}
+                blockedBy={blockedByPlan.get(plan.id) ?? null}
               />
             ))}
           </div>

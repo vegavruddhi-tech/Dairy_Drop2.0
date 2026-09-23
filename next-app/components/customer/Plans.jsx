@@ -16,7 +16,7 @@ import {
 } from '@/actions/customer.actions.js';
 
 /** A plan the customer already holds, with its lifecycle actions. */
-export function SubscriptionCard({ subscription, availablePlans, pendingRequest }) {
+export function SubscriptionCard({ subscription, availablePlans, pendingRequest, withdrawn }) {
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -59,6 +59,31 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest 
             </span>
             <span className="text-sm text-ink-muted">per {subscription.unit}</span>
           </div>
+
+          {/*
+            * The rate agreed at enrolment, which is not always the plan's rate
+            * today.
+            *
+            * Prices are snapshotted so a milkman raising a plan cannot silently
+            * reprice people already on it. Correct, but it looked like a fault:
+            * the same screen showed "₹30.00 per L" here and "Billed at ₹60.00
+            * per L" on the plan below, with nothing to say why.
+            */}
+          <RateNote subscription={subscription} plans={availablePlans} />
+
+          {/*
+            * Say when the plan behind this subscription has been withdrawn.
+            *
+            * Nothing changes for the customer — that is the point of retiring
+            * rather than cancelling — but "Change plan" disappears with it, and
+            * a button vanishing without explanation reads as a fault.
+            */}
+          {withdrawn ? (
+            <Notice tone="info" title="No longer offered">
+              Your milkman has stopped offering this plan. Yours keeps running on
+              these terms for as long as you want it.
+            </Notice>
+          ) : null}
 
           {pendingRequest ? (
             <Notice tone="caution" title="Change requested">
@@ -180,7 +205,7 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest 
 }
 
 /** A plan on offer from the customer's milkman. */
-export function PlanCard({ plan, alreadySubscribed }) {
+export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -210,8 +235,30 @@ export function PlanCard({ plan, alreadySubscribed }) {
         </p>
 
         <div className="mt-auto pt-2">
-          {alreadySubscribed ? (
-            <Badge tone="positive">Subscribed</Badge>
+          {/*
+            * Say why it cannot be taken, before it is clicked.
+            *
+            * The server refuses a collision either way — a Server Action is a
+            * public endpoint and a disabled button protects nothing — but an
+            * error toast after the fact is a worse way to learn that a time is
+            * already spoken for.
+            */}
+          {!alreadySubscribed && blockedBy ? (
+            <>
+              <Button className="w-full" disabled>
+                Already on this
+              </Button>
+              <p className="mt-1.5 text-xs text-ink-muted">
+                You already get {blockedBy.productName} in the {blockedBy.times}.
+                Change or cancel that plan to order it differently.
+              </p>
+            </>
+          ) : alreadySubscribed ? (
+            <Badge tone="positive">
+              {subscribedRate && Number(subscribedRate) !== Number(plan.unitPrice)
+                ? `Subscribed at ₹${Number(subscribedRate).toFixed(2)}`
+                : 'Subscribed'}
+            </Badge>
           ) : (
             <Button
               className="w-full"
@@ -262,5 +309,27 @@ function WindowItems({ source }) {
       {morning ? <li className="text-ink">Morning {morning}</li> : null}
       {evening ? <li className="text-ink">Evening {evening}</li> : null}
     </>
+  );
+}
+
+/**
+ * Says so when the rate you agreed to differs from the plan's rate today.
+ *
+ * Silent when they match, which is the normal case — a note on every card
+ * would be noise, and the number above already says what you pay.
+ */
+function RateNote({ subscription, plans }) {
+  const plan = (plans ?? []).find((p) => p.id === subscription.planId);
+  if (!plan?.unitPrice) return null;
+
+  const agreed = Number(subscription.unitPrice);
+  const current = Number(plan.unitPrice);
+  if (!Number.isFinite(agreed) || !Number.isFinite(current) || agreed === current) return null;
+
+  return (
+    <p className="text-xs text-ink-muted">
+      This is the rate you signed up at. {plan.name} is now ₹{current.toFixed(2)} per{' '}
+      {subscription.unit} — your price only changes if you move to it.
+    </p>
   );
 }

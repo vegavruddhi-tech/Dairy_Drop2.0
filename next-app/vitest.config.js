@@ -35,10 +35,24 @@ export default defineConfig({
     // Vitest only auto-loads VITE_-prefixed variables; the integration suite
     // needs DATABASE_URL, so load .env into every test context.
     setupFiles: ['dotenv/config'],
+    /*
+     * Runs once before any file. Clears fixture customers a crashed run left
+     * behind — they are APPROVED, so they count against a milkman's plan limit
+     * and can fail tests that never touched them.
+     */
+    globalSetup: ['./src/test/global-setup.js'],
     include: ['src/**/*.test.js', 'components/**/*.test.js'],
     // Integration tests share one database; running files in parallel would
     // have them trip over each other.
     fileParallelism: false,
-    testTimeout: 30_000,
+    /*
+     * Generous, because the integration suites talk to a real Postgres that is
+     * usually in another region. A test that subscribes, generates a day of
+     * deliveries and reads them back makes dozens of round trips, and at 30s
+     * whichever test happened to run while the connection was busiest failed —
+     * a different one each time, which reads like flakiness rather than
+     * latency.
+     */
+    testTimeout: 60_000,
   },
 });

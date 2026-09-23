@@ -143,6 +143,37 @@ export const milkSubscriptions = pgTable(
     slot: deliverySlotEnum('slot').notNull().default('MORNING'),
 
     /*
+     * Which times this subscription fills, derived from the slot.
+     *
+     * `BOTH` fills two, so it cannot be compared as a single value — a customer
+     * on a morning plan and a morning-and-evening plan collides on morning, and
+     * no unique index over `slot` alone can see that. Exploding it into two
+     * booleans makes the collision something the database can enforce, via the
+     * partial unique indexes below.
+     *
+     * Generated, so they cannot drift from `slot`.
+     */
+    occupiesMorning: boolean('occupies_morning').generatedAlwaysAs(
+      sql`slot in ('MORNING', 'BOTH')`,
+    ),
+    occupiesEvening: boolean('occupies_evening').generatedAlwaysAs(
+      sql`slot in ('EVENING', 'BOTH')`,
+    ),
+
+    /*
+     * What makes two orders the same thing.
+     *
+     * `product_name` is free text, so "Cow Milk" and "cow milk " are one
+     * product spelled three ways. Normalising here rather than at each call
+     * site means the index and `productKey()` in the domain agree by
+     * construction. A product catalog referenced by id would be better, and
+     * would retire this column.
+     */
+    productKey: varchar('product_key', { length: 120 }).generatedAlwaysAs(
+      sql`lower(btrim(product_name))`,
+    ),
+
+    /*
      * Snapshotted with everything else the customer agreed to. Editing the plan
      * later must not silently move the time an existing customer was promised.
      */
@@ -188,6 +219,29 @@ export const milkSubscriptions = pgTable(
     activeIdx: index('milk_subs_active_idx')
       .on(t.status, t.effectiveFrom)
       .where(sql`status = 'ACTIVE'`),
+    /*
+     * One order per product, per time of day, per customer.
+     *
+     * Keyed on the product as well as the time, because a stop is one *visit*,
+     * not one item — a milkman arriving at 6am can hand over cow milk and
+     * buffalo milk together. What cannot happen is the same product twice at
+     * the same time; that is one order written down twice.
+     *
+     * The service refuses the collision with a message naming the plan in the
+     * way, but a Server Action is a public endpoint and two simultaneous
+     * requests can both pass a service check; only the index can refuse both.
+     *
+     * A PAUSED subscription keeps its slot: it is coming back, and releasing
+     * the slot would let something else take it with no way to resume. A
+     * cancelled or superseded version has `effective_to` set and holds nothing.
+     */
+    oneMorningPerProduct: uniqueIndex('milk_subs_one_morning_per_product')
+      .on(t.customerId, t.productKey)
+      .where(sql`occupies_morning and effective_to is null and status in ('ACTIVE', 'PAUSED')`),
+    oneEveningPerProduct: uniqueIndex('milk_subs_one_evening_per_product')
+      .on(t.customerId, t.productKey)
+      .where(sql`occupies_evening and effective_to is null and status in ('ACTIVE', 'PAUSED')`),
+
     positiveQuantity: check('milk_subs_qty_positive', sql`${t.quantity} > 0`),
     nonNegativePrice: check('milk_subs_price_non_negative', sql`${t.unitPrice} >= 0`),
     sensibleRange: check(

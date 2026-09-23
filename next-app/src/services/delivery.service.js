@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 
 import { db, transaction } from '@/db/index.js';
 import { businessDate, addDays, datesBetween, nextMonthStart, monthStart } from '@/domain/dates.js';
-import { isDeliveryDay } from '@/domain/pricing.js';
+import { isDeliveryDay, deliveriesPerDay } from '@/domain/pricing.js';
 import { milliToDecimal, toMilli } from '@/domain/money.js';
 import { NotFoundError, ValidationError, ConflictError } from '@/domain/errors.js';
 
@@ -29,6 +29,53 @@ import * as productsRepo from '@/repositories/products.repo.js';
  * @param {string} [date] business date; defaults to today
  * @returns {Promise<{ date: string, created: number, considered: number }>}
  */
+/** One delivery row as a line on a stop. */
+function toItem(row) {
+  return {
+    id: row.id,
+    subscriptionRootId: row.subscriptionRootId,
+    productName: row.productName,
+    unit: row.unit,
+    plannedQuantity: row.plannedQuantity,
+    adjustedQuantity: row.adjustedQuantity,
+    deliveredQuantity: row.deliveredQuantity,
+    unitPrice: row.unitPrice,
+    amount: row.amount,
+    status: row.status,
+    skipReason: row.skipReason,
+    note: row.note,
+    deliveredAt: row.deliveredAt,
+  };
+}
+
+/**
+ * A visit is settled only once every line on it is.
+ *
+ * A stop showing "delivered" while one of its two bottles is still pending
+ * would drop that bottle off the round entirely.
+ */
+function stopStatus(items) {
+  if (items.length === 0) return 'PENDING';
+  if (items.some((item) => item.status === 'PENDING')) return 'PENDING';
+  if (items.every((item) => item.status === 'DELIVERED')) return 'DELIVERED';
+  return items[0].status;
+}
+
+/** Morning before evening; a pre-split `BOTH` row sorts with the morning. */
+const SLOT_ORDER = { MORNING: 0, BOTH: 0, EVENING: 1 };
+
+/**
+ * The concrete slots one subscription produces on a delivery day.
+ *
+ * `BOTH` is not a slot a delivery can be in — it is a statement that there are
+ * two of them. Keeping `BOTH` on a delivery row is what let a two-drop plan
+ * masquerade as one.
+ */
+function slotsFor(slot) {
+  if (slot === 'BOTH') return ['MORNING', 'EVENING'];
+  return [slot];
+}
+
 export async function generateForDate(date = businessDate()) {
   return transaction(async (tx) => {
     const subscriptions = await subscriptionsRepo.listGenerable(tx, date);
@@ -37,26 +84,61 @@ export async function generateForDate(date = businessDate()) {
       isDeliveryDay(sub.frequency, sub.effectiveFrom, date),
     );
 
-    const rows = due.map((sub) => ({
-      subscriptionRootId: sub.rootId,
-      subscriptionVersionId: sub.versionId,
-      customerId: sub.customerId,
-      milkmanId: sub.milkmanId,
-      deliveryDate: date,
-      slot: sub.slot,
-      productName: sub.productName,
-      unit: sub.unit,
-      plannedQuantity: sub.quantity,
-      // Frozen at generation time. A delivery is an immutable financial record
-      // and carries its own price — the old rows left this null forever and the
-      // amount fell back to a hardcoded ₹75.
-      unitPrice: sub.unitPrice,
-      status: 'PENDING',
-    }));
+    /*
+     * Days already covered by a legacy `BOTH` row.
+     *
+     * Before morning and evening were separate rows, a two-slot subscription
+     * produced one row carrying the slot `BOTH`. The unique index now includes
+     * the slot, so such a row no longer blocks a MORNING/EVENING pair for the
+     * same day — and generating them on top would bill that day twice.
+     *
+     * Those rows are financial records of days that already happened, so they
+     * are left alone and the day is treated as done.
+     */
+    const legacy = await deliveriesRepo.listLegacyBothRoots(tx, date);
+
+    /*
+     * One row per *drop*, not per subscription.
+     *
+     * "Morning & evening" is two deliveries: two rounds, two doors knocked,
+     * two lots of milk. It used to produce a single row carrying the slot
+     * `BOTH`, so the round had one stop and the bill counted one drop — the
+     * customer paid for half of what they received.
+     *
+     * Each row now carries the concrete slot it belongs to, which is also what
+     * lets the unique index keep generation idempotent per slot.
+     */
+    const rows = due
+      .filter((sub) => !legacy.has(sub.rootId))
+      .flatMap((sub) =>
+      slotsFor(sub.slot).map((slot) => ({
+        subscriptionRootId: sub.rootId,
+        subscriptionVersionId: sub.versionId,
+        customerId: sub.customerId,
+        milkmanId: sub.milkmanId,
+        deliveryDate: date,
+        slot,
+        productName: sub.productName,
+        unit: sub.unit,
+        plannedQuantity: sub.quantity,
+        // Frozen at generation time. A delivery is an immutable financial record
+        // and carries its own price — the old rows left this null forever and the
+        // amount fell back to a hardcoded ₹75.
+        unitPrice: sub.unitPrice,
+        status: 'PENDING',
+      })),
+    );
 
     const created = await deliveriesRepo.insertGenerated(tx, rows);
 
-    return { date, created: created.length, considered: subscriptions.length };
+    return {
+      date,
+      created: created.length,
+      considered: subscriptions.length,
+      // Drops due today, which exceeds the subscription count once anyone is
+      // on morning & evening.
+      due: rows.length,
+    };
   });
 }
 
@@ -97,10 +179,70 @@ export async function getRound(actor, date = businessDate()) {
     byCustomer.set(extra.customerId, list);
   }
 
-  const stops = milkStops.map((stop) => ({
-    ...stop,
-    extras: byCustomer.get(stop.customerId) ?? [],
-  }));
+  /*
+   * Extras ride along with the *first* stop of the customer's day, not every
+   * stop.
+   *
+   * Once "morning & evening" became two stops, attaching the customer's extras
+   * to each of them showed the same 3.5 kg of paneer twice — a milkman reading
+   * the round would load it twice and expect to be paid for two. The order is
+   * bought once and delivered once, so it belongs to one stop: the earliest,
+   * so it arrives as soon as the round reaches them.
+   */
+  /*
+   * A stop is one visit, so group by customer *and* time.
+   *
+   * A customer may take cow milk and buffalo milk in the same morning: two
+   * subscriptions, two delivery rows, but one knock at the door. Rendered as
+   * two cards they read as a duplicate — same name, same address, same time —
+   * which is exactly the confusion two stops for "morning & evening" caused
+   * before they were labelled. One card carrying two lines is what the milkman
+   * actually does.
+   */
+  const grouped = new Map();
+  for (const row of [...milkStops].sort((a, b) => SLOT_ORDER[a.slot] - SLOT_ORDER[b.slot])) {
+    const key = `${row.customerId}:${row.slot}`;
+    const stop = grouped.get(key);
+    if (stop) {
+      stop.items.push(toItem(row));
+      continue;
+    }
+    grouped.set(key, {
+      // Identifies the visit, not any one delivery row.
+      id: key,
+      customerId: row.customerId,
+      customerName: row.customerName,
+      customerPhone: row.customerPhone,
+      addressLine1: row.addressLine1,
+      addressArea: row.addressArea,
+      addressLandmark: row.addressLandmark,
+      deliveryInstructions: row.deliveryInstructions,
+      routeSequence: row.routeSequence,
+      slot: row.slot,
+      morningStart: row.morningStart,
+      morningEnd: row.morningEnd,
+      eveningStart: row.eveningStart,
+      eveningEnd: row.eveningEnd,
+      items: [toItem(row)],
+    });
+  }
+
+  const carried = new Set();
+  const stops = [...grouped.values()]
+    .map((stop) => {
+      const extras = carried.has(stop.customerId)
+        ? []
+        : (byCustomer.get(stop.customerId) ?? []);
+      if (extras.length > 0) carried.add(stop.customerId);
+      return { ...stop, extras, status: stopStatus(stop.items) };
+    })
+    // Back to the order the repository chose: the milkman's route, not the clock.
+    .sort(
+      (a, b) =>
+        (a.routeSequence ?? 9999) - (b.routeSequence ?? 9999) ||
+        SLOT_ORDER[a.slot] - SLOT_ORDER[b.slot] ||
+        String(a.customerName ?? '').localeCompare(String(b.customerName ?? '')),
+    );
 
   /*
    * Extras-only stops.
@@ -124,6 +266,7 @@ export async function getRound(actor, date = businessDate()) {
       routeSequence: 9999,
       status: 'PENDING',
       milkless: true,
+      items: [],
       extras: list,
     });
   }
@@ -137,9 +280,17 @@ export async function getRound(actor, date = businessDate()) {
     stops,
     summary: {
       ...summary,
-      // The header counted milk stops only, which under-reported the round the
-      // moment anyone ordered an extra.
+      /*
+       * Counted in visits, not delivery rows.
+       *
+       * `roundSummary` counts rows, and one visit can carry two products — so
+       * a header saying "4 done" beside a list of 3 cards is the kind of
+       * disagreement that makes a milkman recount the bike. Money and litres
+       * stay row-based, because those really are per item.
+       */
       total: stops.length,
+      delivered: stops.filter((stop) => stop.status === 'DELIVERED').length,
+      pending: stops.filter((stop) => stop.status === 'PENDING').length,
       extrasCount: extras.length,
       extrasPaise,
       milkPaise: Math.round(Number(summary.amount ?? 0) * 100),

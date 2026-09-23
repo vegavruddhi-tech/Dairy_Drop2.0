@@ -14,6 +14,21 @@ export default async function MilkPlansPage() {
   const plans = await subscriptionsRepo.listPlans(actor);
   const month = businessMonth();
 
+  /*
+   * How many people each plan would cut off.
+   *
+   * Retiring now ends the subscriptions on a plan, so the milkman has to see
+   * the cost before the click, not after it.
+   */
+  const subscriberCounts = Object.fromEntries(
+    await Promise.all(
+      plans.map(async (plan) => [
+        plan.id,
+        plan.isActive ? await subscriptionsRepo.countSubscribersOfPlan(actor, plan.id) : 0,
+      ]),
+    ),
+  );
+
   // Price each plan up front, so the list can show a monthly quote without the
   // client repeating the arithmetic.
   const priced = plans.map((plan) => {
@@ -44,7 +59,7 @@ export default async function MilkPlansPage() {
           action={<PlanEditor />}
         />
       ) : (
-        <PlanList plans={priced} />
+        <PlanList plans={priced} subscriberCounts={subscriberCounts} />
       )}
     </>
   );

@@ -7,10 +7,10 @@
  */
 
 import 'server-only';
-import { and, eq, gte, lt, inArray, asc, sql } from 'drizzle-orm';
+import { and, eq, ne, gte, lt, inArray, asc, sql } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
-import { deliveries, milkSubscriptions, users, addresses, serviceAreas } from '@/db/schema/index.js';
+import { deliveries, milkSubscriptions, milkPlans, users, addresses, serviceAreas } from '@/db/schema/index.js';
 import { PERMISSIONS } from '@/auth/roles.js';
 import { scoped } from './base.js';
 import { monthStart, nextMonthStart } from '@/domain/dates.js';
@@ -81,6 +81,10 @@ export async function listRound(actor, date) {
       scoped(
         { actor, permission: PERMISSIONS.DELIVERY_READ, columns: scopeColumns },
         eq(deliveries.deliveryDate, date),
+        // A withdrawn delivery is not happening, so it is not part of the day.
+        // It stays in the table as the record of a day that was scheduled and
+        // then called off; billing ignores it because it is not DELIVERED.
+        ne(deliveries.status, 'CANCELLED'),
       ),
     )
     .orderBy(asc(sql`route_sequence`), asc(users.name));
@@ -174,16 +178,32 @@ export async function listCustomerDay(actor, date) {
       morningEnd: milkSubscriptions.morningEnd,
       eveningStart: milkSubscriptions.eveningStart,
       eveningEnd: milkSubscriptions.eveningEnd,
+      /*
+       * Why this delivery may not come again.
+       *
+       * `termsEndOn` is set once the version behind it has been superseded or
+       * cancelled — the day is still owed, but these terms stop afterwards.
+       * `planRetired` means the milkman has withdrawn the plan from their
+       * catalog, which changes nothing for this customer but explains why they
+       * can no longer switch to it.
+       */
+      termsEndOn: milkSubscriptions.effectiveTo,
+      planRetired: sql`coalesce(${milkPlans.isActive}, true) = false`.as('plan_retired'),
     })
     .from(deliveries)
     .leftJoin(
       milkSubscriptions,
       eq(milkSubscriptions.id, deliveries.subscriptionVersionId),
     )
+    .leftJoin(milkPlans, eq(milkPlans.id, milkSubscriptions.planId))
     .where(
       scoped(
         { actor, permission: PERMISSIONS.DELIVERY_READ, columns: scopeColumns },
         eq(deliveries.deliveryDate, date),
+        // A withdrawn delivery is not happening, so it is not part of the day.
+        // It stays in the table as the record of a day that was scheduled and
+        // then called off; billing ignores it because it is not DELIVERED.
+        ne(deliveries.status, 'CANCELLED'),
       ),
     )
     .orderBy(asc(deliveries.slot));
@@ -221,6 +241,9 @@ export async function roundSummary(actor, date) {
       scoped(
         { actor, permission: PERMISSIONS.DELIVERY_READ, columns: scopeColumns },
         eq(deliveries.deliveryDate, date),
+        // Same exclusion as `listRound`, or the header counts stops the list
+        // below it does not show.
+        ne(deliveries.status, 'CANCELLED'),
       ),
     );
   return row;
@@ -239,13 +262,30 @@ export async function roundSummary(actor, date) {
  *
  * @param {object} tx  a transaction, or the db handle
  */
+/**
+ * Subscription roots that already hold a pre-split `BOTH` row for a date.
+ *
+ * "Morning & evening" used to be one row carrying the slot `BOTH`. Those rows
+ * are history — some are delivered and billed — so generation treats the day as
+ * already covered rather than adding a morning and an evening beside them.
+ */
+export async function listLegacyBothRoots(tx, date) {
+  const rows = await tx
+    .select({ rootId: deliveries.subscriptionRootId })
+    .from(deliveries)
+    .where(and(eq(deliveries.deliveryDate, date), eq(deliveries.slot, 'BOTH')));
+  return new Set(rows.map((row) => row.rootId));
+}
+
 export async function insertGenerated(tx, rows) {
   if (rows.length === 0) return [];
   return tx
     .insert(deliveries)
     .values(rows)
+    // Must name the same columns as the unique index, which includes the slot:
+    // "morning & evening" is two rows for one day, and they must not collide.
     .onConflictDoNothing({
-      target: [deliveries.subscriptionRootId, deliveries.deliveryDate],
+      target: [deliveries.subscriptionRootId, deliveries.deliveryDate, deliveries.slot],
     })
     .returning({ id: deliveries.id });
 }

@@ -9,7 +9,7 @@ import { eq } from 'drizzle-orm';
 import { db, transaction } from '@/db/index.js';
 import { milkSubscriptions } from '@/db/schema/index.js';
 import { businessDate, businessMonth, addDays } from '@/domain/dates.js';
-import { resolveUnitPrice, quotedMonthlyPaise } from '@/domain/pricing.js';
+import { resolveUnitPrice, quotedMonthlyPaise, clashingSlots, slotLabel } from '@/domain/pricing.js';
 import { paiseToDecimal } from '@/domain/money.js';
 import { NotFoundError, ConflictError, ValidationError } from '@/domain/errors.js';
 
@@ -41,6 +41,42 @@ export async function listMine(actor) {
  * A customer may hold several subscriptions at once — the bill sums all of them.
  * Each one is its own `rootId`.
  */
+/** Subscriptions that still hold their delivery times. */
+function holdsASlot(subscription) {
+  // A paused plan keeps its slot — it is coming back, and freeing the slot
+  // would let something else take it with no way to resume.
+  return subscription.status === 'ACTIVE' || subscription.status === 'PAUSED';
+}
+
+/**
+ * Refuse the same product at a time the customer already receives it.
+ *
+ * A stop is one visit, not one item: cow milk and buffalo milk can arrive
+ * together at 6am, and that is a normal order. What cannot happen is the same
+ * product twice at the same time — not two orders, one order written twice.
+ *
+ * A unique index enforces the same rule, because two simultaneous requests can
+ * both pass a check like this one. This exists to say *which* plan is in the
+ * way, which a constraint violation cannot.
+ *
+ * @param {object[]} existing  the customer's current subscription versions
+ * @param {string} wanted      the slot being taken
+ */
+function assertSlotIsFree(existing, wanted) {
+  const held = existing.filter(holdsASlot);
+  const clashes = clashingSlots(held, wanted);
+  if (clashes.length === 0) return;
+
+  const blocker = held.find((s) => clashingSlots([s], wanted).length > 0);
+  const times = clashes.map(slotLabel).join(' and ');
+
+  throw new ConflictError(
+    `You already get ${wanted.productName} in the ${times}. ` +
+      'Change that plan or cancel it before ordering the same thing again.',
+    { clashes, blockingRootId: blocker?.rootId ?? null },
+  );
+}
+
 /**
  * The delivery windows a subscription inherits, for the slot it actually runs.
  *
@@ -65,12 +101,25 @@ export async function subscribe(actor, { planId, startDate, slot }) {
 
   const effectiveFrom = startDate ?? businessDate();
   const month = effectiveFrom.slice(0, 7);
-  const { unitPrice } = resolveUnitPrice(plan, month);
+
+  /*
+   * Price and quote for the slot this customer actually takes.
+   *
+   * A customer may take only the morning half of a "morning & evening" plan.
+   * The per-unit rate is the same either way, but the monthly quote is not:
+   * quoting the plan's own slot would have promised them a full month of two
+   * drops a day while they receive one.
+   */
+  const chosenSlot = slot ?? plan.slot;
+  const agreed = { ...plan, slot: chosenSlot };
+  const { unitPrice } = resolveUnitPrice(agreed, month);
 
   const existing = await subscriptionsRepo.listCurrentForCustomer(actor, actor.userId);
   if (existing.some((s) => s.planId === plan.id && s.status === 'ACTIVE')) {
     throw new ConflictError('You are already subscribed to that plan.');
   }
+
+  assertSlotIsFree(existing, { slot: chosenSlot, productName: plan.productName });
 
   const res = await transaction(async (tx) => {
     const rootId = randomUUID();
@@ -85,12 +134,12 @@ export async function subscribe(actor, { planId, startDate, slot }) {
       quantity: plan.quantity,
       unit: plan.unit,
       frequency: plan.frequency,
-      slot: slot ?? plan.slot,
+      slot: chosenSlot,
       // Snapshotted with the rest of the agreed terms: editing the plan later
       // must not silently move the time this customer was promised.
-      ...windowsFor(plan, slot ?? plan.slot),
+      ...windowsFor(plan, chosenSlot),
       unitPrice,
-      quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise(plan, month)),
+      quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise(agreed, month)),
       status: 'ACTIVE',
       effectiveFrom,
     });
@@ -194,9 +243,20 @@ export async function cancel(actor, { rootId, reason }) {
       })
       .where(eq(milkSubscriptions.id, current.id));
 
+    /*
+     * From today, not tomorrow.
+     *
+     * `pause` deliberately leaves today alone — the round is planned and the
+     * milkman may be out with the milk — but a cancellation is the stronger
+     * signal, and leaving the day behind meant the customer kept seeing a
+     * delivery for a plan they had just ended, with buttons to adjust it.
+     *
+     * Only PENDING rows are withdrawn, so anything already delivered stays as
+     * the financial record it is.
+     */
     await deliveriesRepo.cancelFrom(tx, {
       subscriptionRootId: rootId,
-      fromDate: addDays(today, 1),
+      fromDate: today,
     });
 
     await notificationsRepo.create(tx, {
@@ -208,6 +268,65 @@ export async function cancel(actor, { rootId, reason }) {
     });
 
     return { ok: true };
+  });
+}
+
+/**
+ * Retire a plan and end every subscription on it.
+ *
+ * Retiring used to be a catalog action only: the plan stopped being offered and
+ * existing customers carried on. That is the gentler behaviour, and it is what
+ * the code did for a reason — but it left a customer on a plan nobody could
+ * change them to, and a milkman with no way to wind one down.
+ *
+ * So this now ends them. What that means, precisely:
+ *
+ *   · Subscriptions on the plan are CANCELLED as of today.
+ *   · Their *undelivered* days are withdrawn, from today onward. Anything
+ *     already delivered stays exactly as it is — it happened, it is billed, and
+ *     a retire must not rewrite money that has already moved.
+ *   · Each customer is told, because their milk stops arriving tomorrow.
+ *
+ * The plan row itself is kept, never deleted, so past enrolments still resolve.
+ */
+export async function retirePlan(actor, { planId }) {
+  const plan = await subscriptionsRepo.findPlan(actor, planId);
+  if (!plan) throw new NotFoundError('That plan');
+
+  const today = businessDate();
+
+  return transaction(async (tx) => {
+    const subscribers = await subscriptionsRepo.listSubscribersOfPlan(tx, actor, planId);
+
+    for (const subscriber of subscribers) {
+      await subscriptionsRepo.closeVersion(tx, {
+        id: subscriber.versionId,
+        // A version dated tomorrow has not run; closing it at today would end
+        // it before it began, which `milk_subs_range` refuses.
+        effectiveTo: today,
+        status: 'CANCELLED',
+      });
+
+      await deliveriesRepo.cancelFrom(tx, {
+        subscriptionRootId: subscriber.rootId,
+        fromDate: today,
+      });
+
+      await notificationsRepo.create(tx, {
+        userId: subscriber.customerId,
+        type: 'SUBSCRIPTION',
+        title: 'Your plan has ended',
+        body: `${plan.name} is no longer offered, so your ${subscriber.productName} deliveries have stopped. Choose another plan to start again.`,
+        href: '/subscriptions',
+        subjectType: 'milk_subscription',
+        subjectId: subscriber.versionId,
+      });
+    }
+
+    const retired = await subscriptionsRepo.retirePlan(tx, actor, planId);
+    if (!retired) throw new NotFoundError('That plan');
+
+    return { plan: retired, ended: subscribers.length };
   });
 }
 
@@ -238,7 +357,65 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
   const month = effectiveFrom.slice(0, 7);
 
   const quantity = overrides.quantity ?? plan.quantity;
-  const { unitPrice } = resolveUnitPrice({ ...plan, quantity }, month);
+  const nextSlot = overrides.slot ?? plan.slot;
+  const agreed = { ...plan, quantity, slot: nextSlot };
+  const { unitPrice } = resolveUnitPrice(agreed, month);
+
+  /*
+   * A change can collide too.
+   *
+   * Moving an evening plan onto a morning-and-evening one takes a time the
+   * customer may already have filled with something else. The subscription
+   * being changed is excluded — it is giving up its own slot in the same
+   * breath, so it cannot block itself.
+   */
+  const others = (
+    await subscriptionsRepo.listCurrentForCustomer(actor, currentVersion.customerId)
+  ).filter((s) => s.rootId !== rootId);
+  assertSlotIsFree(others, {
+    slot: nextSlot,
+    productName: overrides.productName ?? plan.productName,
+  });
+
+  const terms = {
+    planId: plan.id,
+    productName: overrides.productName ?? plan.productName,
+    quantity,
+    unit: overrides.unit ?? plan.unit,
+    frequency: overrides.frequency ?? plan.frequency,
+    slot: nextSlot,
+    ...windowsFor(plan, nextSlot),
+    unitPrice,
+    quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise(agreed, month)),
+  };
+
+  /*
+   * A version that has not started yet is amended, not superseded.
+   *
+   * Changes take effect tomorrow, so changing twice in one day leaves a current
+   * version dated tomorrow that has delivered nothing. Closing it "at the end of
+   * today" would end it the day before it began — which `milk_subs_range`
+   * refuses, and which is why approving the second change failed outright.
+   *
+   * Nothing was ever in force under those terms, so there is no history for a
+   * successor to protect and amending is honest. Versioning still applies the
+   * moment a version has actually run.
+   */
+  if (currentVersion.effectiveFrom > today) {
+    const amended = await subscriptionsRepo.amendPendingVersion(tx, {
+      id: currentVersion.id,
+      today,
+      patch: terms,
+    });
+    if (!amended) throw new ConflictError('That subscription changed while you were deciding.');
+
+    await deliveriesRepo.cancelFrom(tx, {
+      subscriptionRootId: rootId,
+      fromDate: currentVersion.effectiveFrom,
+    });
+
+    return amended;
+  }
 
   // Close the outgoing version at the end of today.
   await subscriptionsRepo.closeVersion(tx, {
@@ -253,16 +430,8 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
     supersedesId: currentVersion.id,
     customerId: currentVersion.customerId,
     milkmanId: currentVersion.milkmanId,
-    planId: plan.id,
-    productName: overrides.productName ?? plan.productName,
-    quantity,
-    unit: overrides.unit ?? plan.unit,
-    frequency: overrides.frequency ?? plan.frequency,
-    slot: overrides.slot ?? plan.slot,
     // The successor takes the new plan's windows, like every other agreed term.
-    ...windowsFor(plan, overrides.slot ?? plan.slot),
-    unitPrice,
-    quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise({ ...plan, quantity }, month)),
+    ...terms,
     status: 'ACTIVE',
     effectiveFrom,
   });

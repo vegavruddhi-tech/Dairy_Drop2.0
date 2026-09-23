@@ -20,6 +20,7 @@ import * as productService from '@/services/product.service.js';
 import * as paymentService from '@/services/payment.service.js';
 import * as requestService from '@/services/request.service.js';
 import * as saasService from '@/services/saas.service.js';
+import * as subscriptionService from '@/services/subscription.service.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import { transaction } from '@/db/index.js';
 import { resolveUnitPrice } from '@/domain/pricing.js';
@@ -83,9 +84,9 @@ const saveMilkPlanAction = defineAction({
 const retireMilkPlanAction = defineAction({
   authorize: paid,
   schema: V.idSchema,
-  handler: ({ actor, input }) =>
-    transaction((tx) => subscriptionsRepo.retirePlan(tx, actor, input.id)),
-  revalidate: ['/milkman/plans'],
+  handler: ({ actor, input }) => subscriptionService.retirePlan(actor, { planId: input.id }),
+  // Ending subscriptions changes the round and the customer list too.
+  revalidate: ['/milkman/plans', '/milkman/customers', '/milkman/round', '/milkman'],
 });
 
 // ── Catalog ──────────────────────────────────────────────────────────────────

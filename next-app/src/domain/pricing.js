@@ -73,7 +73,13 @@ export function resolveUnitPrice(plan, referenceMonth) {
     basis = 'PER_DELIVERY';
   } else {
     numerator = toPaise(plan.monthlyPrice) * 100_000;
-    denominator = daysInMonth(referenceMonth) * quantityMilli;
+    // Divide by *drops*, not days. A "morning & evening" plan makes two drops a
+    // day, so dividing a monthly price by days alone priced each drop at double
+    // what the customer was quoted for the month.
+    denominator =
+      daysInMonth(referenceMonth) *
+      deliveriesPerDay(plan.slot ?? 'MORNING') *
+      quantityMilli;
     basis = 'MONTHLY';
   }
 
@@ -103,12 +109,114 @@ function formatTenThousandths(value) {
 }
 
 /**
+ * How many drops a slot means in one delivery day.
+ *
+ * `BOTH` is two: a morning round and an evening round, each carrying the plan's
+ * quantity. This was the missing factor everywhere — the schedule, the quote and
+ * the generator all treated "morning & evening" as a single drop, so a customer
+ * on two deliveries a day was quoted and billed for one.
+ *
+ * @param {string} slot MORNING | EVENING | BOTH
+ */
+export function deliveriesPerDay(slot) {
+  switch (slot) {
+    case 'MORNING':
+    case 'EVENING':
+      return 1;
+    case 'BOTH':
+      return 2;
+    default:
+      throw new RangeError(`Unknown delivery slot: ${slot}`);
+  }
+}
+
+/**
+ * The concrete delivery times a slot fills.
+ *
+ * `BOTH` is not a third time of day — it fills two. Treating it as its own
+ * value is what let a customer hold a morning plan and a morning-and-evening
+ * plan at once, which is two lots of milk arriving at one door at 6am.
+ *
+ * @param {string} slot MORNING | EVENING | BOTH
+ * @returns {string[]}
+ */
+export function slotsOccupied(slot) {
+  switch (slot) {
+    case 'MORNING':
+      return ['MORNING'];
+    case 'EVENING':
+      return ['EVENING'];
+    case 'BOTH':
+      return ['MORNING', 'EVENING'];
+    default:
+      throw new RangeError(`Unknown delivery slot: ${slot}`);
+  }
+}
+
+/**
+ * A product's identity, for deciding whether two orders are the same thing.
+ *
+ * `productName` is free text a milkman types, so "Cow Milk", "cow milk" and
+ * "cow milk " are one product wearing three spellings. Normalising is the
+ * pragmatic answer; the robust one is a product catalog plans reference by id,
+ * at which point this function goes away.
+ *
+ * Known limit: a typo — "cowmilk" — reads as a different product and slips
+ * through. The database keys on the same expression, so at least the two agree.
+ */
+export function productKey(name) {
+  return String(name ?? '').trim().toLowerCase();
+}
+
+/**
+ * Which of `wanted`'s times are already filled by the *same product*.
+ *
+ * A stop is one visit, not one item: a milkman arriving at 6am can hand over
+ * cow milk and buffalo milk together. What cannot happen is the same product
+ * twice at the same time — that is not two orders, it is one order written
+ * down twice.
+ *
+ * Empty means the new plan fits alongside what the customer already has. Pure,
+ * so the picker and the server decide identically — a rule implemented twice is
+ * a rule that will disagree with itself.
+ *
+ * @param {{slot: string, productName: string}[]} held  current subscriptions
+ * @param {{slot: string, productName: string}} wanted  the plan being added
+ * @returns {string[]}  the clashing times, in morning-then-evening order
+ */
+export function clashingSlots(held, wanted) {
+  const key = productKey(wanted.productName);
+  const taken = new Set(
+    held
+      .filter((item) => productKey(item.productName) === key)
+      .flatMap((item) => slotsOccupied(item.slot)),
+  );
+  return slotsOccupied(wanted.slot).filter((slot) => taken.has(slot));
+}
+
+/** 'MORNING' → 'morning'. For messages the customer reads. */
+export function slotLabel(slot) {
+  return String(slot).toLowerCase();
+}
+
+/**
  * What a full month on this plan would cost, for the quote shown at signup.
  * Presentational only — the real bill is always usage-based.
  */
 export function quotedMonthlyPaise(plan, referenceMonth) {
   const { perDeliveryPaise } = resolveUnitPrice(plan, referenceMonth);
-  return perDeliveryPaise * countDeliveryDays(plan.frequency, referenceMonth);
+  return perDeliveryPaise * countDeliveries(plan, referenceMonth);
+}
+
+/**
+ * Drops in a month: delivery days × drops per day.
+ *
+ * Takes the whole plan rather than a bare frequency, because the count depends
+ * on the slot as well — and a signature that cannot see the slot is how the
+ * slot came to be ignored.
+ */
+export function countDeliveries(plan, month) {
+  return countDeliveryDays(plan.frequency, month) * deliveriesPerDay(plan.slot ?? 'MORNING');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

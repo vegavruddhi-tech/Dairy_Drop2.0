@@ -8,6 +8,8 @@ import { Button, Modal, Input, Select, Textarea } from '@/components/ui/interact
 import { saveMilkPlan, retireMilkPlan } from '@/actions/milkman.actions.js';
 import { formatPaise } from '@/domain/money.js';
 import { formatWindow } from '@/domain/dates.js';
+import { businessMonth } from '@/domain/dates.js';
+import { resolveUnitPrice, quotedMonthlyPaise, countDeliveries } from '@/domain/pricing.js';
 
 const UNITS = [
   { value: 'L', label: 'Litres' },
@@ -23,6 +25,22 @@ const FREQUENCIES = [
   { value: 'MONTHLY', label: 'Monthly' },
 ];
 
+/** What one of this unit is called, for "a price per litre". */
+const UNIT_NOUN = { L: 'litre', ml: 'millilitre', kg: 'kilogram', g: 'gram', pcs: 'piece' };
+
+const PRICE_LABEL = {
+  MONTHLY: () => 'Monthly price (₹)',
+  PER_UNIT: (unit) => `Price per ${UNIT_NOUN[unit] ?? 'unit'} (₹)`,
+  PER_DELIVERY: () => 'Price per delivery (₹)',
+};
+
+const PRICE_HINT = {
+  MONTHLY:
+    'Spread across every delivery in the month. Customers pay only for what is actually delivered.',
+  PER_UNIT: 'The monthly figure is worked out from this.',
+  PER_DELIVERY: 'Charged for each delivery that actually happens.',
+};
+
 const SLOTS = [
   { value: 'MORNING', label: 'Morning' },
   { value: 'EVENING', label: 'Evening' },
@@ -35,6 +53,14 @@ export function PlanEditor({ plan, trigger }) {
   const [errors, setErrors] = useState({});
   const [basis, setBasis] = useState(plan?.monthlyPrice ? 'MONTHLY' : 'PER_DELIVERY');
   const [slot, setSlot] = useState(plan?.slot ?? 'MORNING');
+  const [frequency, setFrequency] = useState(plan?.frequency ?? 'DAILY');
+  const [quantity, setQuantity] = useState(
+    plan?.quantity ? String(Number(plan.quantity)) : '1',
+  );
+  const [price, setPrice] = useState(
+    plan ? String(Number(plan.monthlyPrice ?? plan.pricePerDelivery)) : '',
+  );
+  const [unit, setUnit] = useState(plan?.unit ?? 'L');
 
   const showMorning = slot === 'MORNING' || slot === 'BOTH';
   const showEvening = slot === 'EVENING' || slot === 'BOTH';
@@ -85,12 +111,32 @@ export function PlanEditor({ plan, trigger }) {
           <Input name="productName" label="What is delivered" defaultValue={plan?.productName} error={errors.productName} required placeholder="Cow milk" />
 
           <div className="grid grid-cols-2 gap-3">
-            <Input name="quantity" label="Quantity per delivery" inputMode="decimal" defaultValue={plan?.quantity ? Number(plan.quantity) : '1'} error={errors.quantity} required />
-            <Select name="unit" label="Unit" defaultValue={plan?.unit ?? 'L'} options={UNITS} />
+            <Input
+              name="quantity"
+              label="Quantity per delivery"
+              inputMode="decimal"
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              error={errors.quantity}
+              required
+            />
+            <Select
+              name="unit"
+              label="Unit"
+              value={unit}
+              onChange={(event) => setUnit(event.target.value)}
+              options={UNITS}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Select name="frequency" label="How often" defaultValue={plan?.frequency ?? 'DAILY'} options={FREQUENCIES} />
+            <Select
+              name="frequency"
+              label="How often"
+              value={frequency}
+              onChange={(event) => setFrequency(event.target.value)}
+              options={FREQUENCIES}
+            />
             <Select
               name="slot"
               label="When"
@@ -173,22 +219,34 @@ export function PlanEditor({ plan, trigger }) {
             onChange={(event) => setBasis(event.target.value)}
             options={[
               { value: 'MONTHLY', label: 'A monthly price' },
+              { value: 'PER_UNIT', label: `A price per ${UNIT_NOUN[unit] ?? 'unit'}` },
               { value: 'PER_DELIVERY', label: 'A price per delivery' },
             ]}
           />
 
           <Input
             name="price"
-            label={basis === 'MONTHLY' ? 'Monthly price (₹)' : 'Price per delivery (₹)'}
+            label={PRICE_LABEL[basis](unit)}
             inputMode="decimal"
-            defaultValue={plan ? Number(plan.monthlyPrice ?? plan.pricePerDelivery) : ''}
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
             error={errors.price}
             required
-            hint={
-              basis === 'MONTHLY'
-                ? 'Divided by the true number of days in each month. Customers pay only for days delivered.'
-                : 'Charged for each delivery that actually happens.'
-            }
+            hint={PRICE_HINT[basis]}
+          />
+
+          {/*
+            What this actually comes to, worked out with the same functions the
+            server uses — so the number quoted here is the number billed, rather
+            than a second implementation that can drift.
+          */}
+          <PriceEstimate
+            basis={basis}
+            price={price}
+            quantity={quantity}
+            unit={unit}
+            slot={slot}
+            frequency={frequency}
           />
 
           <Textarea name="description" label="Description (optional)" defaultValue={plan?.description ?? ''} maxLength={500} />
@@ -198,8 +256,16 @@ export function PlanEditor({ plan, trigger }) {
   );
 }
 
-export function PlanList({ plans }) {
+export function PlanList({ plans, subscriberCounts = {} }) {
   const [pending, startTransition] = useTransition();
+  /*
+   * Which plan is being retired, not merely that one is.
+   *
+   * `useTransition` gives a single flag for the whole list, so every Retire
+   * button spun while any one of them was in flight — clicking one plan looked
+   * like it was retiring all three.
+   */
+  const [retiringId, setRetiringId] = useState(null);
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -227,6 +293,12 @@ export function PlanList({ plans }) {
               <li>{Number(plan.quantity)} {plan.unit} per delivery</li>
               <li>{plan.frequency.replace('_', ' ').toLowerCase()}, {plan.slot.toLowerCase()}</li>
               {plan.unitPrice ? <li>₹{Number(plan.unitPrice).toFixed(2)} per {plan.unit}</li> : null}
+              {subscriberCounts[plan.id] > 0 ? (
+                <li className="text-ink">
+                  {subscriberCounts[plan.id]} customer
+                  {subscriberCounts[plan.id] === 1 ? '' : 's'} on this
+                </li>
+              ) : null}
               {/* Plans made before windows existed have none; say so rather
                   than inventing a time on the milkman's behalf. */}
               <PlanWindows plan={plan} />
@@ -241,14 +313,43 @@ export function PlanList({ plans }) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  loading={pending}
-                  onClick={() =>
+                  loading={retiringId === plan.id}
+                  // A second click on another card while one is in flight would
+                  // race the first; the list is about to re-render either way.
+                  disabled={pending && retiringId !== plan.id}
+                  onClick={() => {
+                    /*
+                     * Retiring now ends the subscriptions on this plan, so it
+                     * is no longer a tidy-up — it stops people's milk. Say how
+                     * many before doing it.
+                     */
+                    const on = subscriberCounts[plan.id] ?? 0;
+                    const warning =
+                      on > 0
+                        ? `${on} customer${on === 1 ? '' : 's'} ${on === 1 ? 'is' : 'are'} on "${plan.name}". ` +
+                          `Retiring it stops their deliveries from today. Already delivered days stay billed.\n\nRetire it anyway?`
+                        : `Retire "${plan.name}"? Nobody is on it, so nothing stops.`;
+                    if (!window.confirm(warning)) return;
+
+                    setRetiringId(plan.id);
                     startTransition(async () => {
-                      const result = await retireMilkPlan({ id: plan.id });
-                      if (result.ok) toast.success('Plan retired. Existing customers keep their terms.');
-                      else toast.error(result.message ?? 'Could not retire that plan.');
-                    })
-                  }
+                      try {
+                        const result = await retireMilkPlan({ id: plan.id });
+                        if (result.ok) {
+                          const ended = result.data?.ended ?? 0;
+                          toast.success(
+                            ended > 0
+                              ? `Plan retired. ${ended} subscription${ended === 1 ? '' : 's'} ended.`
+                              : 'Plan retired.',
+                          );
+                        } else {
+                          toast.error(result.message ?? 'Could not retire that plan.');
+                        }
+                      } finally {
+                        setRetiringId(null);
+                      }
+                    });
+                  }}
                 >
                   Retire
                 </Button>
@@ -281,5 +382,79 @@ function PlanWindows({ plan }) {
       {morning ? <li className="text-ink">Morning {morning}</li> : null}
       {evening ? <li className="text-ink">Evening {evening}</li> : null}
     </>
+  );
+}
+
+/**
+ * A live read-out of what the plan costs.
+ *
+ * Built from the real pricing functions rather than a second sum written for
+ * the form: `resolveUnitPrice` and `quotedMonthlyPaise` are pure and have no
+ * database in them, so the preview cannot drift from the bill.
+ *
+ * Silent while the inputs are incomplete — a half-typed price should not flash
+ * a number at someone about to set what their customers pay.
+ */
+function PriceEstimate({ basis, price, quantity, unit, slot, frequency }) {
+  const month = businessMonth();
+
+  const draft = {
+    quantity,
+    slot,
+    frequency,
+    monthlyPrice: basis === 'MONTHLY' ? price : null,
+    pricePerDelivery:
+      basis === 'PER_DELIVERY'
+        ? price
+        : basis === 'PER_UNIT'
+          ? String((Number(price) || 0) * (Number(quantity) || 0))
+          : null,
+  };
+
+  let rate;
+  try {
+    if (!(Number(price) > 0) || !(Number(quantity) > 0)) return null;
+    rate = resolveUnitPrice(draft, month);
+  } catch {
+    return null;
+  }
+
+  const drops = countDeliveries(draft, month);
+  const monthly = quotedMonthlyPaise(draft, month);
+  const perDay = slot === 'BOTH' ? 2 : 1;
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface-muted/50 p-3.5">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
+        What this comes to
+      </p>
+      <dl className="space-y-1.5 text-sm">
+        <Line label={`Per ${UNIT_NOUN[unit] ?? 'unit'}`} value={`₹${Number(rate.unitPrice).toFixed(2)}`} />
+        <Line
+          label={`Per delivery (${Number(quantity)} ${unit})`}
+          value={formatPaise(rate.perDeliveryPaise)}
+        />
+        <Line
+          label={`Deliveries this month (${perDay} a day)`}
+          value={String(drops)}
+        />
+        <div className="flex items-center justify-between border-t border-border pt-1.5">
+          <dt className="font-medium text-ink">A full month</dt>
+          <dd className="tnum font-semibold text-ink">{formatPaise(monthly, { whole: true })}</dd>
+        </div>
+      </dl>
+      <p className="mt-2 text-xs text-ink-muted">
+        An estimate for {month}. Customers are billed only for deliveries that happen.
+      </p>
+    </div>
+  );
+}
+
+function Line({ label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="tnum text-ink">{value}</dd>
+    </div>
   );
 }

@@ -51,6 +51,15 @@ export function TodayCard({ delivery }) {
               <p className="mt-0.5 text-sm text-ink-muted">
                 <SlotLine delivery={delivery} />
               </p>
+              {/*
+                * Why this one may not come again.
+                *
+                * A delivery under terms that have since been superseded is
+                * still owed today, but it is the last of its kind — and a
+                * customer looking at a pending evening drop after moving to a
+                * morning-only plan has no way to tell that from the card.
+                */}
+              <EndingNote delivery={delivery} />
             </div>
             <StatusBadge status={delivery.status} />
           </div>
@@ -207,4 +216,34 @@ function SlotLine({ delivery }) {
       {evening ? `Evening · ${evening}` : 'Evening'}
     </>
   );
+}
+
+/**
+ * A short line explaining that these terms are ending, or that the plan behind
+ * them has been withdrawn.
+ *
+ * Silent in the ordinary case — a note on every card would be noise.
+ */
+function EndingNote({ delivery }) {
+  // The version behind this delivery has been closed: today is owed, later
+  // days come from the successor instead.
+  if (delivery.termsEndOn) {
+    // Deliberately not "last delivery": the new plan may well cover this slot
+    // too, just on different terms. What ends is the plan, not the milk.
+    return (
+      <p className="mt-1 text-xs font-medium text-caution">
+        On your old plan — the new one starts tomorrow.
+      </p>
+    );
+  }
+
+  if (delivery.planRetired) {
+    return (
+      <p className="mt-1 text-xs text-ink-muted">
+        Your milkman no longer offers this plan. Yours keeps running.
+      </p>
+    );
+  }
+
+  return null;
 }

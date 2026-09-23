@@ -103,10 +103,17 @@ export const deliveries = pgTable(
     /**
      * The constraint the old schema was missing. Generation can run twice, or be
      * backfilled, without ever creating a second billable row for a day.
+     *
+     * Keyed on the **slot** as well, because "morning & evening" is genuinely
+     * two drops: a morning round and an evening round, each carrying the plan's
+     * quantity. Without the slot in the key those two collide, which is why the
+     * generator only ever produced one of them and a customer on two deliveries
+     * a day was billed for one.
      */
-    oneRowPerSubscriptionDay: uniqueIndex('deliveries_subscription_date_key').on(
+    oneRowPerSubscriptionSlot: uniqueIndex('deliveries_subscription_date_slot_key').on(
       t.subscriptionRootId,
       t.deliveryDate,
+      t.slot,
     ),
 
     // The milkman's round for a given day.

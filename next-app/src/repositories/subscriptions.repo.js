@@ -7,7 +7,7 @@
  */
 
 import 'server-only';
-import { and, eq, gte, lte, lt, isNull, or, desc, asc, sql, inArray } from 'drizzle-orm';
+import { and, eq, gt, gte, lte, lt, isNull, or, desc, asc, sql, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
 import { milkPlans, milkSubscriptions, users } from '@/db/schema/index.js';
@@ -85,10 +85,54 @@ export async function updatePlan(tx, actor, { id, patch }) {
 }
 
 /**
- * Retire a plan rather than deleting it.
+ * Everyone currently on a plan, with the details a notification needs.
  *
- * Subscriptions snapshot their terms, so an existing customer is unaffected —
- * but deleting the row would break the audit trail on their enrolment.
+ * Only versions still in force: a superseded or cancelled one has
+ * `effective_to` set and its customer has already moved on.
+ */
+export async function listSubscribersOfPlan(tx, actor, planId) {
+  return tx
+    .select({
+      rootId: milkSubscriptions.rootId,
+      versionId: milkSubscriptions.id,
+      customerId: milkSubscriptions.customerId,
+      milkmanId: milkSubscriptions.milkmanId,
+      productName: milkSubscriptions.productName,
+      status: milkSubscriptions.status,
+    })
+    .from(milkSubscriptions)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.SUBSCRIPTION_READ, columns: subScope },
+        eq(milkSubscriptions.planId, planId),
+        isNull(milkSubscriptions.effectiveTo),
+        inArray(milkSubscriptions.status, ['ACTIVE', 'PAUSED']),
+      ),
+    );
+}
+
+/** How many people a retire would affect. Drives the confirmation. */
+export async function countSubscribersOfPlan(actor, planId) {
+  const [row] = await db
+    .select({ count: sql`count(*)::int` })
+    .from(milkSubscriptions)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.SUBSCRIPTION_READ, columns: subScope },
+        eq(milkSubscriptions.planId, planId),
+        isNull(milkSubscriptions.effectiveTo),
+        inArray(milkSubscriptions.status, ['ACTIVE', 'PAUSED']),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
+/**
+ * Take a plan out of the catalog, rather than deleting the row.
+ *
+ * Deleting would break the audit trail on every enrolment that ever pointed at
+ * it. Ending the subscriptions on it is a separate step — see
+ * `subscriptionService.retirePlan`, which owns that decision.
  */
 export async function retirePlan(tx, actor, id) {
   return updatePlan(tx, actor, { id, patch: { isActive: false } });
@@ -204,6 +248,34 @@ export async function insertSubscription(tx, values) {
 }
 
 /** Close the current version at `effectiveTo`. Half of a plan change. */
+/**
+ * Amend a version that has not taken effect yet.
+ *
+ * Normally terms are changed by closing the current version and opening a
+ * successor, so a month spanning the change bills each part at the price that
+ * was in force. A version whose `effective_from` is still in the future has
+ * never been in force and has delivered nothing, so there is no history for a
+ * successor to protect — and stacking one is not merely wasteful, it is
+ * impossible: closing it "at the end of today" would end it before it began,
+ * which `milk_subs_range` correctly refuses.
+ *
+ * Guarded on `effective_from > :today` so this can never touch a live version.
+ */
+export async function amendPendingVersion(tx, { id, today, patch }) {
+  const [row] = await tx
+    .update(milkSubscriptions)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(
+      and(
+        eq(milkSubscriptions.id, id),
+        isNull(milkSubscriptions.effectiveTo),
+        gt(milkSubscriptions.effectiveFrom, today),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 export async function closeVersion(tx, { id, effectiveTo, status = 'SUPERSEDED' }) {
   const [row] = await tx
     .update(milkSubscriptions)

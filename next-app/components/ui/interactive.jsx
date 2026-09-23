@@ -311,8 +311,22 @@ export function Modal({ open, onClose, title, children, footer }) {
         if (event.target === event.currentTarget) onClose?.();
       }}
     >
-      <div className="w-full max-w-md animate-fade-up rounded-t-2xl border border-border bg-surface shadow-lifted sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+      {/*
+        A column bounded by the viewport, with only the middle section
+        scrolling.
+
+        Without the bound the panel simply grew past the screen: a long form
+        pushed its own title off the top and its Save button off the bottom,
+        with nothing to scroll because the panel was the same height as its
+        contents. Pinning the header and footer keeps the action reachable
+        however long the form gets.
+
+        `dvh` rather than `vh` because mobile browser chrome collapses as you
+        scroll, and `vh` measures the taller state — the footer would sit just
+        below the fold.
+      */}
+      <div className="flex max-h-[100dvh] w-full max-w-md flex-col animate-fade-up rounded-t-2xl border border-border bg-surface shadow-lifted sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold text-ink">{title}</h2>
           <button
             type="button"
@@ -323,9 +337,13 @@ export function Modal({ open, onClose, title, children, footer }) {
             ✕
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        {/* `overscroll-contain` stops a flick at the end of the list from
+            scrolling the page behind the sheet. */}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{footer}</div>
+          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">
+            {footer}
+          </div>
         ) : null}
       </div>
     </div>

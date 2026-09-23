@@ -15,11 +15,13 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
+import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
 
 suite('delivery windows', () => {
-  let db, sql, subscriptions, milkman, customer, planId, secondPlanId, rootIds = [];
+  let db, sql, subscriptions, milkman, customer, secondCustomer, customerA, customerB, planId, secondPlanId, rootIds = [];
 
   beforeAll(async () => {
     ({ db } = await import('@/db/index.js'));
@@ -28,12 +30,9 @@ suite('delivery windows', () => {
     subscriptions = await import('@/services/subscription.service.js');
 
     const rows = await db.execute(sql`
-      select u.id, u.name, u.email, u.milkman_id, u.role from "app".users
-        u where u.role in ('MILKMAN','CUSTOMER') order by u.role`);
-    const all = rows.rows ?? rows;
-    const mm = all.find((r) => r.role === 'MILKMAN');
-    const cu = all.find((r) => r.role === 'CUSTOMER' && r.milkman_id === mm?.id);
-    if (!mm || !cu) return;
+      select id, name, email from "app".users where role = 'MILKMAN' limit 1`);
+    const mm = (rows.rows ?? rows)[0];
+    if (!mm) return;
 
     const actorFor = (role, id, tenantId) => ({
       userId: id, clerkId: 'test', email: 't@t', name: 'Test', role, tenantId,
@@ -42,7 +41,18 @@ suite('delivery windows', () => {
       can: (p) => roleHas(role, p), scope: (p) => scopeFor(role, p),
     });
     milkman = actorFor(ROLES.MILKMAN, mm.id, mm.id);
-    customer = actorFor(ROLES.CUSTOMER, cu.id, mm.id);
+
+    /*
+     * Two throwaway customers, one per subscribe in this suite.
+     *
+     * One customer may hold only one delivery per time of day, so a suite that
+     * subscribes twice needs two people — and borrowing a live customer would
+     * collide with whatever they already have.
+     */
+    customerA = await createTestCustomer(db, sql, mm.id, 'windows-a');
+    customerB = await createTestCustomer(db, sql, mm.id, 'windows-b');
+    customer = customerActor(customerA, mm.id, { ROLES, roleHas, scopeFor });
+    secondCustomer = customerActor(customerB, mm.id, { ROLES, roleHas, scopeFor });
 
     const created = await db.execute(sql`
       insert into "app".milk_plans
@@ -64,7 +74,10 @@ suite('delivery windows', () => {
   });
 
   afterAll(async () => {
-    if (!db || !planId) return;
+    if (!db) return;
+    await removeTestCustomer(db, sql, customerA?.id);
+    await removeTestCustomer(db, sql, customerB?.id);
+    if (!planId) return;
     for (const rootId of rootIds) {
       await db.execute(sql`delete from "app".deliveries where subscription_root_id = ${rootId}`);
       await db.execute(sql`delete from "app".milk_subscriptions where root_id = ${rootId}`);
@@ -125,7 +138,7 @@ suite('delivery windows', () => {
 
   it('carries only the window for the slot the customer actually takes', async () => {
     if (!secondPlanId) return;
-    const created = await subscriptions.subscribe(customer, { planId: secondPlanId, slot: 'MORNING' });
+    const created = await subscriptions.subscribe(secondCustomer, { planId: secondPlanId, slot: 'MORNING' });
     rootIds.push(created.rootId);
 
     expect(created.morningStart).toBeTruthy();
