@@ -72,24 +72,24 @@ export default {
        * than a few millimetres.
        */
       boxShadow: {
-        card: '0 8px 22px rgba(28, 42, 30, 0.05), 0 1px 2px rgba(28, 42, 30, 0.04)',
-        'card-hover': '0 14px 30px rgba(28, 42, 30, 0.08), 0 2px 4px rgba(28, 42, 30, 0.04)',
-        soft: '0 6px 16px rgba(28, 42, 30, 0.05)',
-        dropdown: '0 12px 32px -6px rgba(28, 42, 30, 0.18)',
-        lifted: '0 20px 48px rgba(27, 107, 58, 0.14), 0 4px 14px rgba(28, 42, 30, 0.05)',
-        hero: '0 22px 44px -14px rgba(19, 78, 42, 0.5)',
-        nav: '0 -2px 0 rgba(27, 107, 58, 0.06), 0 10px 32px rgba(28, 42, 30, 0.14)',
+        card: '0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02)',
+        'card-hover': '0 12px 28px -4px rgba(37, 99, 235, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.04)',
+        soft: '0 4px 16px rgba(15, 23, 42, 0.04)',
+        dropdown: '0 12px 32px -6px rgba(15, 23, 42, 0.14)',
+        lifted: '0 20px 40px -10px rgba(37, 99, 235, 0.18), 0 4px 12px rgba(15, 23, 42, 0.04)',
+        hero: '0 20px 40px -12px rgba(37, 99, 235, 0.35)',
+        nav: '0 -1px 0 rgba(226, 232, 240, 0.8), 0 10px 30px rgba(15, 23, 42, 0.1)',
       },
 
       borderRadius: { xl: '0.875rem', '2xl': '1.25rem', '3xl': '1.5rem' },
 
       backgroundImage: {
-        // The dashboard banner: deep pasture green falling to near-black, with
-        // enough range that white text and a cream pill both sit on it.
-        'hero-pasture': 'linear-gradient(135deg, #1f7a44 0%, #15563a 48%, #0f2a1c 100%)',
-        'hero-gradient': 'linear-gradient(135deg, #1b6b3a 0%, #2f8f55 100%)',
-        // A faint linen texture for the page, so large cream areas are not flat.
-        'linen': 'radial-gradient(rgba(28, 42, 30, 0.035) 0.6px, transparent 0.6px)',
+        // Modern royal blue dashboard hero gradients
+        'hero-pasture': 'linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%)',
+        'hero-gradient': 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+        'hero-blue': 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%)',
+        // Subtle cool radial dots for background depth
+        'linen': 'radial-gradient(rgba(15, 23, 42, 0.035) 0.6px, transparent 0.6px)',
       },
       backgroundSize: { linen: '18px 18px' },
 

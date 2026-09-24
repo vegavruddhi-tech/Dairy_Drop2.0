@@ -132,6 +132,7 @@ export async function listForMonth(actor, { customerId, month }) {
         // dropped the last day in the previous system.
         gte(deliveries.deliveryDate, monthStart(month)),
         lt(deliveries.deliveryDate, nextMonthStart(month)),
+        ne(deliveries.status, 'CANCELLED'),
       ),
     )
     .orderBy(asc(deliveries.deliveryDate));
@@ -160,6 +161,7 @@ export async function listTenantMonth(actor, month) {
         { actor, permission: PERMISSIONS.DELIVERY_READ, columns: scopeColumns },
         gte(deliveries.deliveryDate, monthStart(month)),
         lt(deliveries.deliveryDate, nextMonthStart(month)),
+        ne(deliveries.status, 'CANCELLED'),
       ),
     );
 }

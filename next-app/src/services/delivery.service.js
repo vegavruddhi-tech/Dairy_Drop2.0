@@ -601,6 +601,9 @@ export async function resumeDay(actor, { deliveryId }) {
   if (delivery.status !== 'SKIPPED') {
     throw new ConflictError('That day is not skipped.');
   }
+  if (delivery.skipReason === 'MILKMAN_DAY_OFF') {
+    throw new ConflictError('This delivery was paused due to a dairy holiday and cannot be resumed by customer.');
+  }
   if (delivery.deliveryDate < businessDate()) {
     throw new ConflictError('That day has already passed.');
   }

@@ -57,8 +57,19 @@ export default async function BillingPage({ searchParams }) {
 
       {bill.balancePaise > 0 ? (
         <div className="mb-5">
-          <Notice tone="caution" title={`${formatPaise(bill.balancePaise)} due`}>
-            {bill.frozen
+          <Notice
+            tone={bill.paidPaise > 0 ? 'info' : 'caution'}
+            title={
+              bill.paidPaise > 0
+                ? `Partially Paid · ${formatPaise(bill.balancePaise)} remaining due`
+                : `${formatPaise(bill.balancePaise)} due`
+            }
+          >
+            {bill.paidPaise > 0
+              ? `You have paid ${formatPaise(bill.paidPaise)} so far. ${
+                  bill.frozen ? `Remaining balance due by ${formatDate(bill.dueDate)}.` : 'This month is still running.'
+                }`
+              : bill.frozen
               ? `Due by ${formatDate(bill.dueDate)}.`
               : 'This month is still running — the total will change as milk is delivered.'}
           </Notice>

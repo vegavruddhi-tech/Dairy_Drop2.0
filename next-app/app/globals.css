@@ -19,48 +19,48 @@
  * brand token did nothing visible.
  */
 :root {
-  --bg: 251 248 241;            /* cream       #fbf8f1 */
-  --surface: 255 255 255;        /* white       #ffffff */
-  --surface-muted: 244 239 228;  /* warm linen  #f4efe4 */
-  --border: 232 224 207;         /* warm hairline #e8e0cf */
+  --bg: 248 250 252;            /* crisp off-white #f8fafc */
+  --surface: 255 255 255;        /* pure white      #ffffff */
+  --surface-muted: 241 245 249;  /* soft cool slate #f1f5f9 */
+  --border: 226 232 240;         /* clean border    #e2e8f0 */
 
-  --ink: 28 42 30;              /* green-black #1c2a1e   14.2:1 on bg */
-  --ink-muted: 74 90 78;        /* #4a5a4e               6.9:1 on bg */
-  --ink-subtle: 92 106 96;      /* #5c6a60               5.4:1 on bg */
+  --ink: 15 23 42;              /* slate-900       #0f172a */
+  --ink-muted: 71 85 105;       /* slate-600       #475569 */
+  --ink-subtle: 148 163 184;    /* slate-400       #94a3b8 */
 
-  --brand: 27 107 58;           /* pasture green #1b6b3a 6.5:1 on white */
-  --brand-ink: 255 255 255;
-  --brand-soft: 231 243 234;    /* #e7f3ea */
+  --brand: 37 99 235;           /* royal blue      #2563eb */
+  --brand-ink: 255 255 255;      /* white           #ffffff */
+  --brand-soft: 239 246 255;    /* soft ice blue   #eff6ff */
 
-  --positive: 27 107 58;
-  --positive-soft: 226 241 230;
-  --caution: 140 98 6;          /* butter-gold, darkened for text #8c6206 5.6:1 */
-  --caution-soft: 251 241 214;  /* #fbf1d6 */
-  --critical: 185 28 28;
-  --critical-soft: 253 232 232;
-  --info: 47 111 143;           /* muted lake blue #2f6f8f 5.5:1 */
-  --info-soft: 227 239 245;
+  --positive: 16 185 129;       /* emerald         #10b981 */
+  --positive-soft: 236 253 245;  /* soft emerald    #ecfdf5 */
+  --caution: 217 119 6;         /* amber           #d97706 */
+  --caution-soft: 254 243 199;  /* soft amber      #fef3c7 */
+  --critical: 225 29 72;        /* rose            #e11d48 */
+  --critical-soft: 255 241 242; /* soft rose       #fff1f2 */
+  --info: 37 99 235;            /* royal blue      #2563eb */
+  --info-soft: 239 246 255;     /* soft blue       #eff6ff */
 }
 
 :root[data-theme='dark'] {
-  --bg: 15 23 18;               /* deep green-black #0f1712 */
-  --surface: 23 32 25;          /* #172019 */
-  --surface-muted: 31 43 34;    /* #1f2b22 */
-  --border: 42 58 46;           /* #2a3a2e */
-  --ink: 242 238 227;           /* warm cream text #f2eee3  15.7:1 */
-  --ink-muted: 195 190 176;     /* 9.8:1 */
-  --ink-subtle: 143 154 144;    /* 6.3:1 */
-  --brand: 76 175 110;          /* lifted green for dark #4caf6e */
-  --brand-ink: 15 23 18;
-  --brand-soft: 29 58 39;
-  --positive: 76 175 110;
-  --positive-soft: 29 58 39;
-  --caution: 224 184 74;        /* #e0b84a  8.9:1 */
-  --caution-soft: 58 46 18;
-  --critical: 240 128 128;
-  --critical-soft: 74 28 28;
-  --info: 111 168 200;
-  --info-soft: 26 47 61;
+  --bg: 11 15 25;               /* midnight slate  #0b0f19 */
+  --surface: 17 24 39;          /* slate-900       #111827 */
+  --surface-muted: 31 41 55;    /* slate-800       #1f2937 */
+  --border: 51 65 85;           /* slate-700       #334155 */
+  --ink: 248 250 252;           /* crisp white     #f8fafc */
+  --ink-muted: 203 213 225;     /* slate-300       #cbd5e1 */
+  --ink-subtle: 148 163 184;    /* slate-400       #94a3b8 */
+  --brand: 59 130 246;          /* bright blue     #3b82f6 */
+  --brand-ink: 255 255 255;
+  --brand-soft: 30 58 138;      /* dark blue       #1e3a8a */
+  --positive: 52 211 153;
+  --positive-soft: 6 78 59;
+  --caution: 251 191 36;
+  --caution-soft: 120 53 15;
+  --critical: 244 63 94;
+  --critical-soft: 136 19 55;
+  --info: 96 165 250;
+  --info-soft: 30 58 138;
 }
 
 @layer base {
@@ -68,32 +68,25 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     scrollbar-gutter: stable;
     scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-bg text-ink antialiased;
-    /* The old apps ran the body at 500 — noticeably sturdier than a default. */
+    @apply bg-bg text-ink antialiased font-sans;
     font-weight: 500;
     text-rendering: optimizeLegibility;
-    /*
-     * `clip`, not `hidden`. Either stops sideways scroll, but `hidden` makes
-     * the body a scroll container, which quietly breaks `position: sticky`
-     * on everything inside it — the mobile header scrolled away with the
-     * page. `clip` clips without creating a scroll container.
-     */
+    letter-spacing: -0.011em;
     overflow-x: clip;
   }
 
-  /*
-   * Headings use Outfit at 700+ with tightened tracking, which is most of what
-   * gave the old screens their character.
-   */
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading text-ink;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     line-height: 1.25;
   }
 

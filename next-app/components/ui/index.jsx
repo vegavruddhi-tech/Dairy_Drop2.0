@@ -69,22 +69,22 @@ export function PageHeader({ title, description, action }) {
  */
 export function HeroBanner({ eyebrow, greeting, name, subtitle, action, children }) {
   return (
-    <section className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-hero-pasture p-5 text-white shadow-hero sm:p-6">
-      {/* Ambient glow — a warm cream haze top-right, a cool one bottom-left. Decorative. */}
+    <section className="relative mb-6 overflow-hidden rounded-3xl border border-white/20 bg-hero-pasture p-5 text-white shadow-hero sm:p-6">
+      {/* Ambient glow — a clean white haze top-right, a cool sky blue bottom-left. Decorative. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[#fbf8f1]/15 blur-2xl"
+        className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/20 blur-2xl"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-emerald-300/10 blur-2xl"
+        className="pointer-events-none absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-sky-300/20 blur-2xl"
       />
 
       <div className="relative z-10 space-y-3">
         <div className="flex items-center justify-between gap-2">
           {eyebrow ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/12 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#fbf8f1] backdrop-blur-md">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#e0b84a]" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white backdrop-blur-md">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-200" />
               {eyebrow}
             </span>
           ) : <span />}
@@ -97,7 +97,7 @@ export function HeroBanner({ eyebrow, greeting, name, subtitle, action, children
             {name}
           </h1>
           {subtitle ? (
-            <p className="mt-1 text-sm font-medium text-[#fbf8f1]/80">{subtitle}</p>
+            <p className="mt-1 text-sm font-medium text-white/90">{subtitle}</p>
           ) : null}
         </div>
 
