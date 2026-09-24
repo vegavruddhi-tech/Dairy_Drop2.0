@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 
 import { Input, Textarea } from '@/components/ui/interactive.jsx';
+import { MapPinIcon } from '@/components/ui/Icons.jsx';
 import { applyToBecomeMilkman } from '@/actions/customer.actions.js';
 
 export function MilkmanApplicationForm({ defaultName }) {
@@ -167,8 +168,8 @@ export function MilkmanApplicationForm({ defaultName }) {
           <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 sm:p-5 space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold">
-                  📍
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600 text-white">
+                  <MapPinIcon className="h-3.5 w-3.5" />
                 </span>
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-950">
                   Dairy Location & Delivery Area

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { Card, CardBody, StatusBadge } from '@/components/ui/index.jsx';
 import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/interactive.jsx';
+import { InfoIcon, VacationIcon, CheckIcon, CloseIcon } from '@/components/ui/Icons.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
 import { formatDate, formatDateShort, formatWindow } from '@/domain/dates.js';
 
@@ -311,8 +312,9 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               </span>
             </div>
 
-            <p className="text-[11px] text-slate-400 italic">
-              💡 Click any date to view and manage deliveries directly below.
+            <p className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+              <InfoIcon className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span>Click any date to view and manage deliveries directly below.</span>
             </p>
           </div>
         </CardBody>
@@ -541,8 +543,8 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                           {delivery.skipReason === 'MILKMAN_DAY_OFF' ||
                           delivery.note?.toLowerCase().includes('day off') ||
                           delivery.note?.toLowerCase().includes('holiday') ? (
-                            <div className="flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50/90 px-3 py-2 rounded-xl border border-amber-200 font-semibold">
-                              <span>🏖️</span>
+                            <div className="flex items-center gap-2 text-xs text-amber-900 bg-amber-50/90 px-3 py-2 rounded-xl border border-amber-200 font-semibold">
+                              <VacationIcon className="h-4 w-4 text-amber-700 shrink-0" />
                               <span>Dairy Holiday / Milkman Day Off (You are not billed)</span>
                             </div>
                           ) : selectedDate >= todayDate ? (

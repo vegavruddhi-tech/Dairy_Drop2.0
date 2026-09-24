@@ -3,8 +3,9 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardBody, StatusBadge, Badge, Notice } from '@/components/ui/index.jsx';
+import { Card, CardBody, StatusBadge, Badge, Notice, cn } from '@/components/ui/index.jsx';
 import { Button, Modal, Select, Textarea } from '@/components/ui/interactive.jsx';
+import { MilkDropIcon, CheckIcon } from '@/components/ui/Icons.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { formatWindow } from '@/domain/dates.js';
 import {
@@ -37,48 +38,49 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest,
 
   return (
     <>
-      <Card>
-        <CardBody className="space-y-4">
+      <div className="group relative overflow-hidden rounded-3xl border-2 border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm transition-all hover:border-blue-400 hover:shadow-md">
+        {/* Top Accent line */}
+        <div
+          className={cn(
+            'absolute top-0 left-0 right-0 h-1.5',
+            subscription.status === 'ACTIVE'
+              ? 'bg-emerald-500'
+              : subscription.status === 'PAUSED'
+                ? 'bg-amber-500'
+                : 'bg-slate-300',
+          )}
+        />
+
+        <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-medium text-ink">{subscription.productName}</p>
-              <p className="mt-0.5 text-sm text-ink-muted">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <MilkDropIcon className="h-4 w-4" />
+                </span>
+                <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">
+                  {subscription.productName}
+                </h3>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
                 {Number(subscription.quantity)} {subscription.unit} ·{' '}
                 {subscription.frequency.replace('_', ' ').toLowerCase()} ·{' '}
                 {subscription.slot.toLowerCase()}
               </p>
-              {/* The hours this customer was promised, snapshotted at
-                  enrolment — not whatever the plan says today. */}
               <DeliveryWindows source={subscription} className="mt-1" />
             </div>
             <StatusBadge status={subscription.status} />
           </div>
 
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-semibold tnum text-ink">
+          <div className="flex items-baseline gap-2 rounded-2xl bg-slate-50/90 border border-slate-200/70 px-4 py-3">
+            <span className="font-heading text-2xl font-black tnum text-slate-950">
               ₹{Number(subscription.unitPrice).toFixed(2)}
             </span>
-            <span className="text-sm text-ink-muted">per {subscription.unit}</span>
+            <span className="font-heading text-xs font-bold text-slate-500">per {subscription.unit}</span>
           </div>
 
-          {/*
-            * The rate agreed at enrolment, which is not always the plan's rate
-            * today.
-            *
-            * Prices are snapshotted so a milkman raising a plan cannot silently
-            * reprice people already on it. Correct, but it looked like a fault:
-            * the same screen showed "₹30.00 per L" here and "Billed at ₹60.00
-            * per L" on the plan below, with nothing to say why.
-            */}
           <RateNote subscription={subscription} plans={availablePlans} />
 
-          {/*
-            * Say when the plan behind this subscription has been withdrawn.
-            *
-            * Nothing changes for the customer — that is the point of retiring
-            * rather than cancelling — but "Change plan" disappears with it, and
-            * a button vanishing without explanation reads as a fault.
-            */}
           {withdrawn ? (
             <Notice tone="info" title="No longer offered">
               Your milkman has stopped offering this plan. Yours keeps running on
@@ -93,37 +95,46 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest,
           ) : null}
 
           {!pendingRequest && subscription.status === 'ACTIVE' ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               {otherPlans.length > 0 ? (
-                <Button variant="outline" size="sm" onClick={() => setModal('change')}>
-                  Change plan
-                </Button>
+                <button
+                  type="button"
+                  className="tap flex-1 rounded-2xl border border-blue-600 bg-white px-3.5 py-2.5 font-heading text-xs font-bold text-blue-700 hover:bg-blue-50 transition-all active:scale-[0.98]"
+                  onClick={() => setModal('change')}
+                >
+                  Change Plan
+                </button>
               ) : null}
-              <Button
-                variant="ghost"
-                size="sm"
-                loading={pending}
-                onClick={() => run(pauseSubscription, { rootId: subscription.rootId }, 'Paused.')}
+              <button
+                type="button"
+                className="tap flex-1 rounded-2xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 font-heading text-xs font-bold text-amber-800 hover:bg-amber-100 transition-all active:scale-[0.98]"
+                disabled={pending}
+                onClick={() => run(pauseSubscription, { rootId: subscription.rootId }, 'Deliveries paused.')}
               >
                 Pause
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setModal('cancel')}>
+              </button>
+              <button
+                type="button"
+                className="tap rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 font-heading text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all active:scale-[0.98]"
+                onClick={() => setModal('cancel')}
+              >
                 Cancel
-              </Button>
+              </button>
             </div>
           ) : null}
 
           {subscription.status === 'PAUSED' ? (
-            <Button
-              size="sm"
-              loading={pending}
-              onClick={() => run(resumeSubscription, { rootId: subscription.rootId }, 'Resumed.')}
+            <button
+              type="button"
+              className="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 font-heading text-xs font-bold text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-[0.98]"
+              disabled={pending}
+              onClick={() => run(resumeSubscription, { rootId: subscription.rootId }, 'Deliveries resumed!')}
             >
-              Resume deliveries
-            </Button>
+              <span>▶ Resume Deliveries</span>
+            </button>
           ) : null}
-        </CardBody>
-      </Card>
+        </div>
+      </div>
 
       {/* ── Request a plan change ───────────────────────────────────── */}
       <Modal
@@ -210,114 +221,126 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, m
   const [pending, startTransition] = useTransition();
 
   return (
-    <Card>
-      <CardBody className="flex h-full flex-col gap-3">
-        <div>
-          <p className="font-medium text-ink">{plan.name}</p>
-          <p className="mt-0.5 text-sm text-ink-muted">{plan.productName}</p>
+    <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border-2 border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-500 hover:shadow-xl">
+      <div className="space-y-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600 mb-2">
+              <MilkDropIcon className="h-5 w-5" />
+            </span>
+            <h3 className="font-heading text-lg font-black tracking-tight text-slate-900 mt-1">
+              {plan.name}
+            </h3>
+            <p className="text-xs font-semibold text-blue-600">{plan.productName}</p>
+          </div>
+          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-blue-700 border border-blue-200/60">
+            {plan.slot.toLowerCase()}
+          </span>
         </div>
 
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-semibold tnum text-ink">
+        <div className="flex items-baseline gap-1.5 rounded-2xl bg-slate-50 border border-slate-200/70 p-3">
+          <span className="font-heading text-2xl font-black text-slate-950 tnum">
             {formatPaise(plan.quotedMonthlyPaise, { whole: true })}
           </span>
-          <span className="text-sm text-ink-muted">/ month</span>
+          <span className="font-heading text-xs font-bold text-slate-500">/ estimated mo.</span>
         </div>
 
-        <ul className="space-y-1 text-sm text-ink-muted">
-          <li>{Number(plan.quantity)} {plan.unit} per delivery</li>
-          <li>{plan.frequency.replace('_', ' ').toLowerCase()}</li>
-          <li>{plan.slot.toLowerCase()} delivery</li>
+        <ul className="space-y-1.5 text-xs font-medium text-slate-600">
+          <li className="flex items-center gap-2">
+            <CheckIcon className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
+            <span><strong className="text-slate-900">{Number(plan.quantity)} {plan.unit}</strong> per morning</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <CheckIcon className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
+            <span>{plan.frequency.replace('_', ' ').toLowerCase()} delivery</span>
+          </li>
           <WindowItems source={plan} />
         </ul>
 
-        <p className="text-xs text-ink-subtle">
-          Billed at ₹{Number(plan.unitPrice).toFixed(2)} per {plan.unit} actually delivered.
+        <p className="text-[11px] font-medium text-slate-400">
+          Transparent billing: ₹{Number(plan.unitPrice).toFixed(2)} per {plan.unit} actually received.
         </p>
+      </div>
 
-        <div className="mt-auto pt-2">
-          {alreadySubscribed ? (
-            <Badge tone="positive">
+      <div className="mt-5 pt-3 border-t border-slate-100">
+        {alreadySubscribed ? (
+          <div className="flex items-center justify-center gap-1.5 w-full text-center rounded-2xl bg-emerald-50 border border-emerald-200 py-3 font-heading text-xs font-extrabold text-emerald-800">
+            <CheckIcon className="h-4 w-4" />
+            <span>
               {subscribedRate && Number(subscribedRate) !== Number(plan.unitPrice)
-                ? `Subscribed at ₹${Number(subscribedRate).toFixed(2)}`
-                : 'Subscribed'}
-            </Badge>
-          ) : blockedBy?.switchFrom ? (
-            <>
-              {/*
-                * Stranded, not blocked.
-                *
-                * The plan in the way has been withdrawn by the milkman, so
-                * every plan on offer read "already on this" and the only exits
-                * were cancelling their milk or waiting on an approval. They did
-                * not choose to be there, so they may step across on their own.
-                */}
-              <Button
-                className="w-full"
-                loading={pending}
-                onClick={() =>
-                  startTransition(async () => {
-                    const result = await switchFromRetiredPlan({
-                      rootId: blockedBy.switchFrom,
-                      planId: plan.id,
-                    });
-                    if (result.ok) toast.success(`Switched to ${plan.name}. It starts tomorrow.`);
-                    else toast.error(result.message ?? 'Could not switch to that plan.');
-                  })
-                }
-              >
-                Switch to this
-              </Button>
-              <p className="mt-1.5 text-xs text-ink-muted">
-                Your current plan is no longer offered. Switching starts this one
-                tomorrow; today stays on your old plan.
-              </p>
-            </>
-          ) : blockedBy ? (
-            <>
-              <Button className="w-full" disabled>
-                Already on this
-              </Button>
-              <p className="mt-1.5 text-xs text-ink-muted">
-                You already get {blockedBy.productName} in the {blockedBy.times}.
-                Change or cancel that plan to order it differently.
-              </p>
-            </>
-          ) : maxPlansReached ? (
-            <>
-              <Button className="w-full cursor-not-allowed" disabled>
-                Max 2 Plans Active
-              </Button>
-              <p className="mt-1.5 text-[11px] text-caution font-medium">
-                Limit of 2 plans reached. Cancel or change an existing plan to subscribe.
-              </p>
-            </>
-          ) : (
-            <Button
-              className="w-full font-semibold"
-              loading={pending}
+                ? `Active · Billed at ₹${Number(subscribedRate).toFixed(2)}`
+                : 'Currently Subscribed'}
+            </span>
+          </div>
+        ) : blockedBy?.switchFrom ? (
+          <>
+            <button
+              type="button"
+              className="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 font-heading text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
+              disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  const result = await subscribe({ planId: plan.id });
-                  if (result.ok) {
-                    if (result.data?.requiresApproval) {
-                      toast.success(`Subscribed to ${plan.name}! Waiting for milkman approval before deliveries start.`);
-                      window.location.href = '/pending';
-                    } else {
-                      toast.success(`Subscribed to ${plan.name}.`);
-                    }
-                  } else {
-                    toast.error(result.message ?? 'Could not subscribe.');
-                  }
+                  const result = await switchFromRetiredPlan({
+                    rootId: blockedBy.switchFrom,
+                    planId: plan.id,
+                  });
+                  if (result.ok) toast.success(`Switched to ${plan.name}. It starts tomorrow.`);
+                  else toast.error(result.message ?? 'Could not switch to that plan.');
                 })
               }
             >
-              Subscribe
-            </Button>
-          )}
-        </div>
-      </CardBody>
-    </Card>
+              <span>Switch to this Plan</span>
+              <span>→</span>
+            </button>
+            <p className="mt-1.5 text-center text-[11px] font-medium text-slate-500">
+              Your old plan is retired. Switch seamlessly starting tomorrow.
+            </p>
+          </>
+        ) : blockedBy ? (
+          <>
+            <button className="tap flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 font-heading text-xs font-bold text-slate-400 cursor-not-allowed" disabled>
+              Already on this slot
+            </button>
+            <p className="mt-1.5 text-center text-[11px] font-medium text-slate-500">
+              You already receive {blockedBy.productName} in the {blockedBy.times}.
+            </p>
+          </>
+        ) : maxPlansReached ? (
+          <>
+            <button className="tap flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 font-heading text-xs font-bold text-slate-400 cursor-not-allowed" disabled>
+              Max 2 Plans Active
+            </button>
+            <p className="mt-1.5 text-center text-[11px] text-amber-700 font-medium">
+              Limit reached. Change or cancel an existing plan to subscribe.
+            </p>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 font-heading text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await subscribe({ planId: plan.id });
+                if (result.ok) {
+                  if (result.data?.requiresApproval) {
+                    toast.success(`Subscribed to ${plan.name}! Waiting for milkman approval.`);
+                    window.location.href = '/pending';
+                  } else {
+                    toast.success(`Subscribed to ${plan.name}. Deliveries start tomorrow!`);
+                  }
+                } else {
+                  toast.error(result.message ?? 'Could not subscribe.');
+                }
+              })
+            }
+          >
+            <span>Subscribe Now</span>
+            <span>→</span>
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

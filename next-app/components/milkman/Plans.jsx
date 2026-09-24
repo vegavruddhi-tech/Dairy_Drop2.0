@@ -16,6 +16,7 @@ import {
   UsersIcon,
   MilkDropIcon,
   CalendarIcon,
+  SparklesIcon,
 } from '@/components/ui/Icons.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { formatWindow } from '@/domain/dates.js';
@@ -153,8 +154,9 @@ export function PlanEditor({ plan, trigger }) {
           {/* Quick Predefined Dropdown Selector */}
           <div className="rounded-2xl border border-brand/20 bg-brand-soft/60 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-brand">
-                ⚡ Quick Presets (Auto-fills name, price & info)
+              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-brand">
+                <SparklesIcon className="h-3.5 w-3.5 text-brand" />
+                <span>Quick Presets (Auto-fills name, price & info)</span>
               </span>
               <span className="text-[10px] font-medium text-ink-subtle">Market Rate Standard</span>
             </div>

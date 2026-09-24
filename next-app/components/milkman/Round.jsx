@@ -17,6 +17,10 @@ import {
   CartIcon,
   UndoIcon,
   CalendarIcon,
+  PackageIcon,
+  NoteIcon,
+  CloseIcon,
+  TruckIcon,
 } from '@/components/ui/Icons.jsx';
 import { markDelivery, declareDayOff } from '@/actions/milkman.actions.js';
 import { HolidayManagerModal } from './HolidayManagerModal.jsx';
@@ -46,9 +50,9 @@ const SLOT_STYLE = {
 
 /** How a settled card is edged, so the state reads from across the room. */
 const STATUS_EDGE = {
-  DELIVERED: 'border-positive/30',
-  UNDELIVERED: 'border-critical/30',
-  SKIPPED: 'border-border',
+  DELIVERED: 'border-2 border-emerald-500 bg-emerald-50/20 shadow-sm',
+  UNDELIVERED: 'border-2 border-rose-300 bg-rose-50/20 opacity-80',
+  SKIPPED: 'border border-slate-200 bg-slate-50/60 opacity-75',
 };
 
 export function RoundStop({ stop }) {
@@ -56,32 +60,11 @@ export function RoundStop({ stop }) {
   const [status, setStatus] = useOptimistic(stop.status);
   const [modal, setModal] = useState(null);
 
-  /*
-   * A stop is one visit, carrying one or more products.
-   *
-   * A customer may take cow milk and buffalo milk in the same morning. That is
-   * two delivery rows but one knock at the door, so the card lists them and the
-   * buttons act on all of them together.
-   */
   const items = stop.items ?? [];
   const settled = status !== 'PENDING';
-
-  /*
-   * A stop with no milk exists only to carry extras — the customer ordered
-   * something but has no plan running today. There is no delivery row behind
-   * it, so it has nothing to mark; the Orders screen owns purchase status.
-   */
   const extras = stop.extras ?? [];
   const carryOnly = Boolean(stop.milkless);
 
-  /**
-   * Mark every line on this visit.
-   *
-   * `quantities` maps a delivery id to what actually went out, for the case
-   * where one product differed; anything absent keeps its planned amount.
-   * A single failure rolls the whole card back rather than leaving the milkman
-   * looking at a stop that is half saved.
-   */
   function mark(next, { quantities, ...extra } = {}) {
     startTransition(async () => {
       setStatus(next);
@@ -113,54 +96,62 @@ export function RoundStop({ stop }) {
     <>
       <article
         className={cn(
-          'card-surface overflow-hidden transition-shadow',
-          settled ? STATUS_EDGE[status] ?? 'border-border' : 'hover:shadow-card-hover',
-          status === 'SKIPPED' ? 'opacity-75' : '',
+          'group relative overflow-hidden rounded-3xl border-2 bg-white shadow-sm transition-all',
+          settled
+            ? STATUS_EDGE[status] ?? 'border-slate-200'
+            : 'border-slate-200 hover:border-blue-400 hover:shadow-md',
         )}
         aria-label={`${stop.customerName}, ${SLOT_LABEL[stop.slot] ?? ''}`}
       >
+        {/* Top status indicator line */}
+        <div
+          className={cn(
+            'h-1.5 w-full',
+            status === 'DELIVERED'
+              ? 'bg-emerald-500'
+              : status === 'UNDELIVERED'
+                ? 'bg-rose-500'
+                : status === 'SKIPPED'
+                  ? 'bg-slate-300'
+                  : 'bg-blue-600',
+          )}
+        />
+
         {/* ── Who and where ─────────────────────────────────────────── */}
-        <div className="flex items-start gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
+        <div className="flex items-start gap-3.5 p-4 sm:p-5">
           <span
             aria-hidden="true"
-            className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', slot.tile)}
+            className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-xs', slot.tile)}
           >
-            <slot.Icon className="h-5 w-5" />
+            <slot.Icon className="h-6 w-6" />
           </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h3 className="font-heading text-base font-extrabold tracking-tight text-ink">
+              <h3 className="font-heading text-lg font-black tracking-tight text-slate-950">
                 {stop.customerName}
               </h3>
-              {/*
-                * Which round this stop belongs to.
-                *
-                * A "morning & evening" customer has two stops, and without
-                * this they were two identical cards — same name, same
-                * address, same quantity — with no way to tell which one had
-                * just been marked delivered.
-                */}
-              {SLOT_LABEL[stop.slot] ? <Badge tone={slot.tone}>{SLOT_LABEL[stop.slot]}</Badge> : null}
+              {SLOT_LABEL[stop.slot] ? (
+                <Badge tone={slot.tone}>{SLOT_LABEL[stop.slot]}</Badge>
+              ) : null}
             </div>
 
             {address ? (
-              <p className="mt-1 flex items-start gap-1.5 text-sm font-medium text-ink-muted">
-                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
+              <p className="mt-1 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
+                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                 <span>
-                  {address}
+                  <strong className="text-slate-900">{stop.addressLine1}</strong>
+                  {stop.addressArea ? `, ${stop.addressArea}` : ''}
                   {stop.addressLandmark ? (
-                    <span className="block text-xs font-medium text-ink-subtle">Near {stop.addressLandmark}</span>
+                    <span className="block text-[11px] font-medium text-slate-400">Near {stop.addressLandmark}</span>
                   ) : null}
                 </span>
               </p>
             ) : null}
 
-            {/* The window this customer was promised, so the round can be
-                ordered against it rather than against memory. */}
             {dueWindow ? (
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
-                <ClockIcon className="h-4 w-4 shrink-0 text-ink-subtle" />
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                <ClockIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                 {dueWindow}
               </p>
             ) : null}
@@ -172,23 +163,24 @@ export function RoundStop({ stop }) {
               <a
                 href={`tel:${stop.customerPhone}`}
                 aria-label={`Call ${stop.customerName}`}
-                className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-brand shadow-xs transition-colors hover:bg-brand-soft"
+                className="tap flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs transition-colors hover:bg-blue-600 hover:text-white active:scale-95"
               >
-                <PhoneIcon className="h-4 w-4" />
+                <PhoneIcon className="h-5 w-5" />
               </a>
             ) : null}
           </div>
         </div>
 
         {stop.deliveryInstructions ? (
-          <div className="mx-4 mb-3 rounded-xl border border-info/15 bg-info-soft px-3 py-2 text-xs font-semibold text-info sm:mx-5">
-            {stop.deliveryInstructions}
+          <div className="mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-3.5 py-2.5 text-xs font-bold text-amber-900 sm:mx-5 flex items-center gap-2">
+            <NoteIcon className="h-4 w-4 shrink-0 text-amber-800" />
+            <span>{stop.deliveryInstructions}</span>
           </div>
         ) : null}
 
         {/* ── What goes out ─────────────────────────────────────────── */}
         {carryOnly ? null : (
-          <ul className="divide-y divide-border border-t border-border">
+          <ul className="divide-y divide-slate-100 border-t border-slate-100 bg-slate-50/40">
             {items.map((item) => (
               <ItemLine key={item.id} item={item} status={status} />
             ))}
@@ -197,73 +189,113 @@ export function RoundStop({ stop }) {
 
         {/* ── Extras to carry ───────────────────────────────────────── */}
         {extras.length > 0 ? (
-          <div className="border-t border-border bg-surface-muted/60 px-4 py-3 sm:px-5">
-            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
-              <CartIcon className="h-4 w-4" />
-              Also carry
-            </p>
-            <ul className="space-y-1.5">
+          <div className="border-t-2 border-dashed border-amber-300 bg-linear-to-r from-amber-50 via-orange-50/60 to-amber-50 px-4 py-3.5 sm:px-5">
+            <div className="mb-2.5 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-900">
+                <PackageIcon className="h-4 w-4 text-amber-800" />
+                <span>Deliver Extra Products Today</span>
+              </p>
+              <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                {extras.length} {extras.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+            <ul className="space-y-2">
               {extras.map((extra) => (
-                <li key={extra.id} className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="text-ink">
-                    <span className="tnum font-extrabold">{Number(extra.quantity)}</span>
-                    <span className="text-ink-muted"> {extra.unit} </span>
-                    <span className="font-semibold">{extra.productName}</span>
-                  </span>
-                  <span className="tnum font-semibold text-ink-muted">
+                <li key={extra.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/90 border border-amber-200/80 px-3 py-2 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+                      <PackageIcon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-slate-900">
+                      <span className="tnum font-black text-base text-slate-950">{Number(extra.quantity)}</span>
+                      <span className="text-slate-500 text-xs font-semibold"> {extra.unit} </span>
+                      <strong className="font-heading text-sm font-bold text-slate-900">{extra.productName}</strong>
+                    </span>
+                  </div>
+                  <span className="tnum font-extrabold text-sm text-amber-950">
                     {formatPaise(Math.round(Number(extra.amount ?? 0) * 100))}
                   </span>
                 </li>
               ))}
             </ul>
             {carryOnly ? (
-              <p className="mt-2 text-xs font-medium text-ink-subtle">
-                No milk plan today — this stop is for the extras. Mark them on Orders.
+              <p className="mt-2 text-xs font-medium text-amber-800">
+                No milk subscription scheduled for today — this stop is exclusively for delivering these ordered extras.
               </p>
             ) : null}
           </div>
         ) : null}
 
-        {/* ── Actions ───────────────────────────────────────────────── */}
-        <div className="border-t border-border p-3 sm:px-5 sm:py-4">
+        {/* ── Big Tactile Actions ───────────────────────────────────── */}
+        <div className="border-t border-slate-200/80 p-3.5 sm:px-5 sm:py-4 bg-white">
           {carryOnly ? (
             <a
               href="/milkman/orders"
-              className="tap flex h-12 items-center justify-center rounded-xl border border-border bg-surface text-sm font-bold text-ink shadow-xs transition-colors hover:bg-surface-muted"
+              className="tap flex h-12 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white font-heading text-xs font-bold text-slate-800 shadow-xs transition-colors hover:bg-slate-50"
             >
-              Open orders
+              Open Orders
             </a>
           ) : !settled ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="lg" loading={pending} onClick={() => mark('DELIVERED')} className="col-span-2">
-                {pending ? null : <CheckIcon className="h-5 w-5" />}
-                Delivered
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => setModal('partial')}>
-                Different qty
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={() => setModal('not')}
-                className="text-critical hover:border-critical/40 hover:bg-critical-soft"
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="tap flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 font-heading text-sm font-black text-white shadow-md shadow-emerald-500/25 transition-all hover:bg-emerald-700 active:scale-[0.98]"
+                disabled={pending}
+                onClick={() => mark('DELIVERED')}
               >
-                Not delivered
-              </Button>
+                {pending ? null : <CheckIcon className="h-5 w-5 stroke-[2.5]" />}
+                <span>
+                  {extras.length > 0
+                    ? `MARK DELIVERED (Milk + ${extras.map(e => e.productName).join(', ')})`
+                    : 'MARK DELIVERED'}
+                </span>
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="tap flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 font-heading text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all active:scale-[0.98]"
+                  onClick={() => setModal('partial')}
+                >
+                  Different Qty
+                </button>
+                <button
+                  type="button"
+                  className="tap flex h-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
+                  onClick={() => setModal('not')}
+                >
+                  Not Delivered
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium text-ink-subtle">
-                {status === 'DELIVERED'
-                  ? 'Marked delivered.'
-                  : status === 'UNDELIVERED'
-                    ? 'Marked not delivered — not charged.'
-                    : 'Skipped — not charged.'}
+            <div className="flex items-center justify-between gap-3 py-1">
+              <p className="font-heading text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                {status === 'DELIVERED' ? (
+                  <>
+                    <CheckIcon className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
+                    <span>Marked Delivered</span>
+                  </>
+                ) : status === 'UNDELIVERED' ? (
+                  <>
+                    <CloseIcon className="h-4 w-4 text-rose-600 stroke-[2.5]" />
+                    <span>Not Delivered (Not charged)</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-400 text-xs uppercase tracking-wider font-bold">PAUSED</span>
+                    <span>Skipped (Not charged)</span>
+                  </>
+                )}
               </p>
-              <Button size="sm" variant="ghost" loading={pending} onClick={() => mark('PENDING')}>
-                <UndoIcon className="h-4 w-4" />
-                Undo
-              </Button>
+              <button
+                type="button"
+                className="tap flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 font-heading text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                disabled={pending}
+                onClick={() => mark('PENDING')}
+              >
+                <UndoIcon className="h-3.5 w-3.5" />
+                <span>Undo</span>
+              </button>
             </div>
           )}
         </div>

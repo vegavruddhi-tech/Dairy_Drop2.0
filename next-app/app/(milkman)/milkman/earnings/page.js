@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/Icons.jsx';
 import { CustomerEarnings, PaymentHistory } from '@/components/milkman/Earnings.jsx';
 import { CustomerFilter } from '@/components/milkman/EarningsFilter.jsx';
+import { PerformanceTrends } from '@/components/milkman/PerformanceTrends.jsx';
 
 export const metadata = { title: 'Earnings' };
 
@@ -37,7 +38,10 @@ export default async function EarningsPage({ searchParams }) {
   const month = typeof params?.month === 'string' ? params.month : thisMonth;
   const focused = typeof params?.customer === 'string' ? params.customer : null;
 
-  const earnings = await billingService.getEarnings(actor, { month });
+  const [earnings, performance] = await Promise.all([
+    billingService.getEarnings(actor, { month }),
+    billingService.getSixMonthPerformance(actor),
+  ]);
 
   // An id that is not in this month's figures is ignored rather than trusted.
   const focusedRow = focused
@@ -287,6 +291,14 @@ export default async function EarningsPage({ searchParams }) {
       <section className="mt-5">
         <PaymentHistory month={month} payments={payments} focusedRow={focusedRow} />
       </section>
+
+      {/* ── 6-Month Rolling Performance & Growth Analytics ─────────────── */}
+      {!focusedRow && (
+        <section className="mt-8 border-t border-border/80 pt-8">
+          <PerformanceTrends performance={performance} />
+        </section>
+      )}
     </>
   );
 }
+

@@ -2,10 +2,12 @@ import { requireMilkman } from '@/auth/session.js';
 import { formatMonth, formatDate } from '@/domain/dates.js';
 import { formatPaise, toPaise } from '@/domain/money.js';
 import * as paymentService from '@/services/payment.service.js';
+import * as usersRepo from '@/repositories/users.repo.js';
 
 import { Card, CardBody, CardHeader, EmptyState, Table, Th, Td, StatusBadge, Stat, SectionHeading } from '@/components/ui/index.jsx';
 import { PaymentsIcon, RequestsIcon, UsersIcon, EarningsIcon, PhoneIcon } from '@/components/ui/Icons.jsx';
 import { VerifyPayment } from '@/components/milkman/Payments.jsx';
+import { PaymentSettings } from '@/components/milkman/PaymentSettings.jsx';
 
 export const metadata = { title: 'Payments' };
 
@@ -19,9 +21,10 @@ export const metadata = { title: 'Payments' };
 export default async function PaymentsPage() {
   const actor = await requireMilkman();
 
-  const [pending, outstanding] = await Promise.all([
+  const [pending, outstanding, profile] = await Promise.all([
     paymentService.listPending(actor, { limit: 50 }),
     paymentService.listOutstanding(actor, { limit: 50 }),
+    usersRepo.findMilkmanProfile(actor.userId),
   ]);
 
   const awaitingPaise = pending.reduce((total, payment) => total + toPaise(payment.amount), 0);
@@ -208,6 +211,12 @@ export default async function PaymentsPage() {
           </CardBody>
         </Card>
       </section>
+
+      {/* ── UPI & QR Code Settings ────────────────────────────────────── */}
+      <section className="mt-8 border-t border-border/80 pt-8" aria-labelledby="settings-heading">
+        <PaymentSettings initialUpiId={profile?.upiId ?? ''} initialQrCodeUrl={profile?.qrCodeUrl ?? ''} />
+      </section>
     </>
   );
 }
+

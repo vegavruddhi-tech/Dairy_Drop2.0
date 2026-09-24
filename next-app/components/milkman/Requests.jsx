@@ -42,21 +42,21 @@ const SLOT_LABEL = { MORNING: 'Morning', EVENING: 'Evening', BOTH: 'Morning & ev
 /** Name, phone and when it was asked — the same top strip on both card types. */
 function RequestHeader({ request, icon, tile, children }) {
   return (
-    <div className="flex items-start gap-3">
-      <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', tile)}>
+    <div className="flex items-start gap-3.5">
+      <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-xs', tile)}>
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <h3 className="font-heading text-base font-extrabold tracking-tight text-ink">{request.customerName}</h3>
-        <div className="mt-0.5 text-sm font-medium text-ink-muted">{children}</div>
-        <p className="mt-0.5 text-[11px] font-semibold text-ink-subtle">Asked {formatInstant(request.createdAt)}</p>
+        <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">{request.customerName}</h3>
+        <div className="mt-0.5 text-xs font-semibold text-slate-600">{children}</div>
+        <p className="mt-0.5 text-[11px] font-medium text-slate-400">Asked {formatInstant(request.createdAt)}</p>
       </div>
       {request.customerPhone ? (
         <a
           href={`tel:${request.customerPhone}`}
           aria-label={`Call ${request.customerName}`}
           title={`Call ${request.customerName}`}
-          className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-brand shadow-xs transition-colors hover:bg-brand-soft"
+          className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs transition-colors hover:bg-blue-600 hover:text-white"
         >
           <PhoneIcon className="h-4 w-4" />
         </a>
@@ -68,7 +68,7 @@ function RequestHeader({ request, icon, tile, children }) {
 function CustomerNote({ note }) {
   if (!note) return null;
   return (
-    <blockquote className="rounded-xl border border-info/15 bg-info-soft px-3 py-2 text-sm font-medium text-info">
+    <blockquote className="rounded-2xl border border-blue-200 bg-blue-50/70 px-3.5 py-2 text-xs font-bold text-blue-900">
       “{note}”
     </blockquote>
   );
@@ -76,19 +76,23 @@ function CustomerNote({ note }) {
 
 function Decision({ pending, disabled, onApprove, onDecline, approveLabel = 'Approve' }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
-      <Button size="lg" loading={pending} disabled={disabled} onClick={onApprove}>
-        {pending ? null : <CheckIcon className="h-5 w-5" />}
-        {approveLabel}
-      </Button>
-      <Button
-        size="lg"
-        variant="outline"
+    <div className="grid grid-cols-2 gap-2 pt-1">
+      <button
+        type="button"
+        disabled={disabled || pending}
+        onClick={onApprove}
+        className="tap flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-4 font-heading text-xs font-black text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50"
+      >
+        {pending ? null : <CheckIcon className="h-4 w-4 stroke-[2.5]" />}
+        <span>{approveLabel}</span>
+      </button>
+      <button
+        type="button"
         onClick={onDecline}
-        className="text-critical hover:border-critical/40 hover:bg-critical-soft"
+        className="tap flex h-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
       >
         Decline
-      </Button>
+      </button>
     </div>
   );
 }
@@ -108,48 +112,48 @@ export function QuantityRequest({ request }) {
 
   return (
     <>
-      <article className="card-surface relative overflow-hidden p-4 sm:p-5">
-        <div aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-0 h-1', more ? 'bg-info' : 'bg-caution')} />
+      <article className="group relative overflow-hidden rounded-3xl border-2 border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-400 hover:shadow-md">
+        <div aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-0 h-1.5', more ? 'bg-blue-600' : 'bg-amber-500')} />
 
         <RequestHeader
           request={request}
           icon={<MilkDropIcon className="h-5 w-5" />}
-          tile={more ? 'bg-info-soft text-info' : 'bg-caution-soft text-caution'}
+          tile={more ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}
         >
           <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <CalendarIcon className="h-4 w-4 text-ink-subtle" />
-            {formatDate(request.deliveryDate)}
-            <span className="text-ink-subtle">·</span>
-            {request.productName}
+            <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
+            <strong className="text-slate-900">{formatDate(request.deliveryDate)}</strong>
+            <span className="text-slate-300">·</span>
+            <span>{request.productName}</span>
           </span>
         </RequestHeader>
 
         {/* The ask, as one glance: what they get now, what they want. */}
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-surface-muted/70 px-4 py-3">
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 border border-slate-200/80 px-4 py-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">Now</p>
-            <p className="stat-number text-xl text-ink-muted line-through decoration-ink-subtle/60">
+            <p className="font-heading text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Regular</p>
+            <p className="font-heading text-lg font-bold text-slate-400 line-through decoration-slate-400/80">
               {from}
               <span className="ml-1 font-sans text-xs font-semibold no-underline">{unit}</span>
             </p>
           </div>
-          <span aria-hidden="true" className="text-lg font-black text-ink-subtle">→</span>
+          <span aria-hidden="true" className="text-base font-black text-slate-300">→</span>
           <div className="text-right">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">That day</p>
-            <p className="stat-number text-3xl text-ink">
+            <p className="font-heading text-[10px] font-extrabold uppercase tracking-wider text-blue-600">Requested</p>
+            <p className="font-heading text-2xl font-black text-slate-950">
               {to}
-              <span className="ml-1 font-sans text-sm font-semibold text-ink-muted">{unit}</span>
+              <span className="ml-1 font-sans text-xs font-bold text-slate-500">{unit}</span>
             </p>
           </div>
-          <Badge tone={more ? 'info' : 'caution'} className="shrink-0">
+          <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-black shadow-2xs shrink-0', more ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800')}>
             {delta > 0 ? `+${delta}` : delta} {unit}
-          </Badge>
+          </span>
         </div>
 
-        <div className="mt-3 space-y-3">
+        <div className="mt-3.5 space-y-3">
           <CustomerNote note={request.customerNote} />
-          <p className="text-xs font-medium text-ink-subtle">
-            Affects this one day only — their plan is unchanged.
+          <p className="text-[11px] font-medium text-slate-400">
+            Affects this single day only — their ongoing daily plan remains unchanged.
           </p>
           <Decision
             pending={pending}

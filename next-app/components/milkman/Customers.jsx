@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { cn, Badge, StatusBadge } from '@/components/ui/index.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { Button, Modal, Input, Textarea } from '@/components/ui/interactive.jsx';
-import { EditIcon, PhoneIcon, MapPinIcon, CheckIcon } from '@/components/ui/Icons.jsx';
+import { EditIcon, PhoneIcon, MapPinIcon, CheckIcon, NoteIcon } from '@/components/ui/Icons.jsx';
 import { approveCustomer, rejectCustomer, updateCustomerAddress } from '@/actions/milkman.actions.js';
 
 /**
@@ -240,7 +240,7 @@ export function EditAddressModal({ customer, open, onClose }) {
 
 /** A customer waiting for a decision. */
 export function ApprovalCard({ customer, summary, atLimit }) {
-  const [modal, setModal] = useState(null); // 'reject' | 'editAddress' | null
+  const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
 
   function approve() {
@@ -261,37 +261,38 @@ export function ApprovalCard({ customer, summary, atLimit }) {
 
   return (
     <>
-      <article className="card-surface relative overflow-hidden p-4 sm:p-5">
-        {/* Amber strip: this card wants a decision. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-caution" />
+      <article className="group relative overflow-hidden rounded-3xl border-2 border-amber-200 bg-white p-5 shadow-sm transition-all hover:border-amber-400 hover:shadow-md">
+        {/* Top Amber line: wants decision */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1.5 bg-amber-500" />
 
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3.5">
           <Avatar name={customer.name} tone="caution" />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h3 className="font-heading text-base font-extrabold tracking-tight text-ink">{customer.name}</h3>
+              <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">{customer.name}</h3>
               <StatusBadge status="PENDING" />
             </div>
             {summary?.productNames ? (
-              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-brand/20 bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">
-                <span className="font-semibold opacity-70">Wants</span>
+              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-xs font-bold text-blue-700">
+                <span className="font-medium opacity-70">Wants:</span>
                 {summary.productNames}
               </p>
             ) : null}
-            <p className="mt-1.5 flex items-start gap-1.5 text-sm font-medium text-ink-muted">
-              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
+            <p className="mt-1.5 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <span>
                 {[customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ') ||
                   'No address provided'}
                 {customer.addressLandmark ? (
-                  <span className="block text-xs font-semibold text-brand">Near {customer.addressLandmark}</span>
+                  <span className="block text-xs font-semibold text-blue-600">Near {customer.addressLandmark}</span>
                 ) : null}
               </span>
             </p>
             {customer.deliveryInstructions ? (
-              <p className="mt-1.5 rounded-xl border border-info/15 bg-info-soft px-3 py-1.5 text-xs font-semibold text-info">
-                {customer.deliveryInstructions}
+              <p className="mt-1.5 flex items-center gap-1.5 rounded-2xl border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-bold text-blue-900">
+                <NoteIcon className="h-3.5 w-3.5 shrink-0 text-blue-700" />
+                <span>{customer.deliveryInstructions}</span>
               </p>
             ) : null}
           </div>
@@ -301,16 +302,16 @@ export function ApprovalCard({ customer, summary, atLimit }) {
             onClick={() => setModal('editAddress')}
             aria-label="Edit delivery address"
             title="Edit delivery address"
-            className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-muted shadow-xs transition-colors hover:bg-brand-soft hover:text-brand"
+            className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 shadow-xs transition-colors hover:bg-blue-50 hover:text-blue-600"
           >
             <EditIcon className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-ink-muted">
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-slate-500">
             {customer.phone ? (
-              <a href={`tel:${customer.phone}`} className="inline-flex items-center gap-1 font-bold text-brand hover:underline">
+              <a href={`tel:${customer.phone}`} className="inline-flex items-center gap-1 font-bold text-blue-600 hover:underline">
                 <PhoneIcon className="h-3.5 w-3.5" />
                 {customer.phone}
               </a>
@@ -319,18 +320,22 @@ export function ApprovalCard({ customer, summary, atLimit }) {
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-            <Button
-              variant="outline"
-              size="md"
+            <button
+              type="button"
               onClick={() => setModal('reject')}
-              className="text-critical hover:border-critical/40 hover:bg-critical-soft"
+              className="tap flex h-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
             >
               Decline
-            </Button>
-            <Button size="md" loading={pending} disabled={atLimit} onClick={approve}>
-              {pending ? null : <CheckIcon className="h-4 w-4" />}
-              {atLimit ? 'Limit reached' : 'Approve'}
-            </Button>
+            </button>
+            <button
+              type="button"
+              disabled={atLimit || pending}
+              onClick={approve}
+              className="tap flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-5 font-heading text-xs font-black text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {pending ? null : <CheckIcon className="h-4 w-4 stroke-[2.5]" />}
+              <span>{atLimit ? 'Limit Reached' : 'Approve & Start'}</span>
+            </button>
           </div>
         </div>
       </article>
@@ -373,7 +378,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
             });
           }}
         >
-          <p className="text-xs text-ink-muted">The customer will receive this message explaining why you cannot accept them right now.</p>
+          <p className="text-xs text-slate-500">The customer will receive this message explaining why you cannot accept them right now.</p>
           <Textarea
             name="reason"
             label="Reason for Declining"
@@ -396,35 +401,35 @@ export function CustomerRow({ customer, summary }) {
 
   return (
     <>
-      <li className="px-4 py-4 transition-colors hover:bg-surface-muted/50 sm:px-5">
-        <div className="flex items-start gap-3">
+      <li className="px-4 py-4 transition-colors hover:bg-slate-50 sm:px-5">
+        <div className="flex items-start gap-3.5">
           <Avatar name={customer.name} />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h3 className="font-heading text-[15px] font-extrabold tracking-tight text-ink">{customer.name}</h3>
+              <h3 className="font-heading text-base font-black tracking-tight text-slate-950">{customer.name}</h3>
               {customer.deliveryArea ? <Badge tone="brand">{customer.deliveryArea}</Badge> : null}
             </div>
 
-            <p className="mt-1 flex items-start gap-1.5 text-sm font-medium text-ink-muted">
-              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
+            <p className="mt-1 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <span className="min-w-0">
                 {address || 'No address saved'}
                 {customer.deliveryInstructions ? (
-                  <span className="block text-xs font-medium text-ink-subtle">“{customer.deliveryInstructions}”</span>
+                  <span className="block text-xs font-semibold text-slate-500">“{customer.deliveryInstructions}”</span>
                 ) : null}
               </span>
             </p>
           </div>
 
-          {/* Two round shortcuts, always in the same corner. */}
-          <div className="flex shrink-0 items-center gap-1.5">
+          {/* Action shortcuts */}
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setEditing(true)}
               aria-label={`Edit address for ${customer.name}`}
               title="Edit delivery address"
-              className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-ink-muted shadow-xs transition-colors hover:bg-brand-soft hover:text-brand"
+              className="tap flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-xs transition-colors hover:bg-blue-50 hover:text-blue-600 active:scale-95"
             >
               <EditIcon className="h-4 w-4" />
             </button>
@@ -433,7 +438,7 @@ export function CustomerRow({ customer, summary }) {
                 href={`tel:${customer.phone}`}
                 aria-label={`Call ${customer.name}`}
                 title={`Call ${customer.name}`}
-                className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-brand shadow-xs transition-colors hover:bg-brand-soft"
+                className="tap flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs transition-colors hover:bg-blue-600 hover:text-white active:scale-95"
               >
                 <PhoneIcon className="h-4 w-4" />
               </a>
@@ -441,33 +446,32 @@ export function CustomerRow({ customer, summary }) {
           </div>
         </div>
 
-        {/* What they take. Sits under the name on every width; it is the
-            figure the milkman scans the list for. */}
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface-muted/70 px-3 py-2 sm:ml-[3.25rem]">
+        {/* Plan overview pill */}
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 border border-slate-200/70 px-3.5 py-2.5 sm:ml-[3.5rem]">
           {summary?.count ? (
             <>
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-ink">
+                <p className="truncate font-heading text-xs sm:text-sm font-bold text-slate-900">
                   {summary.count === 1 ? summary.productNames : `${summary.count} plans`}
                 </p>
-                <p className="text-[11px] font-semibold text-ink-subtle">
-                  {summary.count === 1 ? 'Active plan' : summary.productNames}
+                <p className="text-[11px] font-medium text-slate-500">
+                  {summary.count === 1 ? 'Daily active delivery' : summary.productNames}
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="stat-number text-lg leading-none text-brand">
+                <p className="font-heading text-lg font-black leading-none text-blue-600">
                   {Number(summary.totalQuantity)}
-                  <span className="ml-0.5 font-sans text-xs font-bold text-ink-muted">L/day</span>
+                  <span className="font-sans text-xs font-bold text-slate-500 ml-0.5">L/day</span>
                 </p>
                 {monthlyPaise > 0 ? (
-                  <p className="tnum mt-0.5 text-[11px] font-semibold text-ink-subtle">
-                    {formatPaise(monthlyPaise, { whole: true })}/mo
+                  <p className="font-heading tnum mt-0.5 text-[11px] font-bold text-slate-400">
+                    ~{formatPaise(monthlyPaise, { whole: true })}/mo
                   </p>
                 ) : null}
               </div>
             </>
           ) : (
-            <p className="text-xs font-semibold text-ink-subtle">No active plan</p>
+            <p className="text-xs font-semibold text-slate-400">No active plan</p>
           )}
         </div>
       </li>
@@ -484,11 +488,13 @@ function Avatar({ name, tone = 'brand' }) {
     <span
       aria-hidden="true"
       className={cn(
-        'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-heading text-base font-black shadow-sm',
-        tone === 'caution' ? 'bg-caution-soft text-caution' : 'bg-hero-gradient text-brand-ink shadow-brand/25',
+        'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-heading text-base font-black shadow-xs',
+        tone === 'caution'
+          ? 'bg-amber-100 text-amber-800 border border-amber-200'
+          : 'bg-blue-600 text-white shadow-md shadow-blue-500/20',
       )}
     >
-      {(name ?? '?').trim().charAt(0).toUpperCase() || '?'}
+      {(name ?? '?').charAt(0).toUpperCase()}
     </span>
   );
 }

@@ -202,6 +202,42 @@ export async function upsertMilkmanProfile(tx, milkmanId, values) {
   return row;
 }
 
+/** Update milkman's payment settings without failing on business_name constraint */
+export async function updateMilkmanPaymentDetails(tx, milkmanId, { upiId, qrCodeUrl }) {
+  const [updated] = await tx
+    .update(milkmanProfiles)
+    .set({
+      upiId: upiId || null,
+      qrCodeUrl: qrCodeUrl || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(milkmanProfiles.milkmanId, milkmanId))
+    .returning();
+
+  if (updated) return updated;
+
+  const [user] = await tx
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, milkmanId))
+    .limit(1);
+
+  const businessName = user?.name ? `${user.name}'s Dairy` : 'My Dairy';
+
+  const [inserted] = await tx
+    .insert(milkmanProfiles)
+    .values({
+      milkmanId,
+      businessName,
+      upiId: upiId || null,
+      qrCodeUrl: qrCodeUrl || null,
+    })
+    .returning();
+
+  return inserted;
+}
+
+
 /** The payment details a customer needs in order to pay their milkman. */
 export async function findMilkmanPaymentInfo(milkmanId) {
   const [row] = await db

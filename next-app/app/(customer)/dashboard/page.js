@@ -10,7 +10,7 @@ import * as subscriptionService from '@/services/subscription.service.js';
 import * as usersRepo from '@/repositories/users.repo.js';
 
 import {
-  Card, CardBody, CardHeader, Stat, EmptyState, StatusBadge, Notice,
+  Stat, EmptyState, NextActionCard,
   HeroBanner, HeroAction,
 } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
@@ -26,7 +26,7 @@ import {
   CalendarIcon,
 } from '@/components/ui/Icons.jsx';
 
-export const metadata = { title: 'Today' };
+export const metadata = { title: 'Customer Dashboard' };
 
 export default async function CustomerDashboard() {
   const actor = await requireCustomer();
@@ -55,65 +55,96 @@ export default async function CustomerDashboard() {
   const paused = subscriptions.filter((s) => s.status === 'PAUSED');
 
   return (
-    <>
+    <div className="space-y-7">
       <HeroBanner
-        eyebrow={formatDate(today)}
+        eyebrow={`Today · ${formatDate(today)}`}
         greeting={greeting()}
         name={actor.name?.split(' ')[0] ?? 'there'}
-        subtitle="Farm Fresh Milk & Doorstep Deliveries"
-        action={<HeroAction href="/subscriptions">My Subscription</HeroAction>}
+        subtitle="Pure Farm Fresh Milk Delivered to Your Doorstep Every Morning"
+        action={<HeroAction href="/subscriptions">My Subscriptions</HeroAction>}
       />
 
-      {/* ── Today ─────────────────────────────────────────────────────── */}
-      <section className="mb-8" aria-labelledby="today-heading">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 id="today-heading" className="text-xs font-bold uppercase tracking-wider text-ink-subtle">
-            Today's Schedule · {formatDate(today)}
-          </h2>
+      {/* ── PSYCHOLOGY-DRIVEN GUIDED NEXT ACTION BANNER ─────────────────── */}
+      {subscriptions.length === 0 ? (
+        <NextActionCard
+          stepNumber="01"
+          tone="blue"
+          title="Choose your Daily Milk Plan"
+          description="You don't have an active subscription yet. Select pure cow or buffalo milk and daily quantity to start morning doorstep deliveries."
+          actionText="Select Milk Plan"
+          actionHref="/subscriptions"
+        />
+      ) : bill.balancePaise > 0 ? (
+        <NextActionCard
+          icon={<PaymentsIcon className="h-5 w-5 text-amber-700" />}
+          tone="amber"
+          title={`Monthly Bill Due: ${formatPaise(bill.balancePaise)}`}
+          description={`Pay ${milkman?.businessName ?? 'your milkman'} directly via UPI QR code and record payment in 1-tap.`}
+          actionText="Pay Now with UPI"
+          actionHref="/billing"
+        />
+      ) : paused.length > 0 && active.length === 0 ? (
+        <NextActionCard
+          icon={<CalendarIcon className="h-5 w-5 text-amber-700" />}
+          tone="amber"
+          title="Your Milk Deliveries are Currently Paused"
+          description="Vacation mode is active. Resume your subscription whenever you are back to restart morning deliveries."
+          actionText="Manage Subscriptions"
+          actionHref="/subscriptions"
+        />
+      ) : null}
+
+      {/* ── Today's Scheduled Delivery ──────────────────────────────────── */}
+      <section aria-labelledby="today-heading">
+        <div className="mb-3.5 flex items-center justify-between">
+          <div>
+            <h2 id="today-heading" className="font-heading text-sm font-extrabold uppercase tracking-wider text-slate-500">
+              Today's Delivery · {formatDate(today)}
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">Daily doorstep arrival window: 6:00 AM – 7:30 AM</p>
+          </div>
           {active.length > 0 && <CalendarVacationButton />}
         </div>
 
         {deliveries.length === 0 ? (
           active.length > 0 ? (
             <EmptyState
-              icon={<DeliveryIcon className="h-8 w-8 text-brand" />}
+              icon={<DeliveryIcon className="h-8 w-8 text-blue-600" />}
               title="Nothing scheduled for today"
               description={
-                `Your plan is active. Today's round has not been drawn up yet — ` +
-                `it is prepared shortly after midnight, or today may not be a ` +
-                `delivery day for your plan.`
+                `Your plan is active. Today's round is drawn up shortly before delivery, or today is not a scheduled delivery day.`
               }
               action={
                 <Link href="/subscriptions">
-                  <Button variant="secondary">See my plan</Button>
+                  <Button variant="secondary">View My Plan</Button>
                 </Link>
               }
             />
           ) : paused.length > 0 ? (
             <EmptyState
-              icon={<CalendarIcon className="h-8 w-8 text-caution" />}
-              title="Your plan is paused"
-              description="Resume it and your milk starts arriving again from the next round."
+              icon={<CalendarIcon className="h-8 w-8 text-amber-500" />}
+              title="Your plan is currently paused"
+              description="Resume it and your fresh milk starts arriving from tomorrow morning."
               action={
                 <Link href="/subscriptions">
-                  <Button className="">Resume my plan</Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold">Resume Plan</Button>
                 </Link>
               }
             />
           ) : (
             <EmptyState
-              icon={<MilkDropIcon className="h-8 w-8 text-brand" />}
-              title="No delivery scheduled today"
-              description="Subscribe to a plan and your milk will arrive every morning."
+              icon={<MilkDropIcon className="h-8 w-8 text-blue-600" />}
+              title="No active milk delivery today"
+              description="Subscribe to a local dairy plan to enjoy fresh milk every morning."
               action={
                 <Link href="/subscriptions">
-                  <Button className="">Browse plans</Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold">Browse Milk Plans</Button>
                 </Link>
               }
             />
           )
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {deliveries.map((delivery) => (
               <TodayCard key={delivery.id} delivery={delivery} />
             ))}
@@ -121,11 +152,17 @@ export default async function CustomerDashboard() {
         )}
       </section>
 
-      {/* ── This month ────────────────────────────────────────────────── */}
-      <section className="mb-8" aria-labelledby="month-heading">
-        <h2 id="month-heading" className="mb-3 text-xs font-bold uppercase tracking-wider text-ink-subtle">
-          This Month So Far
-        </h2>
+      {/* ── This Month's Itemized Summary ───────────────────────────────── */}
+      <section aria-labelledby="month-heading">
+        <div className="mb-3.5 flex items-center justify-between">
+          <h2 id="month-heading" className="font-heading text-sm font-extrabold uppercase tracking-wider text-slate-500">
+            This Month Summary
+          </h2>
+          <Link href="/billing" className="font-heading text-xs font-bold text-blue-600 hover:text-blue-700">
+            View Full Bill →
+          </Link>
+        </div>
+
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat
             icon={
@@ -137,7 +174,7 @@ export default async function CustomerDashboard() {
             label="Delivered"
             value={`${bill.deliveredDays} days`}
           />
-          <Stat icon={<MilkDropIcon className="h-5 w-5" />} tone="info" label="Milk" value={formatMilli(bill.deliveredMilli)} />
+          <Stat icon={<MilkDropIcon className="h-5 w-5" />} tone="info" label="Total Milk" value={formatMilli(bill.deliveredMilli)} />
           <Stat
             icon={
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -145,55 +182,39 @@ export default async function CustomerDashboard() {
               </svg>
             }
             tone="neutral"
-            label="Skipped"
+            label="Skipped (₹0)"
             value={`${bill.skippedDays} days`}
             hint="Not charged"
           />
           <Stat
             icon={<PaymentsIcon className="h-5 w-5" />}
             tone="brand"
-            label="Bill so far"
+            label="Bill So Far"
             value={formatPaise(bill.totalPaise, { whole: true })}
           />
         </div>
-
-        {bill.balancePaise > 0 ? (
-          <div className="mt-3">
-            <Notice
-              tone="caution"
-              title={`${formatPaise(bill.balancePaise)} outstanding`}
-              action={
-                <Link href="/billing">
-                  <Button size="sm">Pay now</Button>
-                </Link>
-              }
-            >
-              Pay {milkman?.businessName ?? 'your milkman'} by UPI and record it here.
-            </Notice>
-          </div>
-        ) : null}
       </section>
 
-      {/* ── Catalog / Fresh today ────────────────────────────────────── */}
+      {/* ── Fresh Extras Today / Doorstep Add-ons ───────────────────────── */}
       {products.length > 0 ? (
-        <section aria-labelledby="shop-heading" className="mb-8">
+        <section aria-labelledby="shop-heading" className="pb-4">
           <div className="mb-3.5 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="shop-heading" className="text-base font-bold text-ink">
-                  Fresh today
+                <h2 id="shop-heading" className="font-heading text-base font-extrabold text-slate-900">
+                  Fresh Dairy Extras
                 </h2>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                  Doorstep Extras
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+                  Doorstep Delivery
                 </span>
               </div>
-              <p className="text-xs text-ink-subtle mt-0.5">
-                Extras your milkman can bring with tomorrow's milk
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Order extras your milkman brings alongside tomorrow's milk
               </p>
             </div>
             <Link
               href="/shop"
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+              className="font-heading text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               <span>See all ({products.length})</span>
               <span>→</span>
@@ -207,6 +228,6 @@ export default async function CustomerDashboard() {
           </div>
         </section>
       ) : null}
-    </>
+    </div>
   );
 }

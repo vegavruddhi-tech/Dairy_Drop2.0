@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
 import { Button, QuantityStepper, Modal } from '@/components/ui/interactive.jsx';
+import { TruckIcon, InfoIcon } from '@/components/ui/Icons.jsx';
 import { orderProduct } from '@/actions/customer.actions.js';
 
 import { resolveProductImage, resolveProductDescription, formatProductName } from '@/domain/catalogPresets.js';
@@ -60,6 +61,13 @@ export function OrderCard({ product }) {
           </div>
 
           <div className="mt-auto pt-3 border-t border-border">
+            <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+              <span className="flex items-center gap-1.5 text-blue-700">
+                <TruckIcon className="h-3.5 w-3.5 text-blue-600" />
+                <span>Arrives Tomorrow Morning</span>
+              </span>
+              <span>Billed in monthly tab</span>
+            </div>
             <Button
               className="w-full font-bold shadow-sm"
               disabled={stock <= 0}
@@ -68,7 +76,7 @@ export function OrderCard({ product }) {
                 setOpen(true);
               }}
             >
-              {stock > 0 ? '+ Order for Tomorrow' : 'Out of Stock'}
+              {stock > 0 ? '+ Order for Tomorrow Morning' : 'Out of Stock'}
             </Button>
           </div>
         </CardBody>
@@ -81,7 +89,7 @@ export function OrderCard({ product }) {
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button form="order-form" type="submit" loading={pending}>Place order</Button>
+            <Button form="order-form" type="submit" loading={pending}>Confirm Order for Tomorrow</Button>
           </>
         }
       >
@@ -94,7 +102,7 @@ export function OrderCard({ product }) {
             startTransition(async () => {
               const result = await orderProduct({ productId: product.id, quantity: formQuantity });
               if (result.ok) {
-                toast.success(`Ordered ${displayName}! It will arrive with your morning delivery.`);
+                toast.success(`Ordered ${displayName}! It will be delivered tomorrow morning with your milk.`);
                 setOpen(false);
               } else {
                 toast.error(result.message ?? 'Could not place that order.');
@@ -102,12 +110,15 @@ export function OrderCard({ product }) {
             });
           }}
         >
-          <div className="rounded-2xl bg-blue-50/60 border border-blue-100 p-4 text-center">
-            <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider">
+          <div className="rounded-2xl bg-blue-50/80 border border-blue-200/80 p-4 text-center">
+            <span className="inline-block rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white uppercase tracking-wider mb-1">
+              Next-Morning Delivery
+            </span>
+            <p className="text-sm font-bold text-slate-900">
               {displayName}
             </p>
-            <p className="text-sm text-slate-600 mt-0.5">
-              ₹{price} per {product.unit} · {stock} {product.unit} in stock
+            <p className="text-xs text-slate-600 mt-0.5">
+              ₹{price} per {product.unit} · {stock} {product.unit} currently in stock
             </p>
           </div>
 
@@ -125,9 +136,12 @@ export function OrderCard({ product }) {
             />
           </div>
 
-          <p className="text-center text-xs text-ink-muted">
-            Delivered with tomorrow's milk and billed to this month's statement.
-          </p>
+          <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-950 flex items-start gap-2.5">
+            <InfoIcon className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
+            <div>
+              <strong>Delivered Tomorrow Morning:</strong> Your milkman will bring this along with your regular morning milk delivery (between 5:00 AM – 8:00 AM) and add it to your monthly statement.
+            </div>
+          </div>
         </form>
       </Modal>
     </>

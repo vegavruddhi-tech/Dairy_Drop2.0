@@ -545,3 +545,14 @@ export async function countPendingMilkmanApplications() {
     .where(eq(milkmanProfiles.isVerified, false));
   return row?.count ?? 0;
 }
+
+/** Update milkman's customer-facing UPI ID and QR code image */
+export async function updateMilkmanPaymentSettings(actor, input) {
+  const profile = await usersRepo.updateMilkmanPaymentDetails(db, actor.userId, {
+    upiId: input.upiId || null,
+    qrCodeUrl: input.qrCodeUrl || null,
+  });
+  return profile;
+}
+
+

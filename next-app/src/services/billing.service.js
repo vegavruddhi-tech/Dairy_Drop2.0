@@ -15,7 +15,7 @@ import 'server-only';
 
 import { db, transaction } from '@/db/index.js';
 import { computeBill, computeVariance, computeEarnings, computeEarningsByCustomer } from '@/domain/billing.js';
-import { businessMonth, monthEnd, monthOf, businessDate } from '@/domain/dates.js';
+import { businessMonth, monthEnd, monthOf, businessDate, recentMonths, formatMonth } from '@/domain/dates.js';
 import { paiseToDecimal, milliToDecimal, toPaise } from '@/domain/money.js';
 import { NotFoundError, ForbiddenError } from '@/domain/errors.js';
 import { PERMISSIONS } from '@/auth/roles.js';
@@ -295,3 +295,110 @@ function toBillView(row) {
     deliveredMilli: Math.round(Number(row.totalQuantity ?? 0) * 1000),
   };
 }
+
+/**
+ * 6-Month rolling performance and analytics for a milkman.
+ * Returns monthly breakdown and growth metrics across the last 6 months.
+ */
+export async function getSixMonthPerformance(actor) {
+  const monthList = recentMonths(businessMonth(), 6).reverse(); // oldest to newest
+
+  const monthResults = await Promise.all(
+    monthList.map(async (m) => {
+      const [deliveryRows, purchaseRows, paymentRows] = await Promise.all([
+        deliveriesRepo.listTenantMonth(actor, m),
+        productsRepo.listTenantMonth(actor, m),
+        billingRepo.listPaymentsForMonth(actor, m),
+      ]);
+
+      const earnings = computeEarnings({
+        deliveries: deliveryRows,
+        purchases: purchaseRows,
+        payments: [],
+      });
+
+      const collected = paymentRows.filter((row) => row.status === 'VERIFIED');
+      const collectedPaise = collected.reduce(
+        (total, row) => total + toPaise(row.amount),
+        0,
+      );
+
+      const uniqueCustomers = new Set(deliveryRows.map((d) => d.customerId));
+      const customerCount = uniqueCustomers.size;
+
+      const milkMilli = deliveryRows.reduce(
+        (sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000),
+        0,
+      );
+      const cowMilli = deliveryRows
+        .filter((d) => (d.milkType || '').toUpperCase() === 'COW')
+        .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
+      const buffaloMilli = deliveryRows
+        .filter((d) => (d.milkType || '').toUpperCase() === 'BUFFALO')
+        .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
+
+      const deliveredDates = new Set(deliveryRows.map((d) => d.deliveryDate));
+      const dailyAvgMilli = deliveredDates.size > 0 ? Math.round(milkMilli / deliveredDates.size) : 0;
+
+      const billedPaise = earnings.billedPaise;
+      const outstandingPaise = Math.max(0, billedPaise - collectedPaise);
+      const collectionRate = billedPaise > 0 ? Math.min(100, Math.round((collectedPaise / billedPaise) * 100)) : 0;
+
+      return {
+        month: m,
+        monthLabel: formatMonth(m),
+        customerCount,
+        milkMilli,
+        cowMilli,
+        buffaloMilli,
+        dailyAvgMilli,
+        billedPaise,
+        milkPaise: earnings.milkPaise,
+        productsPaise: earnings.productsPaise,
+        collectedPaise,
+        outstandingPaise,
+        collectionRate,
+        deliveryCount: deliveryRows.length,
+        purchaseCount: purchaseRows.filter((p) => p.status !== 'CANCELLED').length,
+      };
+    }),
+  );
+
+  // Compute Month-over-Month (MoM) Customer Increment
+  const series = monthResults.map((current, idx) => {
+    const prev = idx > 0 ? monthResults[idx - 1] : null;
+    const customerIncrement = prev ? current.customerCount - prev.customerCount : 0;
+    const customerGrowthPct = prev && prev.customerCount > 0
+      ? Math.round(((current.customerCount - prev.customerCount) / prev.customerCount) * 100)
+      : 0;
+
+    return {
+      ...current,
+      customerIncrement,
+      customerGrowthPct,
+    };
+  });
+
+  // Summary aggregation over 6 months
+  const totalBilledPaise = series.reduce((sum, item) => sum + item.billedPaise, 0);
+  const totalCollectedPaise = series.reduce((sum, item) => sum + item.collectedPaise, 0);
+  const totalMilkMilli = series.reduce((sum, item) => sum + item.milkMilli, 0);
+  const totalOrders = series.reduce((sum, item) => sum + item.purchaseCount, 0);
+  const netCustomerGrowth = series.length > 1 ? series[series.length - 1].customerCount - series[0].customerCount : 0;
+  const overallCollectionRate = totalBilledPaise > 0 ? Math.min(100, Math.round((totalCollectedPaise / totalBilledPaise) * 100)) : 0;
+
+  return {
+    series,
+    summary: {
+      totalBilledPaise,
+      totalCollectedPaise,
+      totalOutstandingPaise: Math.max(0, totalBilledPaise - totalCollectedPaise),
+      totalMilkMilli,
+      totalOrders,
+      netCustomerGrowth,
+      overallCollectionRate,
+      currentCustomerCount: series[series.length - 1]?.customerCount ?? 0,
+    },
+  };
+}
+

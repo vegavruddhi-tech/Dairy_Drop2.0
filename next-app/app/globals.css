@@ -19,10 +19,10 @@
  * brand token did nothing visible.
  */
 :root {
-  --bg: 248 250 252;            /* crisp off-white #f8fafc */
+  --bg: 250 252 255;            /* clean ice-tinted off-white #fafcff */
   --surface: 255 255 255;        /* pure white      #ffffff */
   --surface-muted: 241 245 249;  /* soft cool slate #f1f5f9 */
-  --border: 226 232 240;         /* clean border    #e2e8f0 */
+  --border: 226 232 240;         /* crisp border    #e2e8f0 */
 
   --ink: 15 23 42;              /* slate-900       #0f172a */
   --ink-muted: 71 85 105;       /* slate-600       #475569 */

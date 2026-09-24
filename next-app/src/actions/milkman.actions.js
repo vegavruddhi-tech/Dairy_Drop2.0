@@ -307,6 +307,13 @@ export async function submitSaasPayment(input) {
   return submitSaasPaymentAction(input);
 }
 
+const updatePaymentSettingsAction = defineAction({
+  authorize: unpaid,
+  schema: V.updatePaymentSettingsSchema,
+  handler: ({ actor, input }) => onboardingService.updateMilkmanPaymentSettings(actor, input),
+  revalidate: ['/milkman/payments', '/milkman'],
+});
+
 export async function cancelSaasSubscription(input) {
   return cancelSaasSubscriptionAction(input);
 }
@@ -326,3 +333,8 @@ export async function deleteServiceArea(input) {
 export async function updateCustomerAddress(input) {
   return updateCustomerAddressAction(input);
 }
+
+export async function updatePaymentSettings(input) {
+  return updatePaymentSettingsAction(input);
+}
+

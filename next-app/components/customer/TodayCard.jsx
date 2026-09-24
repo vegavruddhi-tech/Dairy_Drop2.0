@@ -3,8 +3,9 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardBody, StatusBadge } from '@/components/ui/index.jsx';
+import { Card, CardBody, StatusBadge, cn } from '@/components/ui/index.jsx';
 import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/interactive.jsx';
+import { MilkDropIcon, EditIcon, VacationIcon, UndoIcon } from '@/components/ui/Icons.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
 import { formatWindow } from '@/domain/dates.js';
 
@@ -37,72 +38,90 @@ export function TodayCard({ delivery }) {
 
   return (
     <>
-      <Card>
-        <CardBody className="space-y-4">
+      <div className="group relative overflow-hidden rounded-3xl border-2 border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm transition-all hover:border-blue-400 hover:shadow-md">
+        {/* Top accent line based on status */}
+        <div
+          className={cn(
+            'absolute top-0 left-0 right-0 h-1.5',
+            delivery.status === 'DELIVERED'
+              ? 'bg-emerald-500'
+              : delivery.status === 'SKIPPED'
+                ? 'bg-slate-300'
+                : 'bg-blue-600',
+          )}
+        />
+
+        <div className="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-medium text-ink">{delivery.productName}</p>
-              {/*
-                * The slot with the hour attached, because "Morning" alone does
-                * not tell anyone whether to leave the gate unlocked at six or
-                * at eight. Falls back to the bare slot for plans created before
-                * windows existed.
-                */}
-              <p className="mt-0.5 text-sm text-ink-muted">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  <MilkDropIcon className="h-4 w-4" />
+                </span>
+                <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">
+                  {delivery.productName}
+                </h3>
+              </div>
+              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <SlotLine delivery={delivery} />
               </p>
-              {/*
-                * Why this one may not come again.
-                *
-                * A delivery under terms that have since been superseded is
-                * still owed today, but it is the last of its kind — and a
-                * customer looking at a pending evening drop after moving to a
-                * morning-only plan has no way to tell that from the card.
-                */}
               <EndingNote delivery={delivery} />
             </div>
             <StatusBadge status={delivery.status} />
           </div>
 
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-semibold tnum text-ink">
+          <div className="flex items-baseline gap-2 rounded-2xl bg-slate-50/90 border border-slate-200/70 px-4 py-3">
+            <span className="font-heading text-3xl font-black text-slate-950 tnum">
               {delivery.status === 'DELIVERED' ? Number(delivery.deliveredQuantity) : quantity}
             </span>
-            <span className="text-sm text-ink-muted">{delivery.unit}</span>
+            <span className="font-heading text-sm font-bold text-slate-600">{delivery.unit}</span>
             {adjusted ? (
-              <span className="text-xs text-caution">changed from {planned}</span>
+              <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">
+                Changed for today (usually {planned} {delivery.unit})
+              </span>
             ) : null}
           </div>
 
           {delivery.status === 'SKIPPED' ? (
-            <p className="text-sm text-ink-muted">
+            <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
               Skipped{delivery.note ? ` — ${delivery.note}` : ''}. You will not be charged.
             </p>
           ) : null}
 
           {actionable ? (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => setModal('quantity')}>
-                Change quantity
-              </Button>
-              <Button variant="ghost" size="sm" className="flex-1" onClick={() => setModal('skip')}>
-                Skip today
-              </Button>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                className="tap flex items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-white px-4 py-3 font-heading text-xs font-bold text-blue-700 shadow-xs hover:bg-blue-50 transition-all active:scale-[0.98]"
+                onClick={() => setModal('quantity')}
+              >
+                <EditIcon className="h-4 w-4" />
+                <span>Change Quantity</span>
+              </button>
+              <button
+                type="button"
+                className="tap flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-heading text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all active:scale-[0.98]"
+                onClick={() => setModal('skip')}
+              >
+                <VacationIcon className="h-4 w-4" />
+                <span>Skip Today</span>
+              </button>
             </div>
           ) : null}
 
           {delivery.status === 'SKIPPED' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              loading={pending}
+            <button
+              type="button"
+              className="tap flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-blue-50 px-4 py-3 font-heading text-xs font-bold text-blue-700 transition-all hover:bg-blue-100"
+              disabled={pending}
               onClick={() => run(resumeDay, { deliveryId: delivery.id }, 'Delivery resumed.')}
             >
-              Undo skip
-            </Button>
+              <UndoIcon className="h-4 w-4" />
+              <span>Undo Skip</span>
+            </button>
           ) : null}
-        </CardBody>
-      </Card>
+        </div>
+      </div>
 
       {/* ── Change quantity ─────────────────────────────────────────── */}
       <Modal

@@ -27,23 +27,23 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
       <Link
         href={href}
         aria-current={active ? 'page' : undefined}
-        className="no-select group relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl px-1 py-1"
+        className="no-select group relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl py-1.5 transition-all"
       >
         <div className="relative">
           <span
             aria-hidden="true"
             className={cn(
-              'flex h-8 w-12 items-center justify-center rounded-full text-base transition-colors duration-150',
+              'flex h-8 w-12 items-center justify-center rounded-2xl text-base transition-all duration-200',
               active
-                ? 'bg-brand text-brand-ink shadow-md shadow-brand/25'
-                : 'text-ink-subtle group-hover:bg-brand-soft group-hover:text-brand',
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 scale-105'
+                : 'text-slate-500 group-hover:bg-slate-100 group-hover:text-slate-900',
             )}
           >
             {icon}
           </span>
 
           {count ? (
-            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] animate-pulse items-center justify-center rounded-full bg-critical px-1 text-[10px] font-extrabold text-white ring-2 ring-surface">
+            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] animate-pulse items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black text-white ring-2 ring-white shadow-sm">
               {count > 99 ? '99+' : count}
             </span>
           ) : null}
@@ -51,8 +51,8 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
 
         <span
           className={cn(
-            'mt-0.5 text-[10.5px] tracking-tight transition-colors',
-            active ? 'font-extrabold text-brand' : 'font-semibold text-ink-subtle',
+            'mt-1 font-heading text-[11px] tracking-tight transition-colors',
+            active ? 'font-black text-blue-600' : 'font-semibold text-slate-500',
           )}
         >
           {label}
@@ -66,16 +66,16 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all',
+        'flex items-center gap-3 rounded-2xl px-3.5 py-3 font-heading text-xs sm:text-sm transition-all',
         active
-          ? 'bg-brand-soft text-brand font-bold shadow-xs'
-          : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
+          ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200/70 shadow-xs'
+          : 'font-semibold text-slate-600 hover:bg-slate-100/80 hover:text-slate-950',
       )}
     >
-      <span aria-hidden="true" className="w-5 text-center flex items-center justify-center">{icon}</span>
+      <span aria-hidden="true" className={cn('w-5 text-center flex items-center justify-center', active ? 'text-blue-600' : 'text-slate-500')}>{icon}</span>
       <span className="flex-1">{label}</span>
       {count ? (
-        <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-extrabold text-brand-ink shadow-xs">
+        <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-black text-white shadow-xs">
           {count > 99 ? '99+' : count}
         </span>
       ) : null}

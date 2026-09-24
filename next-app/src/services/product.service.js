@@ -5,7 +5,7 @@
 import 'server-only';
 
 import { db, transaction } from '@/db/index.js';
-import { businessDate } from '@/domain/dates.js';
+import { businessDate, addDays } from '@/domain/dates.js';
 import { toMilli, milliToDecimal, lineAmountPaise, formatPaise } from '@/domain/money.js';
 import {
   ValidationError,
@@ -111,6 +111,7 @@ export async function order(actor, { productId, quantity }) {
   if (!product || !product.isActive) throw new NotFoundError('That product');
 
   const address = await usersRepo.findCustomer(actor, actor.userId);
+  const tomorrowDate = addDays(businessDate(), 1);
 
   return transaction(async (tx) => {
     const reserved = await productsRepo.decrementStock(tx, {
@@ -136,7 +137,7 @@ export async function order(actor, { productId, quantity }) {
       quantity: milliToDecimal(milli),
       unitPrice: product.pricePerUnit,
       deliveryAddress: formatAddress(address),
-      orderDate: businessDate(),
+      orderDate: tomorrowDate,
       status: 'PENDING',
     });
 
@@ -145,8 +146,8 @@ export async function order(actor, { productId, quantity }) {
     await notificationsRepo.create(tx, {
       userId: actor.tenantId,
       type: 'ORDER',
-      title: 'New order',
-      body: `${actor.name} ordered ${Number(quantity)} ${product.unit} of ${product.name} · ${formatPaise(amountPaise)}.`,
+      title: 'New Extra Item for Tomorrow',
+      body: `${actor.name} ordered ${Number(quantity)} ${product.unit} of ${product.name} to deliver tomorrow with morning milk · ${formatPaise(amountPaise)}.`,
       href: '/milkman/orders',
       subjectType: 'purchase',
       subjectId: purchase.id,

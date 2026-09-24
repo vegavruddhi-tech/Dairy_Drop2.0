@@ -107,6 +107,11 @@ export const milkmanApplicationSchema = z.object({
   note: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+export const updatePaymentSettingsSchema = z.object({
+  upiId: z.string().trim().max(120).optional().or(z.literal('')),
+  qrCodeUrl: z.string().trim().optional().or(z.literal('')),
+});
+
 // ── Subscriptions ────────────────────────────────────────────────────────────
 
 export const subscribeSchema = z.object({
