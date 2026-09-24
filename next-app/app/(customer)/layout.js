@@ -15,6 +15,7 @@ import { AppShell } from '@/components/layout/AppShell.jsx';
 import {
   HomeIcon,
   CartIcon,
+  OrdersIcon,
   CalendarIcon,
   PaymentsIcon,
   SubscriptionsIcon,
@@ -34,12 +35,13 @@ export default async function CustomerLayout({ children }) {
 
   const nav = [
     { href: '/dashboard', label: t('nav.home'), icon: <HomeIcon />, exact: true },
-    { href: '/shop', label: t('nav.shopAndOrders', {}, 'Shop'), icon: <CartIcon /> },
+    { href: '/shop', label: t('nav.shop', {}, 'Shop'), icon: <CartIcon /> },
     { href: '/calendar', label: t('nav.calendar'), icon: <CalendarIcon /> },
     { href: '/billing', label: t('nav.billing'), icon: <PaymentsIcon /> },
   ];
 
   const more = [
+    { href: '/orders', label: t('nav.orders', {}, 'Orders'), icon: <OrdersIcon /> },
     { href: '/subscriptions', label: t('nav.mySubscription'), icon: <SubscriptionsIcon /> },
     { href: '/profile', label: t('nav.profile'), icon: <ProfileIcon /> },
   ];

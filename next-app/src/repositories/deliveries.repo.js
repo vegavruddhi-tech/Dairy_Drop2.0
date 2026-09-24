@@ -7,7 +7,7 @@
  */
 
 import 'server-only';
-import { and, eq, ne, gte, lte, lt, inArray, asc, sql } from 'drizzle-orm';
+import { and, eq, ne, gte, lte, lt, inArray, asc, sql, isNotNull } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
 import { deliveries, milkSubscriptions, milkPlans, users, addresses, serviceAreas } from '@/db/schema/index.js';
@@ -85,6 +85,19 @@ export async function listRound(actor, date) {
         // It stays in the table as the record of a day that was scheduled and
         // then called off; billing ignores it because it is not DELIVERED.
         ne(deliveries.status, 'CANCELLED'),
+        /*
+         * Nor a delivery whose subscription no longer exists.
+         *
+         * The FK is `onDelete: 'set null'`, so a subscription removed outright
+         * leaves its deliveries behind with this column nulled — and when
+         * plans and subscriptions were deleted, their pending days stayed and
+         * the customer kept seeing milk that was never going to come. Checked
+         * on the column rather than via the subscription join, so the round
+         * header's aggregate (which has no join) excludes them too and keeps
+         * agreeing with the list beneath it. A superseded version still exists,
+         * so a day on old terms is unaffected.
+         */
+        isNotNull(deliveries.subscriptionVersionId),
       ),
     )
     .orderBy(asc(sql`route_sequence`), asc(users.name));
@@ -204,6 +217,19 @@ export async function listCustomerDay(actor, date) {
         // It stays in the table as the record of a day that was scheduled and
         // then called off; billing ignores it because it is not DELIVERED.
         ne(deliveries.status, 'CANCELLED'),
+        /*
+         * Nor a delivery whose subscription no longer exists.
+         *
+         * The FK is `onDelete: 'set null'`, so a subscription removed outright
+         * leaves its deliveries behind with this column nulled — and when
+         * plans and subscriptions were deleted, their pending days stayed and
+         * the customer kept seeing milk that was never going to come. Checked
+         * on the column rather than via the subscription join, so the round
+         * header's aggregate (which has no join) excludes them too and keeps
+         * agreeing with the list beneath it. A superseded version still exists,
+         * so a day on old terms is unaffected.
+         */
+        isNotNull(deliveries.subscriptionVersionId),
       ),
     )
     .orderBy(asc(deliveries.slot));
@@ -244,6 +270,19 @@ export async function roundSummary(actor, date) {
         // Same exclusion as `listRound`, or the header counts stops the list
         // below it does not show.
         ne(deliveries.status, 'CANCELLED'),
+        /*
+         * Nor a delivery whose subscription no longer exists.
+         *
+         * The FK is `onDelete: 'set null'`, so a subscription removed outright
+         * leaves its deliveries behind with this column nulled — and when
+         * plans and subscriptions were deleted, their pending days stayed and
+         * the customer kept seeing milk that was never going to come. Checked
+         * on the column rather than via the subscription join, so the round
+         * header's aggregate (which has no join) excludes them too and keeps
+         * agreeing with the list beneath it. A superseded version still exists,
+         * so a day on old terms is unaffected.
+         */
+        isNotNull(deliveries.subscriptionVersionId),
       ),
     );
   return row;

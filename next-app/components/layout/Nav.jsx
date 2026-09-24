@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { cn } from '@/components/ui/index.jsx';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
@@ -89,26 +90,27 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
  * client component, and React cannot serialize the actor's `can()`/`scope()`
  * methods across the boundary.
  */
-export function MoreMenu({ items, user }) {
+export function MoreMenu({ items, user, variant = 'header', label = 'More' }) {
   const [open, setOpen] = useState(false);
   const { t } = useT();
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="tap -ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-ink transition-colors hover:bg-surface-muted active:bg-surface-muted"
-        aria-label="Menu"
-        aria-expanded={open}
-        aria-haspopup="dialog"
-      >
-        <MenuIcon className="h-6 w-6" />
-      </button>
-
-      {open ? (
+  /*
+   * The sheet is portalled to <body>.
+   *
+   * It used to render inside the sticky <header>, which has `backdrop-blur`.
+   * A backdrop-filter establishes a containing block for fixed descendants, so
+   * the overlay's `inset-0` filled the 56px header rather than the viewport,
+   * and `items-end` hung the sheet *upward* off the header's bottom edge —
+   * mostly off-screen, with its last item peeking out at the top of the page
+   * and the backdrop covering nothing. Portalling puts it back on the viewport.
+   *
+   * `open` is false on the server and on first client render, so there is no
+   * hydration mismatch and `document` exists by the time it is used.
+   */
+  const sheet = open
+    ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
@@ -116,8 +118,9 @@ export function MoreMenu({ items, user }) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Menu"
+            aria-label={label}
             className="w-full animate-fade-in rounded-t-3xl border-t border-border bg-surface p-4 pb-8 shadow-dropdown"
+            style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
           >
             {/* Grab handle, matching the old sheet. */}
             <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
@@ -155,7 +158,7 @@ export function MoreMenu({ items, user }) {
               <LanguageToggle />
             </div>
 
-            <nav className="space-y-0.5" aria-label="More">
+            <nav className="space-y-0.5" aria-label={label}>
               {items.map((item) => (
                 <Link
                   key={item.href}
@@ -175,8 +178,66 @@ export function MoreMenu({ items, user }) {
               ))}
             </nav>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  /*
+   * Two triggers for one sheet. The header gets a plain icon button on the
+   * left; the bottom bar gets a tile drawn like its neighbours, so the items
+   * past the first four are reachable from where the thumb already is rather
+   * than only from the top of the screen.
+   */
+  if (variant === 'bar') {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={label}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          className="no-select group relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl px-1 py-1"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              'flex h-8 w-12 items-center justify-center rounded-full text-base transition-colors duration-150',
+              open
+                ? 'bg-brand text-brand-ink shadow-md shadow-brand/25'
+                : 'text-ink-subtle group-hover:bg-brand-soft group-hover:text-brand',
+            )}
+          >
+            <MenuIcon className="h-5 w-5" />
+          </span>
+          <span
+            className={cn(
+              'mt-0.5 text-[10.5px] tracking-tight transition-colors',
+              open ? 'font-extrabold text-brand' : 'font-semibold text-ink-subtle',
+            )}
+          >
+            {label}
+          </span>
+        </button>
+        {sheet}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="tap -ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-ink transition-colors hover:bg-surface-muted active:bg-surface-muted"
+        aria-label={label}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <MenuIcon className="h-6 w-6" />
+      </button>
+      {sheet}
     </>
   );
 }

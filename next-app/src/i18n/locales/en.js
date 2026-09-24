@@ -5,6 +5,8 @@ export const en = {
     "dashboard": "Dashboard",
     "additionalOrder": "Additional Order",
     "shopAndOrders": "Shop & Orders",
+    "shop": "Shop",
+    "orders": "Orders",
     "plans": "Plans",
     "mySubscription": "My Subscription",
     "subscriptions": "Subscriptions",

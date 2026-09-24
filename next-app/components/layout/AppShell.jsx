@@ -118,6 +118,16 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
                 <NavLink {...item} compact />
               </li>
             ))}
+            {/*
+              A fifth slot for everything past the first four. Those items
+              were only reachable from the header before, which on a phone is
+              the one place the thumb is not.
+            */}
+            {more.length > 0 ? (
+              <li className="flex min-w-0 flex-1">
+                <MoreMenu items={more} user={user} variant="bar" />
+              </li>
+            ) : null}
           </ul>
         </div>
       </nav>

@@ -5,6 +5,8 @@ export const gu = {
     "dashboard": "ડેશબોર્ડ",
     "additionalOrder": "વધારાનો ઓર્ડર",
     "shopAndOrders": "દુકાન અને ઓર્ડર",
+    "shop": "દુકાન",
+    "orders": "ઓર્ડર",
     "plans": "પ્લાન",
     "mySubscription": "મારું સબ્સ્ક્રિપ્શન",
     "subscriptions": "સબ્સ્ક્રિપ્શન",

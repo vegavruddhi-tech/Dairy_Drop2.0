@@ -77,7 +77,13 @@
     /* The old apps ran the body at 500 — noticeably sturdier than a default. */
     font-weight: 500;
     text-rendering: optimizeLegibility;
-    overflow-x: hidden;
+    /*
+     * `clip`, not `hidden`. Either stops sideways scroll, but `hidden` makes
+     * the body a scroll container, which quietly breaks `position: sticky`
+     * on everything inside it — the mobile header scrolled away with the
+     * page. `clip` clips without creating a scroll container.
+     */
+    overflow-x: clip;
   }
 
   /*

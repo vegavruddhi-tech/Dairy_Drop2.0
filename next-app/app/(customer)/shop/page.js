@@ -1,36 +1,39 @@
+import Link from 'next/link';
+
 import { requireCustomer } from '@/auth/session.js';
-import { formatDate } from '@/domain/dates.js';
 import * as productService from '@/services/product.service.js';
 
-import { PageHeader, Card, CardBody, CardHeader, EmptyState, StatusBadge, Table, Th, Td } from '@/components/ui/index.jsx';
+import { PageHeader, EmptyState } from '@/components/ui/index.jsx';
 import { CartIcon } from '@/components/ui/Icons.jsx';
 import { OrderCard } from '@/components/customer/OrderCard.jsx';
 
 export const metadata = { title: 'Shop' };
 
+/** The catalog. Order history has its own page under the menu. */
 export default async function ShopPage() {
   const actor = await requireCustomer();
-
-  const [products, orders] = await Promise.all([
-    productService.listForCustomer(actor),
-    productService.listMyOrders(actor, { limit: 20 }),
-  ]);
+  const products = await productService.listForCustomer(actor);
 
   return (
     <>
       <PageHeader
         title="Shop"
         description="Extras your milkman brings with tomorrow's milk."
+        action={
+          <Link href="/orders" className="text-sm font-semibold text-brand hover:underline">
+            Your orders →
+          </Link>
+        }
       />
 
-      <section className="mb-10" aria-labelledby="catalog-heading">
+      <section aria-labelledby="catalog-heading">
         <h2 id="catalog-heading" className="mb-3 text-sm font-semibold text-ink">
           Available today
         </h2>
 
         {products.length === 0 ? (
           <EmptyState
-            icon={<CartIcon className="h-6 w-6 text-blue-600" />}
+            icon={<CartIcon className="h-6 w-6 text-brand" />}
             title="Nothing in stock right now"
             description="Your milkman adds items here when they have them."
           />
@@ -41,43 +44,6 @@ export default async function ShopPage() {
             ))}
           </div>
         )}
-      </section>
-
-      <section aria-labelledby="orders-heading">
-        <Card>
-          <CardHeader title="Your orders" description="Extras ordered this month and before" />
-          <CardBody className="p-0">
-            {orders.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-ink-muted">No orders yet.</p>
-            ) : (
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Item</Th>
-                    <Th numeric>Qty</Th>
-                    <Th numeric>Amount</Th>
-                    <Th>Status</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr key={order.id}>
-                      <Td>
-                        <span className="font-medium">{order.productName}</span>
-                        <span className="block text-xs text-ink-muted">
-                          {formatDate(order.orderDate)}
-                        </span>
-                      </Td>
-                      <Td numeric>{Number(order.quantity)} {order.unit}</Td>
-                      <Td numeric>₹{Number(order.amount).toFixed(2)}</Td>
-                      <Td><StatusBadge status={order.status} /></Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </CardBody>
-        </Card>
       </section>
     </>
   );

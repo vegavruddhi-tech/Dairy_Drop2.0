@@ -5,6 +5,8 @@ export const hi = {
     "dashboard": "डैशबोर्ड",
     "additionalOrder": "अतिरिक्त ऑर्डर",
     "shopAndOrders": "दुकान व ऑर्डर",
+    "shop": "दुकान",
+    "orders": "ऑर्डर",
     "plans": "प्लान्स",
     "mySubscription": "मेरी सदस्यता",
     "subscriptions": "सब्स्क्रिप्शन",
