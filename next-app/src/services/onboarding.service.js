@@ -10,7 +10,7 @@
  */
 
 import 'server-only';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, ne, sql } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import {
@@ -253,7 +253,7 @@ export async function approveCustomer(actor, { customerId }) {
 
   const { current, limit } = await assertCanAcceptCustomer(actor.userId);
 
-  return transaction(async (tx) => {
+  const res = await transaction(async (tx) => {
     const updated = await usersRepo.updateCustomer(tx, actor, {
       customerId,
       patch: {
@@ -265,12 +265,25 @@ export async function approveCustomer(actor, { customerId }) {
     });
     if (!updated) throw new NotFoundError('That customer');
 
+    const [hasActiveSub] = await tx
+      .select({ id: milkSubscriptions.id })
+      .from(milkSubscriptions)
+      .where(
+        and(
+          eq(milkSubscriptions.customerId, customerId),
+          eq(milkSubscriptions.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+
     await notificationsRepo.create(tx, {
       userId: customerId,
       type: 'APPROVAL',
       title: 'You are approved',
-      body: 'Your milkman has approved you. Choose a plan to start deliveries.',
-      href: '/subscriptions',
+      body: hasActiveSub
+        ? 'Your milkman has approved your subscription. Deliveries will start as scheduled.'
+        : 'Your milkman has approved you. Choose a plan to start deliveries.',
+      href: hasActiveSub ? '/dashboard' : '/subscriptions',
     });
 
     await auditService.record(tx, actor, {
@@ -282,6 +295,15 @@ export async function approveCustomer(actor, { customerId }) {
 
     return updated;
   });
+
+  try {
+    const { generateForDate } = await import('./delivery.service.js');
+    await generateForDate(businessDate());
+  } catch (err) {
+    console.error('Error generating deliveries on customer approval:', err);
+  }
+
+  return res;
 }
 
 /** Decline a pending customer, with a reason they will see. */
@@ -295,6 +317,16 @@ export async function rejectCustomer(actor, { customerId, reason }) {
       patch: { approvalStatus: 'REJECTED', rejectionReason: reason ?? null },
     });
     if (!updated) throw new NotFoundError('That customer');
+
+    await tx
+      .update(milkSubscriptions)
+      .set({ status: 'CANCELLED', updatedAt: new Date() })
+      .where(
+        and(
+          eq(milkSubscriptions.customerId, customerId),
+          eq(milkSubscriptions.status, 'ACTIVE'),
+        ),
+      );
 
     await notificationsRepo.create(tx, {
       userId: customerId,

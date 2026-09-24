@@ -24,7 +24,7 @@ const subscribeAction = defineAction({
   authorize: requireCustomer,
   schema: V.subscribeSchema,
   handler: ({ actor, input }) => subscriptionService.subscribe(actor, input),
-  revalidate: ['/subscriptions', '/dashboard'],
+  revalidate: ['/subscriptions', '/dashboard', '/pending', '/milkman/customers'],
 });
 
 const pauseSubscriptionAction = defineAction({
@@ -106,7 +106,7 @@ const orderProductAction = defineAction({
   authorize: requireCustomer,
   schema: V.orderSchema,
   handler: ({ actor, input }) => productService.order(actor, input),
-  revalidate: ['/shop', '/billing'],
+  revalidate: ['/shop', '/billing', '/dashboard'],
 });
 
 // ── Payments ─────────────────────────────────────────────────────────────────

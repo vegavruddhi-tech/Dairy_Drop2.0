@@ -69,7 +69,12 @@ export default async function CustomersPage({ searchParams }) {
       ) : status === 'PENDING' ? (
         <div className="space-y-3">
           {customers.map((customer) => (
-            <ApprovalCard key={customer.id} customer={customer} atLimit={atLimit} />
+            <ApprovalCard
+              key={customer.id}
+              customer={customer}
+              summary={summaries.get(customer.id)}
+              atLimit={atLimit}
+            />
           ))}
         </div>
       ) : (

@@ -238,7 +238,7 @@ export function EditAddressModal({ customer, open, onClose }) {
 }
 
 /** A customer waiting for a decision. */
-export function ApprovalCard({ customer, atLimit }) {
+export function ApprovalCard({ customer, summary, atLimit }) {
   const [modal, setModal] = useState(null); // 'reject' | 'editAddress' | null
   const [pending, startTransition] = useTransition();
 
@@ -267,6 +267,12 @@ export function ApprovalCard({ customer, atLimit }) {
               <h3 className="font-heading text-base font-extrabold text-slate-900">{customer.name}</h3>
               <StatusBadge status="PENDING" />
             </div>
+            {summary?.productNames ? (
+              <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200/80">
+                <span className="text-blue-500 font-normal">Plan:</span>
+                <span>{summary.productNames}</span>
+              </div>
+            ) : null}
             <p className="mt-1 text-xs text-slate-600 leading-relaxed font-medium">
               {[customer.addressLine1, customer.addressArea, customer.addressPincode]
                 .filter(Boolean)

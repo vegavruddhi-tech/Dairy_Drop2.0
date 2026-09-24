@@ -299,8 +299,16 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, m
               onClick={() =>
                 startTransition(async () => {
                   const result = await subscribe({ planId: plan.id });
-                  if (result.ok) toast.success(`Subscribed to ${plan.name}.`);
-                  else toast.error(result.message ?? 'Could not subscribe.');
+                  if (result.ok) {
+                    if (result.data?.requiresApproval) {
+                      toast.success(`Subscribed to ${plan.name}! Waiting for milkman approval before deliveries start.`);
+                      window.location.href = '/pending';
+                    } else {
+                      toast.success(`Subscribed to ${plan.name}.`);
+                    }
+                  } else {
+                    toast.error(result.message ?? 'Could not subscribe.');
+                  }
                 })
               }
             >

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
-import { milkSubscriptions } from '@/db/schema/index.js';
+import { milkSubscriptions, users } from '@/db/schema/index.js';
 import { businessDate, businessMonth, addDays } from '@/domain/dates.js';
 import {
   resolveUnitPrice,
@@ -155,24 +155,51 @@ export async function subscribe(actor, { planId, startDate, slot }) {
       effectiveFrom,
     });
 
-    await notificationsRepo.create(tx, {
-      userId: actor.tenantId,
-      type: 'SUBSCRIPTION',
-      title: 'New subscription',
-      body: `${actor.name} subscribed to ${plan.name} (${Number(plan.quantity)} ${plan.unit}, ${plan.slot.toLowerCase()}).`,
-      href: '/milkman/customers',
-      subjectType: 'milk_subscription',
-      subjectId: subscription.id,
-    });
+    // When a customer has no currently active/running plans (e.g. they cancelled their
+    // plan and are retaking/subscribing again), require milkman approval before deliveries start.
+    const requiresApproval = activeCount === 0;
 
-    return subscription;
+    if (requiresApproval) {
+      await tx
+        .update(users)
+        .set({
+          approvalStatus: 'PENDING',
+          rejectionReason: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, actor.userId));
+
+      await notificationsRepo.create(tx, {
+        userId: actor.tenantId,
+        type: 'APPROVAL',
+        title: 'Customer re-subscription request',
+        body: `${actor.name} has re-subscribed to ${plan.name} (${Number(plan.quantity)} ${plan.unit}, ${chosenSlot.toLowerCase()}) and is awaiting your approval.`,
+        href: '/milkman/customers?status=PENDING',
+        subjectType: 'user',
+        subjectId: actor.userId,
+      });
+    } else {
+      await notificationsRepo.create(tx, {
+        userId: actor.tenantId,
+        type: 'SUBSCRIPTION',
+        title: 'New subscription',
+        body: `${actor.name} subscribed to ${plan.name} (${Number(plan.quantity)} ${plan.unit}, ${chosenSlot.toLowerCase()}).`,
+        href: '/milkman/customers',
+        subjectType: 'milk_subscription',
+        subjectId: subscription.id,
+      });
+    }
+
+    return { ...subscription, requiresApproval };
   });
 
-  try {
-    const { generateForDate } = await import('./delivery.service.js');
-    await generateForDate(effectiveFrom);
-  } catch (err) {
-    console.error('Error generating deliveries on subscribe:', err);
+  if (!res.requiresApproval) {
+    try {
+      const { generateForDate } = await import('./delivery.service.js');
+      await generateForDate(effectiveFrom);
+    } catch (err) {
+      console.error('Error generating deliveries on subscribe:', err);
+    }
   }
 
   return res;

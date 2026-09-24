@@ -126,3 +126,43 @@ export function resolveProductImage(product) {
   return '/products/paneer.jpg';
 }
 
+/**
+ * Accurately resolve product description when not provided by milkman.
+ */
+export function resolveProductDescription(product) {
+  if (product?.description && product.description.trim()) {
+    return product.description.trim();
+  }
+  const name = String(product?.name || '').toLowerCase();
+  const found = TOP_CATALOG_PRODUCTS.find((p) =>
+    name.includes(p.name.toLowerCase()) || name.includes(p.category.toLowerCase()),
+  );
+  if (found) return found.description;
+  if (name.includes('paneer')) return 'Fresh, soft, and hygienic malai paneer made from pure whole milk without any preservatives.';
+  if (name.includes('ghee')) return 'Traditional bilona method golden cow ghee. Rich natural aroma, granular danedar texture.';
+  if (name.includes('dahi') || name.includes('curd')) return 'Thick, creamy, and probiotic fresh set curd made daily from pure farm milk.';
+  if (name.includes('butter') || name.includes('makhan')) return 'Authentic unsalted homemade white makhan, hand-churned fresh every morning.';
+  if (name.includes('chaas') || name.includes('buttermilk')) return 'Chilled refreshing buttermilk seasoned with roasted jeera, rock salt, and fresh mint.';
+  if (name.includes('malai') || name.includes('cream')) return 'Rich, thick, and velvety natural dairy malai skimmed from fresh boiled milk.';
+  if (name.includes('lassi')) return 'Creamy sweet yogurt drink infused with cardamom, saffron, and a dollop of fresh malai.';
+  if (name.includes('mawa') || name.includes('khoya')) return '100% pure condensed milk solids, slow-cooked to perfection for rich sweets and gravies.';
+  return 'Fresh, premium farm-direct dairy extra delivered with your morning milk.';
+}
+
+/**
+ * Format product name to proper Title Case.
+ */
+export function formatProductName(rawName) {
+  if (!rawName) return 'Dairy Product';
+  const trimmed = String(rawName).trim();
+  if (trimmed.toLowerCase() === 'paneer') return 'Fresh Malai Paneer';
+  if (trimmed.toLowerCase() === 'ghee') return 'Pure Desi Ghee';
+  if (trimmed.toLowerCase() === 'dahi' || trimmed.toLowerCase() === 'curd') return 'Fresh Set Dahi';
+  if (trimmed.toLowerCase() === 'butter' || trimmed.toLowerCase() === 'makhan') return 'Fresh White Butter';
+  return trimmed
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+

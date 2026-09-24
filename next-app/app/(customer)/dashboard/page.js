@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/interactive.jsx';
 import { TodayCard } from '@/components/customer/TodayCard.jsx';
 import { CalendarVacationButton } from '@/components/customer/CalendarAction.jsx';
+import { OrderCard } from '@/components/customer/OrderCard.jsx';
 
 import {
   DeliveryIcon,
@@ -173,34 +174,37 @@ export default async function CustomerDashboard() {
         ) : null}
       </section>
 
-      {/* ── Catalog ───────────────────────────────────────────────────── */}
+      {/* ── Catalog / Fresh today ────────────────────────────────────── */}
       {products.length > 0 ? (
-        <section aria-labelledby="shop-heading">
-          <Card>
-            <CardHeader
-              title="Fresh today"
-              description="Extras your milkman can bring with tomorrow's milk"
-              action={
-                <Link href="/shop" className="text-sm font-medium text-brand">
-                  See all
-                </Link>
-              }
-            />
-            <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {products.slice(0, 4).map((product) => (
-                <Link
-                  key={product.id}
-                  href="/shop"
-                  className="rounded-xl border border-border p-3 transition-colors hover:bg-surface-muted"
-                >
-                  <p className="text-sm font-medium text-ink">{product.name}</p>
-                  <p className="mt-1 text-sm tnum text-ink-muted">
-                    ₹{Number(product.pricePerUnit)} / {product.unit}
-                  </p>
-                </Link>
-              ))}
-            </CardBody>
-          </Card>
+        <section aria-labelledby="shop-heading" className="mb-8">
+          <div className="mb-3.5 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 id="shop-heading" className="text-base font-bold text-ink">
+                  Fresh today
+                </h2>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                  Doorstep Extras
+                </span>
+              </div>
+              <p className="text-xs text-ink-subtle mt-0.5">
+                Extras your milkman can bring with tomorrow's milk
+              </p>
+            </div>
+            <Link
+              href="/shop"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1"
+            >
+              <span>See all ({products.length})</span>
+              <span>→</span>
+            </Link>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {products.slice(0, 3).map((product) => (
+              <OrderCard key={product.id} product={product} />
+            ))}
+          </div>
         </section>
       ) : null}
     </>
