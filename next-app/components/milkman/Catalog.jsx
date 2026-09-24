@@ -351,26 +351,45 @@ export function ProductList({ products }) {
 
 export function OrderActions({ order }) {
   const [pending, startTransition] = useTransition();
+  /*
+   * Which action is in flight, not merely that one is.
+   *
+   * `useTransition` gives one flag for the whole component, and Accept and
+   * Cannot supply are visible side by side — so pressing either spun both,
+   * which reads as "the order is being accepted AND refused". The sibling is
+   * disabled instead, so a second press cannot race the first.
+   */
+  const [active, setActive] = useState(null);
 
   function set(status, message) {
+    setActive(status);
     startTransition(async () => {
-      const result = await updateOrderStatus({ purchaseId: order.id, status });
-      if (result.ok) toast.success(message);
-      else toast.error(result.message ?? 'Could not update that order.');
+      try {
+        const result = await updateOrderStatus({ purchaseId: order.id, status });
+        if (result.ok) toast.success(message);
+        else toast.error(result.message ?? 'Could not update that order.');
+      } finally {
+        setActive(null);
+      }
     });
   }
+
+  const busy = (status) => ({
+    loading: active === status,
+    disabled: pending && active !== status,
+  });
 
   return (
     <div className="flex gap-2">
       {order.status === 'PENDING' ? (
         <>
-          <Button size="sm" loading={pending} onClick={() => set('ACCEPTED', 'Accepted.')}>
+          <Button size="sm" {...busy('ACCEPTED')} onClick={() => set('ACCEPTED', 'Accepted.')}>
             Accept
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            loading={pending}
+            {...busy('CANCELLED')}
             onClick={() => set('CANCELLED', 'Cancelled — stock returned.')}
           >
             Cannot supply
@@ -379,7 +398,7 @@ export function OrderActions({ order }) {
       ) : null}
 
       {order.status === 'ACCEPTED' ? (
-        <Button size="sm" loading={pending} onClick={() => set('DELIVERED', 'Marked delivered.')}>
+        <Button size="sm" {...busy('DELIVERED')} onClick={() => set('DELIVERED', 'Marked delivered.')}>
           Delivered
         </Button>
       ) : null}
