@@ -17,6 +17,7 @@ import { UserButton } from '@clerk/nextjs';
 import { cn, Badge } from '@/components/ui/index.jsx';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
 import { NavLink, MoreMenu } from './Nav.jsx';
+import { MilkDropIcon } from '@/components/ui/Icons.jsx';
 
 /**
  * @param {object} props
@@ -31,23 +32,21 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
   const primary = nav.slice(0, 4);
 
   return (
-    <div className="min-h-dvh bg-bg">
+    <div className="min-h-dvh bg-bg bg-linen">
       {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200 bg-white shadow-[2px_0_15px_rgba(0,0,0,0.02)] lg:block">
-        <div className="flex h-16 items-center gap-2.5 border-b border-slate-100 px-5">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-border bg-surface shadow-soft lg:block">
+        <div className="flex h-16 items-center gap-2.5 border-b border-border px-5">
           <span
             aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-brand-ink shadow-md shadow-brand/25"
           >
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-            </svg>
+            <MilkDropIcon className="h-4 w-4" />
           </span>
-          <span className="font-heading text-base font-extrabold tracking-tight text-slate-900">
+          <span className="font-heading text-base font-extrabold tracking-tight text-ink">
             DairyDrop
           </span>
           {badge ? (
-            <span className="ml-auto rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+            <span className="ml-auto rounded-full border border-brand/20 bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold text-brand">
               {badge}
             </span>
           ) : null}
@@ -64,7 +63,7 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
           out. Rolling our own would mean reimplementing session management
           Clerk already does properly.
         */}
-        <div className="absolute inset-x-0 bottom-0 space-y-2.5 border-t border-slate-100 bg-slate-50/50 p-3">
+        <div className="absolute inset-x-0 bottom-0 space-y-2.5 border-t border-border bg-surface-muted/60 p-3">
           <LanguageToggle />
           <div className="flex items-center gap-3 pt-1">
             <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8' } }} showName />
@@ -73,25 +72,30 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
       </aside>
 
       {/* ── Mobile header ───────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 pt-safe backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-2">
+      {/*
+        Menu on the left, where a thumb on a right-handed phone expects it and
+        where every other mobile app puts it; account and language on the right.
+        It was previously the last of three controls on the right, drawn as the
+        "☰" text glyph at whatever size the font chose.
+      */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-surface/92 px-3 pt-safe backdrop-blur-xl lg:hidden">
+        <MoreMenu items={more} user={user} />
+
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
             aria-hidden="true"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand text-brand-ink shadow-sm shadow-brand/25"
           >
-            <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-            </svg>
+            <MilkDropIcon className="h-3.5 w-3.5" />
           </span>
-          <span className="font-heading text-[15px] font-extrabold tracking-tight text-slate-900">
+          <span className="truncate font-heading text-[15px] font-extrabold tracking-tight text-ink">
             {title ?? 'DairyDrop'}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           <LanguageToggle variant="compact" className="h-8" />
           <UserButton appearance={{ elements: { avatarBox: 'h-7 w-7' } }} />
-          <MoreMenu items={more} user={user} />
         </div>
       </header>
 
@@ -107,7 +111,7 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
         style={{ paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px))' }}
       >
         {/* Floating pill, not a full-width strip — as the old apps had it. */}
-        <div className="pointer-events-auto mx-auto max-w-md rounded-2xl border border-emerald-200/90 bg-surface/95 shadow-nav backdrop-blur-xl">
+        <div className="pointer-events-auto mx-auto max-w-md rounded-2xl border border-border bg-surface/95 shadow-nav backdrop-blur-xl">
           <ul className="flex items-center justify-around gap-1 px-2 py-1.5">
             {primary.map((item) => (
               <li key={item.href} className="flex min-w-0 flex-1">

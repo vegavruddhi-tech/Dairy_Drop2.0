@@ -65,23 +65,33 @@ export default {
         numeric: ['var(--font-heading)', 'ui-monospace', 'monospace'],
       },
 
+      /*
+       * Shadows are tinted with the ink and brand colours, not neutral black:
+       * a warm palette with grey shadows looks like it was pasted onto a
+       * different page. Low and soft — nothing here should look lifted more
+       * than a few millimetres.
+       */
       boxShadow: {
-        card: '0 10px 24px rgba(15, 23, 42, 0.04)',
-        'card-hover': '0 14px 26px rgba(15, 23, 42, 0.06)',
-        soft: '0 8px 18px rgba(15, 23, 42, 0.04)',
-        dropdown: '0 8px 24px -4px rgba(0, 0, 0, 0.12)',
-        lifted: '0 20px 50px rgba(16, 185, 129, 0.12), 0 4px 16px rgba(0, 0, 0, 0.04)',
-        hero: '0 18px 40px -12px rgba(6, 78, 59, 0.45)',
-        nav: '0 8px 30px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(16, 185, 129, 0.15)',
+        card: '0 8px 22px rgba(28, 42, 30, 0.05), 0 1px 2px rgba(28, 42, 30, 0.04)',
+        'card-hover': '0 14px 30px rgba(28, 42, 30, 0.08), 0 2px 4px rgba(28, 42, 30, 0.04)',
+        soft: '0 6px 16px rgba(28, 42, 30, 0.05)',
+        dropdown: '0 12px 32px -6px rgba(28, 42, 30, 0.18)',
+        lifted: '0 20px 48px rgba(27, 107, 58, 0.14), 0 4px 14px rgba(28, 42, 30, 0.05)',
+        hero: '0 22px 44px -14px rgba(19, 78, 42, 0.5)',
+        nav: '0 -2px 0 rgba(27, 107, 58, 0.06), 0 10px 32px rgba(28, 42, 30, 0.14)',
       },
 
       borderRadius: { xl: '0.875rem', '2xl': '1.25rem', '3xl': '1.5rem' },
 
       backgroundImage: {
-        // The signature dashboard banner.
-        'hero-emerald': 'linear-gradient(135deg, #065f46 0%, #134e4a 55%, #020617 100%)',
-        'hero-gradient': 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',
+        // The dashboard banner: deep pasture green falling to near-black, with
+        // enough range that white text and a cream pill both sit on it.
+        'hero-pasture': 'linear-gradient(135deg, #1f7a44 0%, #15563a 48%, #0f2a1c 100%)',
+        'hero-gradient': 'linear-gradient(135deg, #1b6b3a 0%, #2f8f55 100%)',
+        // A faint linen texture for the page, so large cream areas are not flat.
+        'linen': 'radial-gradient(rgba(28, 42, 30, 0.035) 0.6px, transparent 0.6px)',
       },
+      backgroundSize: { linen: '18px 18px' },
 
       screens: { xs: '375px' },
 

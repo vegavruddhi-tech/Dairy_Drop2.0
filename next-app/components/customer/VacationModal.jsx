@@ -102,7 +102,7 @@ export function VacationModal({ open, onClose }) {
             size="sm"
             onClick={handleResume}
             loading={pending}
-            className="text-xs text-slate-700 font-semibold hover:bg-slate-50"
+            className="text-xs text-ink-muted font-semibold hover:bg-surface-muted"
           >
             Resume Deliveries (Cancel Vacation)
           </Button>
@@ -114,7 +114,7 @@ export function VacationModal({ open, onClose }) {
             <Button
               form="vacation-range-form"
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              className="font-bold"
               loading={pending}
             >
               Confirm Vacation ({daysCount} {daysCount === 1 ? 'Day' : 'Days'})
@@ -126,7 +126,7 @@ export function VacationModal({ open, onClose }) {
       <form id="vacation-range-form" onSubmit={handleSubmit} className="space-y-4">
         {/* Quick Range Presets */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink-subtle mb-2">
             Quick Duration Presets
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -142,12 +142,12 @@ export function VacationModal({ open, onClose }) {
                 onClick={() => applyPreset(p.id)}
                 className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                   activePreset === p.id
-                    ? 'border-blue-600 bg-blue-50 text-blue-900 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                    ? 'border-brand bg-brand-soft text-ink ring-2 ring-brand/20'
+                    : 'border-border bg-surface hover:border-ink-subtle/40 text-ink-muted'
                 }`}
               >
                 <span className="text-xs font-bold">{p.label}</span>
-                <span className="text-[10px] text-slate-500">{p.sub}</span>
+                <span className="text-[10px] text-ink-subtle">{p.sub}</span>
               </button>
             ))}
           </div>
@@ -193,15 +193,15 @@ export function VacationModal({ open, onClose }) {
         />
 
         {/* Guarantee Banner */}
-        <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5 flex items-start gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+        <div className="rounded-2xl border border-brand/15 bg-brand-soft/70 p-3.5 flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-ink shadow-sm">
             <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
             </svg>
           </div>
-          <div className="text-xs text-slate-700 leading-relaxed">
-            <p className="font-bold text-slate-900">Zero Charges During Vacation</p>
-            <p className="mt-0.5 text-slate-600">
+          <div className="text-xs text-ink-muted leading-relaxed">
+            <p className="font-bold text-ink">Zero Charges During Vacation</p>
+            <p className="mt-0.5 text-ink-muted">
               Your deliveries for these {daysCount} day(s) will be paused automatically. You will be billed exactly ₹0 for all paused days, and deliveries will resume smoothly on the next morning.
             </p>
           </div>

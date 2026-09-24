@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { cn } from '@/components/ui/index.jsx';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
 import { useT } from '@/i18n/provider.jsx';
+import { MenuIcon, CloseIcon } from '@/components/ui/Icons.jsx';
 
 /**
  * Navigation, ported from the original apps.
@@ -33,15 +34,15 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
             className={cn(
               'flex h-8 w-12 items-center justify-center rounded-full text-base transition-colors duration-150',
               active
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                : 'text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600',
+                ? 'bg-brand text-brand-ink shadow-md shadow-brand/25'
+                : 'text-ink-subtle group-hover:bg-brand-soft group-hover:text-brand',
             )}
           >
             {icon}
           </span>
 
           {count ? (
-            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] animate-pulse items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-extrabold text-white ring-2 ring-white">
+            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] animate-pulse items-center justify-center rounded-full bg-critical px-1 text-[10px] font-extrabold text-white ring-2 ring-surface">
               {count > 99 ? '99+' : count}
             </span>
           ) : null}
@@ -50,7 +51,7 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
         <span
           className={cn(
             'mt-0.5 text-[10.5px] tracking-tight transition-colors',
-            active ? 'font-extrabold text-blue-700' : 'font-semibold text-slate-500',
+            active ? 'font-extrabold text-brand' : 'font-semibold text-ink-subtle',
           )}
         >
           {label}
@@ -66,14 +67,14 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
       className={cn(
         'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all',
         active
-          ? 'bg-blue-50 text-blue-700 font-bold border-r-2 border-blue-600 shadow-xs'
-          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950',
+          ? 'bg-brand-soft text-brand font-bold shadow-xs'
+          : 'text-ink-muted hover:bg-surface-muted hover:text-ink',
       )}
     >
       <span aria-hidden="true" className="w-5 text-center flex items-center justify-center">{icon}</span>
       <span className="flex-1">{label}</span>
       {count ? (
-        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-extrabold text-white shadow-xs">
+        <span className="rounded-full bg-brand px-2 py-0.5 text-[11px] font-extrabold text-brand-ink shadow-xs">
           {count > 99 ? '99+' : count}
         </span>
       ) : null}
@@ -97,11 +98,12 @@ export function MoreMenu({ items, user }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="tap rounded-xl px-2 text-lg text-ink-muted"
-        aria-label="More"
+        className="tap -ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-ink transition-colors hover:bg-surface-muted active:bg-surface-muted"
+        aria-label="Menu"
         aria-expanded={open}
+        aria-haspopup="dialog"
       >
-        ☰
+        <MenuIcon className="h-6 w-6" />
       </button>
 
       {open ? (
@@ -111,15 +113,30 @@ export function MoreMenu({ items, user }) {
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
-          <div className="w-full animate-fade-in rounded-t-3xl border-t border-border bg-surface p-4 pb-8 shadow-dropdown">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            className="w-full animate-fade-in rounded-t-3xl border-t border-border bg-surface p-4 pb-8 shadow-dropdown"
+          >
             {/* Grab handle, matching the old sheet. */}
-            <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
+            <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="tap flex h-10 w-10 items-center justify-center rounded-xl text-ink-muted hover:bg-surface-muted"
+                aria-label="Close menu"
+              >
+                <CloseIcon className="h-5 w-5" />
+              </button>
+            </div>
 
             {user ? (
               <div className="mb-3 flex items-center gap-3 border-b border-border pb-3">
                 <span
                   aria-hidden="true"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-hero-gradient text-sm font-black text-brand-ink"
                 >
                   {(user.name ?? '?').charAt(0).toUpperCase()}
                 </span>

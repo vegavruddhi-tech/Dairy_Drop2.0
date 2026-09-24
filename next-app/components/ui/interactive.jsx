@@ -134,16 +134,16 @@ export function Input({ label, hint, error, className, id, ...props }) {
   return (
     <div className="space-y-1.5">
       {label ? (
-        <label htmlFor={inputId} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+        <label htmlFor={inputId} className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
           {label}
         </label>
       ) : null}
       <input
         id={inputId}
         className={cn(
-          'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all',
-          'placeholder:text-slate-400 placeholder:font-normal focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
-          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : '',
+          'h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm font-semibold text-ink shadow-xs transition-all',
+          'placeholder:text-ink-subtle placeholder:font-normal focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20',
+          error ? 'border-critical focus:border-critical focus:ring-critical/20' : '',
           className,
         )}
         aria-invalid={error ? 'true' : undefined}
@@ -151,11 +151,11 @@ export function Input({ label, hint, error, className, id, ...props }) {
         {...props}
       />
       {error ? (
-        <p id={`${inputId}-error`} className="text-xs font-medium text-red-600">
+        <p id={`${inputId}-error`} className="text-xs font-medium text-critical">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${inputId}-hint`} className="text-xs text-slate-500">
+        <p id={`${inputId}-hint`} className="text-xs text-ink-subtle">
           {hint}
         </p>
       ) : null}
@@ -168,16 +168,16 @@ export function Select({ label, options, error, className, id, ...props }) {
   return (
     <div className="space-y-1.5">
       {label ? (
-        <label htmlFor={selectId} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+        <label htmlFor={selectId} className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
           {label}
         </label>
       ) : null}
       <select
         id={selectId}
         className={cn(
-          'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all',
-          'focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
-          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : '',
+          'h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm font-semibold text-ink shadow-xs transition-all',
+          'focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20',
+          error ? 'border-critical focus:border-critical focus:ring-critical/20' : '',
           className,
         )}
         {...props}
@@ -188,7 +188,7 @@ export function Select({ label, options, error, className, id, ...props }) {
           </option>
         ))}
       </select>
-      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs font-medium text-critical">{error}</p> : null}
     </div>
   );
 }
@@ -198,7 +198,7 @@ export function Textarea({ label, error, className, id, ...props }) {
   return (
     <div className="space-y-1.5">
       {label ? (
-        <label htmlFor={textareaId} className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+        <label htmlFor={textareaId} className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
           {label}
         </label>
       ) : null}
@@ -206,14 +206,14 @@ export function Textarea({ label, error, className, id, ...props }) {
         id={textareaId}
         rows={3}
         className={cn(
-          'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all',
-          'placeholder:text-slate-400 placeholder:font-normal focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20',
-          error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : '',
+          'w-full rounded-xl border border-border bg-white px-3.5 py-2.5 text-sm font-medium text-ink shadow-sm transition-all',
+          'placeholder:text-ink-subtle placeholder:font-normal focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20',
+          error ? 'border-critical focus:border-critical focus:ring-critical/20' : '',
           className,
         )}
         {...props}
       />
-      {error ? <p className="text-xs font-medium text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs font-medium text-critical">{error}</p> : null}
     </div>
   );
 }

@@ -19,9 +19,9 @@ export function OrderCard({ product }) {
 
   return (
     <>
-      <Card className="border border-slate-200 bg-white shadow-sm hover:border-blue-400 hover:shadow-md transition-all rounded-3xl overflow-hidden flex flex-col">
+      <Card className="rounded-3xl overflow-hidden transition-shadow hover:shadow-card-hover flex flex-col">
         {img && (
-          <div className="relative h-44 w-full overflow-hidden bg-slate-100 border-b border-slate-100">
+          <div className="relative h-44 w-full overflow-hidden bg-surface-muted border-b border-border">
             <img
               src={img}
               alt={product.name}
@@ -37,20 +37,20 @@ export function OrderCard({ product }) {
 
         <CardBody className="flex flex-1 flex-col gap-2.5 p-5">
           <div>
-            <h3 className="font-heading text-base font-bold text-slate-950">{product.name}</h3>
+            <h3 className="font-heading text-base font-bold text-ink">{product.name}</h3>
             {product.description ? (
-              <p className="mt-1 line-clamp-2 text-xs text-slate-500">{product.description}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-ink-subtle">{product.description}</p>
             ) : null}
           </div>
 
           <div className="flex items-baseline gap-1.5 pt-1">
-            <span className="font-heading text-2xl font-black text-slate-900">₹{price}</span>
-            <span className="text-xs font-semibold text-slate-500">per {product.unit}</span>
+            <span className="font-heading text-2xl font-black text-ink">₹{price}</span>
+            <span className="text-xs font-semibold text-ink-subtle">per {product.unit}</span>
           </div>
 
-          <div className="mt-auto pt-3 border-t border-slate-100">
+          <div className="mt-auto pt-3 border-t border-border">
             <Button
-              className="w-full bg-blue-600 hover:bg-blue-700 font-bold shadow-sm"
+              className="w-full font-bold"
               disabled={stock <= 0}
               onClick={() => setOpen(true)}
             >

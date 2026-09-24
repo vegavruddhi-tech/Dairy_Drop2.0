@@ -66,7 +66,7 @@ export default async function CustomerDashboard() {
       {/* ── Today ─────────────────────────────────────────────────────── */}
       <section className="mb-8" aria-labelledby="today-heading">
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="today-heading" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <h2 id="today-heading" className="text-xs font-bold uppercase tracking-wider text-ink-subtle">
             Today's Schedule · {formatDate(today)}
           </h2>
           {active.length > 0 && <CalendarVacationButton />}
@@ -75,7 +75,7 @@ export default async function CustomerDashboard() {
         {deliveries.length === 0 ? (
           active.length > 0 ? (
             <EmptyState
-              icon={<DeliveryIcon className="h-8 w-8 text-blue-600" />}
+              icon={<DeliveryIcon className="h-8 w-8 text-brand" />}
               title="Nothing scheduled for today"
               description={
                 `Your plan is active. Today's round has not been drawn up yet — ` +
@@ -90,23 +90,23 @@ export default async function CustomerDashboard() {
             />
           ) : paused.length > 0 ? (
             <EmptyState
-              icon={<CalendarIcon className="h-8 w-8 text-amber-600" />}
+              icon={<CalendarIcon className="h-8 w-8 text-caution" />}
               title="Your plan is paused"
               description="Resume it and your milk starts arriving again from the next round."
               action={
                 <Link href="/subscriptions">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">Resume my plan</Button>
+                  <Button className="">Resume my plan</Button>
                 </Link>
               }
             />
           ) : (
             <EmptyState
-              icon={<MilkDropIcon className="h-8 w-8 text-blue-600" />}
+              icon={<MilkDropIcon className="h-8 w-8 text-brand" />}
               title="No delivery scheduled today"
               description="Subscribe to a plan and your milk will arrive every morning."
               action={
                 <Link href="/subscriptions">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">Browse plans</Button>
+                  <Button className="">Browse plans</Button>
                 </Link>
               }
             />
@@ -122,7 +122,7 @@ export default async function CustomerDashboard() {
 
       {/* ── This month ────────────────────────────────────────────────── */}
       <section className="mb-8" aria-labelledby="month-heading">
-        <h2 id="month-heading" className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+        <h2 id="month-heading" className="mb-3 text-xs font-bold uppercase tracking-wider text-ink-subtle">
           This Month So Far
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
