@@ -3,9 +3,10 @@
 import { useState, useTransition, useEffect } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardBody, Badge, StatusBadge } from '@/components/ui/index.jsx';
+import { cn, Badge, StatusBadge } from '@/components/ui/index.jsx';
+import { formatPaise } from '@/domain/money.js';
 import { Button, Modal, Input, Textarea } from '@/components/ui/interactive.jsx';
-import { EditIcon } from '@/components/ui/Icons.jsx';
+import { EditIcon, PhoneIcon, MapPinIcon, CheckIcon } from '@/components/ui/Icons.jsx';
 import { approveCustomer, rejectCustomer, updateCustomerAddress } from '@/actions/milkman.actions.js';
 
 /**
@@ -110,7 +111,7 @@ export function EditAddressModal({ customer, open, onClose }) {
           <Button
             form="edit-customer-address-form"
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+            className="bg-brand hover:bg-brand/90 text-white font-bold"
             loading={pending}
           >
             Save Address Changes
@@ -160,13 +161,13 @@ export function EditAddressModal({ customer, open, onClose }) {
               required
             />
             {isFetchingLocation && (
-              <p className="text-[11px] text-blue-600 font-medium flex items-center gap-1 animate-pulse">
-                <span className="inline-block h-2 w-2 rounded-full bg-blue-600 animate-ping" />
+              <p className="text-[11px] text-brand font-medium flex items-center gap-1 animate-pulse">
+                <span className="inline-block h-2 w-2 rounded-full bg-brand animate-ping" />
                 Detecting location...
               </p>
             )}
             {locationResolved && !isFetchingLocation && (
-              <p className="text-[11px] text-emerald-600 font-semibold">
+              <p className="text-[11px] text-positive font-semibold">
                 Auto-detected: {city}, {state}
               </p>
             )}
@@ -175,8 +176,8 @@ export function EditAddressModal({ customer, open, onClose }) {
 
         {/* Quick Area Suggestion Chips */}
         {areaSuggestions.length > 0 && (
-          <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
+          <div className="rounded-xl border border-brand/15 bg-brand-soft/50 p-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-brand mb-1.5">
               Available Local Sectors / Areas (Click to select)
             </p>
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
@@ -187,8 +188,8 @@ export function EditAddressModal({ customer, open, onClose }) {
                   onClick={() => setArea(sug)}
                   className={`text-xs px-2.5 py-1 rounded-lg font-medium border transition-colors ${
                     area === sug
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:text-blue-700'
+                      ? 'bg-brand text-white border-brand shadow-sm'
+                      : 'bg-white text-ink border-border hover:border-brand/40 hover:text-brand'
                   }`}
                 >
                   {sug}
@@ -260,32 +261,37 @@ export function ApprovalCard({ customer, summary, atLimit }) {
 
   return (
     <>
-      <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3.5 hover:border-blue-200 transition-all">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-heading text-base font-extrabold text-slate-900">{customer.name}</h3>
+      <article className="card-surface relative overflow-hidden p-4 sm:p-5">
+        {/* Amber strip: this card wants a decision. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-caution" />
+
+        <div className="flex items-start gap-3">
+          <Avatar name={customer.name} tone="caution" />
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 className="font-heading text-base font-extrabold tracking-tight text-ink">{customer.name}</h3>
               <StatusBadge status="PENDING" />
             </div>
             {summary?.productNames ? (
-              <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700 border border-blue-200/80">
-                <span className="text-blue-500 font-normal">Plan:</span>
-                <span>{summary.productNames}</span>
-              </div>
-            ) : null}
-            <p className="mt-1 text-xs text-slate-600 leading-relaxed font-medium">
-              {[customer.addressLine1, customer.addressArea, customer.addressPincode]
-                .filter(Boolean)
-                .join(', ') || 'No address provided'}
-            </p>
-            {customer.addressLandmark ? (
-              <p className="text-[11px] font-semibold text-blue-600 mt-0.5">
-                Near {customer.addressLandmark}
+              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-brand/20 bg-brand-soft px-2 py-0.5 text-xs font-bold text-brand">
+                <span className="font-semibold opacity-70">Wants</span>
+                {summary.productNames}
               </p>
             ) : null}
+            <p className="mt-1.5 flex items-start gap-1.5 text-sm font-medium text-ink-muted">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
+              <span>
+                {[customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ') ||
+                  'No address provided'}
+                {customer.addressLandmark ? (
+                  <span className="block text-xs font-semibold text-brand">Near {customer.addressLandmark}</span>
+                ) : null}
+              </span>
+            </p>
             {customer.deliveryInstructions ? (
-              <p className="text-[11px] text-slate-500 italic mt-0.5">
-                Note: "{customer.deliveryInstructions}"
+              <p className="mt-1.5 rounded-xl border border-info/15 bg-info-soft px-3 py-1.5 text-xs font-semibold text-info">
+                {customer.deliveryInstructions}
               </p>
             ) : null}
           </div>
@@ -293,43 +299,41 @@ export function ApprovalCard({ customer, summary, atLimit }) {
           <button
             type="button"
             onClick={() => setModal('editAddress')}
-            className="tap inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-all shrink-0"
+            aria-label="Edit delivery address"
+            title="Edit delivery address"
+            className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-muted shadow-xs transition-colors hover:bg-brand-soft hover:text-brand"
           >
-            <EditIcon className="h-3.5 w-3.5" />
-            <span>Edit Address</span>
+            <EditIcon className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs">
-          <div className="flex items-center gap-3 text-slate-600">
+        <div className="mt-4 flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-ink-muted">
             {customer.phone ? (
-              <a href={`tel:${customer.phone}`} className="font-bold text-blue-600 hover:underline flex items-center gap-1">
-                <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-                </svg>
+              <a href={`tel:${customer.phone}`} className="inline-flex items-center gap-1 font-bold text-brand hover:underline">
+                <PhoneIcon className="h-3.5 w-3.5" />
                 {customer.phone}
               </a>
             ) : null}
-            <span className="text-slate-400">·</span>
-            <span className="truncate max-w-[180px]">{customer.email}</span>
+            <span className="truncate">{customer.email}</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setModal('reject')} className="text-xs text-red-600 hover:bg-red-50">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setModal('reject')}
+              className="text-critical hover:border-critical/40 hover:bg-critical-soft"
+            >
               Decline
             </Button>
-            <Button
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm"
-              loading={pending}
-              disabled={atLimit}
-              onClick={approve}
-            >
-              {atLimit ? 'Limit reached' : 'Approve Customer'}
+            <Button size="md" loading={pending} disabled={atLimit} onClick={approve}>
+              {pending ? null : <CheckIcon className="h-4 w-4" />}
+              {atLimit ? 'Limit reached' : 'Approve'}
             </Button>
           </div>
         </div>
-      </div>
+      </article>
 
       {/* Edit Address Modal */}
       <EditAddressModal
@@ -369,7 +373,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
             });
           }}
         >
-          <p className="text-xs text-slate-600">The customer will receive this message explaining why you cannot accept them right now.</p>
+          <p className="text-xs text-ink-muted">The customer will receive this message explaining why you cannot accept them right now.</p>
           <Textarea
             name="reason"
             label="Reason for Declining"
@@ -386,85 +390,105 @@ export function ApprovalCard({ customer, summary, atLimit }) {
 /** A row/card in the active customer book with instant address editing and direct call shortcut. */
 export function CustomerRow({ customer, summary }) {
   const [editing, setEditing] = useState(false);
+  const address =
+    [customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ');
+  const monthlyPaise = Math.round(Number(summary?.totalMonthly ?? 0) * 100);
 
   return (
     <>
-      <li className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 hover:bg-slate-50/70 transition-colors">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-heading text-sm font-extrabold text-slate-900">{customer.name}</p>
-            {customer.deliveryArea && (
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
-                {customer.deliveryArea}
+      <li className="px-4 py-4 transition-colors hover:bg-surface-muted/50 sm:px-5">
+        <div className="flex items-start gap-3">
+          <Avatar name={customer.name} />
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h3 className="font-heading text-[15px] font-extrabold tracking-tight text-ink">{customer.name}</h3>
+              {customer.deliveryArea ? <Badge tone="brand">{customer.deliveryArea}</Badge> : null}
+            </div>
+
+            <p className="mt-1 flex items-start gap-1.5 text-sm font-medium text-ink-muted">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-ink-subtle" />
+              <span className="min-w-0">
+                {address || 'No address saved'}
+                {customer.deliveryInstructions ? (
+                  <span className="block text-xs font-medium text-ink-subtle">“{customer.deliveryInstructions}”</span>
+                ) : null}
               </span>
-            )}
-          </div>
-
-          <p className="mt-0.5 text-xs text-slate-600 truncate">
-            {[customer.addressLine1, customer.addressArea, customer.addressPincode]
-              .filter(Boolean)
-              .join(', ') || 'No address saved'}
-          </p>
-
-          {customer.deliveryInstructions && (
-            <p className="text-[11px] text-slate-500 italic mt-0.5">
-              "{customer.deliveryInstructions}"
             </p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-          {/* Plan Summary */}
-          <div className="text-left sm:text-right">
-            {summary?.count ? (
-              <>
-                <p className="text-xs font-bold text-slate-900">
-                  {summary.count === 1 ? summary.productNames : `${summary.count} plans`}
-                </p>
-                <p className="text-[11px] font-semibold text-blue-600">
-                  {Number(summary.totalQuantity)} L/day
-                </p>
-              </>
-            ) : (
-              <span className="text-[11px] font-medium text-slate-400">No active plan</span>
-            )}
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {/* Edit Address Button */}
+          {/* Two round shortcuts, always in the same corner. */}
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="tap inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 shadow-2xs transition-all"
-              title="Edit Delivery Address"
+              aria-label={`Edit address for ${customer.name}`}
+              title="Edit delivery address"
+              className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-ink-muted shadow-xs transition-colors hover:bg-brand-soft hover:text-brand"
             >
-              <EditIcon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Address</span>
+              <EditIcon className="h-4 w-4" />
             </button>
-
-            {/* Phone Call Link */}
             {customer.phone ? (
               <a
                 href={`tel:${customer.phone}`}
-                className="tap inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 shadow-2xs transition-all"
+                aria-label={`Call ${customer.name}`}
                 title={`Call ${customer.name}`}
+                className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-brand shadow-xs transition-colors hover:bg-brand-soft"
               >
-                <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
-                  <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-                </svg>
-                <span>Call</span>
+                <PhoneIcon className="h-4 w-4" />
               </a>
             ) : null}
           </div>
         </div>
+
+        {/* What they take. Sits under the name on every width; it is the
+            figure the milkman scans the list for. */}
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface-muted/70 px-3 py-2 sm:ml-[3.25rem]">
+          {summary?.count ? (
+            <>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-ink">
+                  {summary.count === 1 ? summary.productNames : `${summary.count} plans`}
+                </p>
+                <p className="text-[11px] font-semibold text-ink-subtle">
+                  {summary.count === 1 ? 'Active plan' : summary.productNames}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="stat-number text-lg leading-none text-brand">
+                  {Number(summary.totalQuantity)}
+                  <span className="ml-0.5 font-sans text-xs font-bold text-ink-muted">L/day</span>
+                </p>
+                {monthlyPaise > 0 ? (
+                  <p className="tnum mt-0.5 text-[11px] font-semibold text-ink-subtle">
+                    {formatPaise(monthlyPaise, { whole: true })}/mo
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <p className="text-xs font-semibold text-ink-subtle">No active plan</p>
+          )}
+        </div>
       </li>
 
       {/* Edit Address Modal */}
-      <EditAddressModal
-        customer={customer}
-        open={editing}
-        onClose={() => setEditing(false)}
-      />
+      <EditAddressModal customer={customer} open={editing} onClose={() => setEditing(false)} />
     </>
+  );
+}
+
+/** Initial in a tinted tile; blue for the book, amber while waiting. */
+function Avatar({ name, tone = 'brand' }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-heading text-base font-black shadow-sm',
+        tone === 'caution' ? 'bg-caution-soft text-caution' : 'bg-hero-gradient text-brand-ink shadow-brand/25',
+      )}
+    >
+      {(name ?? '?').trim().charAt(0).toUpperCase() || '?'}
+    </span>
   );
 }

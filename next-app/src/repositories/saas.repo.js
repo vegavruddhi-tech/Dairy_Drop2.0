@@ -21,9 +21,10 @@ const LIVE_STATUSES = ['TRIAL', 'ACTIVE', 'PENDING_VERIFICATION'];
 /**
  * The milkman's current subscription, or null.
  *
- * A partial unique index guarantees at most one live row, so this is
- * deterministic — unlike the old `ORDER BY created_at DESC LIMIT 1`, where the
- * answer to "is this milkman paid up" depended on insertion order.
+ * A partial unique index guarantees at most one live row (ACTIVE or TRIAL),
+ * and at most one PENDING_VERIFICATION beside it. The live one wins: a
+ * milkman changing plans stays on the old plan until the new one is verified.
+ * With no live row, the pending one is returned so the gate can say so.
  */
 export async function findCurrentSaasSubscription(milkmanId) {
   const [row] = await db
@@ -49,8 +50,35 @@ export async function findCurrentSaasSubscription(milkmanId) {
         inArray(saasSubscriptions.status, LIVE_STATUSES),
       ),
     )
+    .orderBy(sql`case ${saasSubscriptions.status} when 'ACTIVE' then 0 when 'TRIAL' then 1 else 2 end`)
     .limit(1);
 
+  return row ?? null;
+}
+
+/** The payment this milkman has in the verification queue, if any. */
+export async function findPendingSaasSubscription(milkmanId) {
+  const [row] = await db
+    .select({
+      id: saasSubscriptions.id,
+      planId: saasSubscriptions.planId,
+      status: saasSubscriptions.status,
+      customerLimit: saasSubscriptions.customerLimit,
+      pricePaid: saasSubscriptions.pricePaid,
+      paymentReference: saasSubscriptions.paymentReference,
+      createdAt: saasSubscriptions.createdAt,
+      planName: saasPlans.name,
+      planMaxCustomers: saasPlans.maxCustomers,
+    })
+    .from(saasSubscriptions)
+    .leftJoin(saasPlans, eq(saasPlans.id, saasSubscriptions.planId))
+    .where(
+      and(
+        eq(saasSubscriptions.milkmanId, milkmanId),
+        eq(saasSubscriptions.status, 'PENDING_VERIFICATION'),
+      ),
+    )
+    .limit(1);
   return row ?? null;
 }
 
@@ -63,6 +91,7 @@ export async function listSaasSubscriptions(milkmanId) {
       startsAt: saasSubscriptions.startsAt,
       endsAt: saasSubscriptions.endsAt,
       pricePaid: saasSubscriptions.pricePaid,
+      cancellationReason: saasSubscriptions.cancellationReason,
       paymentReference: saasSubscriptions.paymentReference,
       planName: saasPlans.name,
       createdAt: saasSubscriptions.createdAt,
@@ -133,6 +162,15 @@ export async function listPendingVerifications() {
       amount: saasPlans.monthlyPrice,
       reference: saasSubscriptions.paymentReference,
       submittedAt: saasSubscriptions.createdAt,
+      /** The plan they are on right now, when this payment is a change rather than a first purchase. */
+      changingFrom: sql`(
+        select coalesce(p.name, 'Free trial')
+        from ${saasSubscriptions} s
+        left join ${saasPlans} p on p.id = s.plan_id
+        where s.milkman_id = ${saasSubscriptions.milkmanId}
+          and s.status in ('ACTIVE', 'TRIAL')
+        limit 1
+      )`.as('changing_from'),
     })
     .from(saasSubscriptions)
     .innerJoin(users, eq(users.id, saasSubscriptions.milkmanId))

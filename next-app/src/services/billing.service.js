@@ -14,7 +14,7 @@
 import 'server-only';
 
 import { db, transaction } from '@/db/index.js';
-import { computeBill, computeVariance, computeEarnings } from '@/domain/billing.js';
+import { computeBill, computeVariance, computeEarnings, computeEarningsByCustomer } from '@/domain/billing.js';
 import { businessMonth, monthEnd, monthOf, businessDate } from '@/domain/dates.js';
 import { paiseToDecimal, milliToDecimal, toPaise } from '@/domain/money.js';
 import { NotFoundError, ForbiddenError } from '@/domain/errors.js';
@@ -207,14 +207,29 @@ export async function getEarnings(actor, { month } = {}) {
     0,
   );
 
-  const byProduct = new Map();
-  for (const purchase of purchaseRows) {
-    if (purchase.status === 'CANCELLED') continue;
-    const current = byProduct.get(purchase.productName) ?? { name: purchase.productName, paise: 0, count: 0 };
-    current.paise += Math.round(Number(purchase.amount ?? 0) * 100);
-    current.count += 1;
-    byProduct.set(purchase.productName, current);
-  }
+  /*
+   * The same rows, split per customer. Names come from a separate lookup
+   * rather than a join on each of the three queries, because a customer with
+   * deliveries but no payment this month would otherwise have no name at all.
+   */
+  const perCustomer = computeEarningsByCustomer({
+    deliveries: deliveryRows,
+    purchases: purchaseRows,
+    payments: paymentRows,
+  });
+  const names = await usersRepo.findCustomerNames(
+    actor,
+    perCustomer.map((row) => row.customerId),
+  );
+  const nameById = new Map(names.map((row) => [row.id, row]));
+  const byCustomer = perCustomer.map((row) => ({
+    ...row,
+    customerName: nameById.get(row.customerId)?.name ?? 'Former customer',
+    customerPhone: nameById.get(row.customerId)?.phone ?? null,
+    topProducts: topProductsOf(
+      purchaseRows.filter((purchase) => purchase.customerId === row.customerId),
+    ),
+  }));
 
   return {
     month: targetMonth,
@@ -225,6 +240,7 @@ export async function getEarnings(actor, { month } = {}) {
     outstandingPaise: Math.max(0, earnings.billedPaise - collectedPaise),
     /** The month's collections ledger, newest first. Drives the history table. */
     payments: paymentRows.map((row) => ({
+      customerId: row.customerId,
       id: row.id,
       customerName: row.customerName,
       customerPhone: row.customerPhone,
@@ -236,9 +252,24 @@ export async function getEarnings(actor, { month } = {}) {
       verifiedAt: row.verifiedAt,
       createdAt: row.createdAt,
     })),
-    topProducts: [...byProduct.values()].sort((a, b) => b.paise - a.paise).slice(0, 5),
+    topProducts: topProductsOf(purchaseRows),
+    /** Each customer's share of the month, largest bill first. */
+    byCustomer,
     outstanding,
   };
+}
+
+/** Extras ranked by revenue, top five. Cancelled orders do not count. */
+function topProductsOf(purchaseRows) {
+  const byProduct = new Map();
+  for (const purchase of purchaseRows) {
+    if (purchase.status === 'CANCELLED') continue;
+    const current = byProduct.get(purchase.productName) ?? { name: purchase.productName, paise: 0, count: 0 };
+    current.paise += Math.round(Number(purchase.amount ?? 0) * 100);
+    current.count += 1;
+    byProduct.set(purchase.productName, current);
+  }
+  return [...byProduct.values()].sort((a, b) => b.paise - a.paise).slice(0, 5);
 }
 
 /** Map a stored bill row onto the shape the UI renders. */

@@ -46,7 +46,10 @@ export function VerificationCard({ item }) {
           </div>
 
           <dl className="grid gap-4 border-t border-border pt-4 sm:grid-cols-3">
-            <Field label="Plan" value={item.planName} />
+            <Field
+              label={item.changingFrom ? 'Plan change' : 'Plan'}
+              value={item.changingFrom ? `${item.changingFrom} → ${item.planName}` : item.planName}
+            />
             <Field
               label="Reference"
               value={<span className="select-all font-medium">{item.reference}</span>}

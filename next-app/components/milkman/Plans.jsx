@@ -3,9 +3,20 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
+import { cn, Badge } from '@/components/ui/index.jsx';
 import { Button, Modal, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
-import { saveMilkPlan, retireMilkPlan } from '@/actions/milkman.actions.js';
+import { saveMilkPlan, retireMilkPlan, deleteMilkPlan } from '@/actions/milkman.actions.js';
+import {
+  PlusIcon,
+  EditIcon,
+  TrashIcon,
+  SunIcon,
+  MoonIcon,
+  ClockIcon,
+  UsersIcon,
+  MilkDropIcon,
+  CalendarIcon,
+} from '@/components/ui/Icons.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { formatWindow } from '@/domain/dates.js';
 import { businessMonth } from '@/domain/dates.js';
@@ -112,7 +123,7 @@ export function PlanEditor({ plan, trigger }) {
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button form="plan-form" type="submit" loading={pending} className="bg-blue-600 hover:bg-blue-700 font-bold">Save Plan</Button>
+            <Button form="plan-form" type="submit" loading={pending} className="bg-brand hover:bg-brand/90 font-bold">Save Plan</Button>
           </>
         }
       >
@@ -140,21 +151,21 @@ export function PlanEditor({ plan, trigger }) {
           }}
         >
           {/* Quick Predefined Dropdown Selector */}
-          <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3.5 space-y-3">
+          <div className="rounded-2xl border border-brand/20 bg-brand-soft/60 p-3.5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand">
                 ⚡ Quick Presets (Auto-fills name, price & info)
               </span>
-              <span className="text-[10px] font-medium text-slate-500">Market Rate Standard</span>
+              <span className="text-[10px] font-medium text-ink-subtle">Market Rate Standard</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Select Milk Type</label>
+                <label className="block text-xs font-bold text-ink mb-1">Select Milk Type</label>
                 <select
                   value={selectedMilkType}
                   onChange={(e) => handleMilkTypeChange(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-ink shadow-sm focus:border-brand focus:outline-none"
                 >
                   {MILK_TYPES.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -165,11 +176,11 @@ export function PlanEditor({ plan, trigger }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Select Daily Quantity</label>
+                <label className="block text-xs font-bold text-ink mb-1">Select Daily Quantity</label>
                 <select
                   value={selectedQtyPreset}
                   onChange={(e) => handleQtyPresetChange(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-ink shadow-sm focus:border-brand focus:outline-none"
                 >
                   {QUANTITY_PRESETS.map((q) => (
                     <option key={q.value} value={q.value}>
@@ -361,124 +372,223 @@ export function PlanEditor({ plan, trigger }) {
   );
 }
 
+const SLOT_META = {
+  MORNING: { label: 'Morning', Icon: SunIcon },
+  EVENING: { label: 'Evening', Icon: MoonIcon },
+  BOTH: { label: 'Morning & evening', Icon: SunIcon },
+};
+
+const FREQUENCY_LABEL = Object.fromEntries(FREQUENCIES.map((f) => [f.value, f.label]));
+
+/**
+ * The plan cards, with retire and delete behind confirm sheets.
+ *
+ * Both end whoever is still on the plan, so the sheet says how many that is
+ * before the button is pressed — that number is the whole decision.
+ */
 export function PlanList({ plans, subscriberCounts = {} }) {
   const [pending, startTransition] = useTransition();
-  const [retiringId, setRetiringId] = useState(null);
+  const [confirm, setConfirm] = useState(null); // { kind: 'retire' | 'delete', plan }
+
+  function run() {
+    const { kind, plan } = confirm;
+    startTransition(async () => {
+      const result = kind === 'delete' ? await deleteMilkPlan({ id: plan.id }) : await retireMilkPlan({ id: plan.id });
+      if (result.ok) {
+        const ended = result.data?.ended ?? 0;
+        const verb = kind === 'delete' ? 'deleted' : 'retired';
+        toast.success(
+          ended > 0
+            ? `Plan ${verb}. ${ended} subscription${ended === 1 ? '' : 's'} ended.`
+            : `Plan ${verb}.`,
+        );
+        setConfirm(null);
+      } else {
+        toast.error(result.message ?? `Could not ${kind} that plan.`);
+      }
+    });
+  }
+
+  const on = confirm ? subscriberCounts[confirm.plan.id] ?? 0 : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {plans.map((plan) => {
-        const subscribers = subscriberCounts[plan.id] ?? 0;
-        return (
-          <Card
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {plans.map((plan) => (
+          <PlanCard
             key={plan.id}
-            className={`border border-slate-200 bg-white shadow-sm hover:border-blue-400 hover:shadow-md transition-all rounded-3xl overflow-hidden flex flex-col ${
-              plan.isActive ? '' : 'opacity-60'
-            }`}
+            plan={plan}
+            subscribers={subscriberCounts[plan.id] ?? 0}
+            onRetire={() => setConfirm({ kind: 'retire', plan })}
+            onDelete={() => setConfirm({ kind: 'delete', plan })}
+          />
+        ))}
+      </div>
+
+      <Modal
+        open={Boolean(confirm)}
+        onClose={() => setConfirm(null)}
+        title={confirm ? `${confirm.kind === 'delete' ? 'Delete' : 'Retire'} ${confirm.plan.name}?` : ''}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirm(null)}>Keep it</Button>
+            <Button variant="danger" loading={pending} onClick={run}>
+              {confirm?.kind === 'delete' ? <TrashIcon className="h-4 w-4" /> : null}
+              {confirm?.kind === 'delete' ? 'Delete plan' : 'Retire plan'}
+            </Button>
+          </>
+        }
+      >
+        {confirm ? (
+          <div className="space-y-3 text-sm text-ink-muted">
+            {on > 0 ? (
+              <p className="rounded-xl border border-caution/25 bg-caution-soft px-3 py-2 text-xs font-semibold text-caution">
+                {on} {on === 1 ? 'customer is' : 'customers are'} on this plan. Their deliveries stop from
+                today and they are told to pick another plan. Days already delivered stay billed.
+              </p>
+            ) : (
+              <p>Nobody is on it, so no deliveries change.</p>
+            )}
+            {confirm.kind === 'delete' ? (
+              <p>
+                The plan is removed for good, along with any pending requests to switch onto it.
+                Past bills are unaffected — they keep the prices that were charged.
+              </p>
+            ) : (
+              <p>
+                It leaves the shop but stays on record under “Retired”. Choose Delete if you want it gone.
+              </p>
+            )}
+          </div>
+        ) : null}
+      </Modal>
+    </>
+  );
+}
+
+/** One plan. */
+function PlanCard({ plan, subscribers, onRetire, onDelete }) {
+  const slot = SLOT_META[plan.slot] ?? SLOT_META.MORNING;
+  const morning = formatWindow(plan.morningStart, plan.morningEnd);
+  const evening = formatWindow(plan.eveningStart, plan.eveningEnd);
+  const windows = [
+    plan.slot !== 'EVENING' && morning ? { label: 'Morning', value: morning, Icon: SunIcon } : null,
+    plan.slot !== 'MORNING' && evening ? { label: 'Evening', value: evening, Icon: MoonIcon } : null,
+  ].filter(Boolean);
+
+  return (
+    <article
+      className={cn(
+        'card-surface relative flex flex-col overflow-hidden transition-shadow hover:shadow-card-hover',
+        plan.isActive ? '' : 'opacity-75',
+      )}
+    >
+      <div aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-0 h-1', plan.isActive ? 'bg-hero-gradient' : 'bg-border')} />
+
+      {/* ── Head ──────────────────────────────────────────────────────── */}
+      <div className="flex items-start gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
+        <span aria-hidden="true" className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', plan.isActive ? 'bg-brand-soft text-brand' : 'bg-surface-muted text-ink-subtle')}>
+          <MilkDropIcon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{plan.productName}</p>
+          <h3 className="font-heading text-base font-extrabold leading-tight tracking-tight text-ink">{plan.name}</h3>
+          {plan.description ? (
+            <p className="mt-1 line-clamp-2 text-xs font-medium text-ink-muted">{plan.description}</p>
+          ) : null}
+        </div>
+        {plan.isActive ? (
+          subscribers > 0 ? (
+            <Badge tone="positive" dot className="shrink-0">
+              {subscribers} {subscribers === 1 ? 'customer' : 'customers'}
+            </Badge>
+          ) : (
+            <Badge tone="neutral" className="shrink-0">No one yet</Badge>
+          )
+        ) : (
+          <Badge tone="neutral" className="shrink-0">Retired</Badge>
+        )}
+      </div>
+
+      {/* ── Price ─────────────────────────────────────────────────────── */}
+      <div className="mx-4 flex items-end justify-between gap-3 rounded-2xl bg-surface-muted/70 px-4 py-3 sm:mx-5">
+        <div>
+          <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-subtle">A full month</p>
+          <p className="stat-number text-2xl leading-none text-ink">
+            {plan.quotedMonthlyPaise != null ? formatPaise(plan.quotedMonthlyPaise, { whole: true }) : '—'}
+          </p>
+        </div>
+        {plan.unitPrice ? (
+          <div className="text-right">
+            <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-subtle">Rate</p>
+            <p className="tnum text-sm font-extrabold text-brand">
+              ₹{Number(plan.unitPrice).toFixed(2)}
+              <span className="text-xs font-bold text-ink-muted">/{plan.unit}</span>
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      {/* ── Terms ─────────────────────────────────────────────────────── */}
+      <dl className="grid grid-cols-2 gap-2 p-4 pt-3 sm:p-5 sm:pt-3">
+        <Term icon={<MilkDropIcon className="h-4 w-4" />} label="Per delivery" value={`${Number(plan.quantity)} ${plan.unit}`} />
+        <Term icon={<CalendarIcon className="h-4 w-4" />} label="Frequency" value={FREQUENCY_LABEL[plan.frequency] ?? plan.frequency} />
+        <Term icon={<slot.Icon className="h-4 w-4" />} label="Slot" value={slot.label} />
+        {windows.length > 0 ? (
+          <Term
+            icon={<ClockIcon className="h-4 w-4" />}
+            label={windows.length === 1 ? `${windows[0].label} window` : 'Windows'}
+            value={windows.map((w) => (windows.length === 1 ? w.value : `${w.label} ${w.value}`)).join(' · ')}
+          />
+        ) : (
+          <Term icon={<UsersIcon className="h-4 w-4" />} label="Subscribed" value={plan.isActive ? String(subscribers) : '—'} />
+        )}
+      </dl>
+
+      {/* ── Actions ───────────────────────────────────────────────────── */}
+      <div className="mt-auto flex items-center gap-2 border-t border-border p-3 sm:px-5">
+        <PlanEditor
+          plan={plan}
+          trigger={
+            <Button variant="outline" size="md" className="w-full">
+              <EditIcon className="h-4 w-4" />
+              Edit
+            </Button>
+          }
+        />
+        {plan.isActive ? (
+          <Button
+            variant="outline"
+            size="md"
+            onClick={onRetire}
+            className="shrink-0 text-caution hover:border-caution/40 hover:bg-caution-soft"
           >
-            <CardBody className="flex h-full flex-col gap-3 p-5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200 uppercase">
-                    {plan.productName}
-                  </span>
-                  <h3 className="font-heading text-lg font-bold text-slate-950 mt-1.5">
-                    {plan.name}
-                  </h3>
-                  {plan.description && (
-                    <p className="mt-1 text-xs text-slate-500 line-clamp-2">{plan.description}</p>
-                  )}
-                </div>
-                {plan.isActive ? (
-                  subscribers > 0 ? (
-                    <Badge tone="positive">
-                      {subscribers} {subscribers === 1 ? 'Customer' : 'Customers'}
-                    </Badge>
-                  ) : (
-                    <Badge tone="neutral">0 Active</Badge>
-                  )
-                ) : (
-                  <Badge tone="neutral">Retired</Badge>
-                )}
-              </div>
+            Retire
+          </Button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Delete ${plan.name}`}
+          title="Delete plan"
+          className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-subtle shadow-xs transition-colors hover:border-critical/40 hover:bg-critical-soft hover:text-critical"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      </div>
+    </article>
+  );
+}
 
-              <div className="flex items-baseline gap-1.5 pt-2 border-t border-slate-100">
-                <span className="font-heading text-2xl font-black text-slate-900">
-                  {plan.quotedMonthlyPaise != null
-                    ? formatPaise(plan.quotedMonthlyPaise, { whole: true })
-                    : '—'}
-                </span>
-                <span className="text-xs font-semibold text-slate-500">/ month est.</span>
-              </div>
-
-              <ul className="space-y-1 text-xs text-slate-600 bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
-                <li className="flex justify-between">
-                  <span>Per Delivery:</span>
-                  <span className="font-bold text-slate-900">{Number(plan.quantity)} {plan.unit}</span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Frequency & Slot:</span>
-                  <span className="font-semibold text-slate-800">
-                    {plan.frequency.replace('_', ' ').toLowerCase()} · {plan.slot.toLowerCase()}
-                  </span>
-                </li>
-                {plan.unitPrice ? (
-                  <li className="flex justify-between">
-                    <span>Rate:</span>
-                    <span className="font-bold text-blue-700">₹{Number(plan.unitPrice).toFixed(2)}/{plan.unit}</span>
-                  </li>
-                ) : null}
-              </ul>
-
-              <div className="mt-auto flex items-center gap-2 pt-2">
-                <PlanEditor
-                  plan={plan}
-                  trigger={<Button size="sm" variant="outline" className="flex-1 font-bold">Edit Plan</Button>}
-                />
-                {plan.isActive ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    loading={retiringId === plan.id}
-                    disabled={pending && retiringId !== plan.id}
-                    className="text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                      const on = subscriberCounts[plan.id] ?? 0;
-                      const warning =
-                        on > 0
-                          ? `${on} customer${on === 1 ? 'is' : 'are'} on "${plan.name}". ` +
-                            `Retiring it stops their deliveries from today. Already delivered days stay billed.\n\nRetire it anyway?`
-                          : `Retire "${plan.name}"? Nobody is on it, so nothing stops.`;
-                      if (!window.confirm(warning)) return;
-
-                      setRetiringId(plan.id);
-                      startTransition(async () => {
-                        try {
-                          const result = await retireMilkPlan({ id: plan.id });
-                          if (result.ok) {
-                            const ended = result.data?.ended ?? 0;
-                            toast.success(
-                              ended > 0
-                                ? `Plan retired. ${ended} subscription${ended === 1 ? '' : 's'} ended.`
-                                : 'Plan retired.',
-                            );
-                          } else {
-                            toast.error(result.message ?? 'Could not retire that plan.');
-                          }
-                        } finally {
-                          setRetiringId(null);
-                        }
-                      });
-                    }}
-                  >
-                    Retire
-                  </Button>
-                ) : null}
-              </div>
-            </CardBody>
-          </Card>
-        );
-      })}
+/** One fact about a plan, as a small tile. */
+function Term({ icon, label, value }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-border bg-surface px-2.5 py-2">
+      <dt className="flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">
+        <span aria-hidden="true" className="text-ink-subtle">{icon}</span>
+        <span className="truncate">{label}</span>
+      </dt>
+      <dd className="mt-0.5 truncate text-sm font-bold text-ink">{value}</dd>
     </div>
   );
 }

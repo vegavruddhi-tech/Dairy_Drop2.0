@@ -372,41 +372,68 @@ export async function retirePlan(actor, { planId }) {
   const plan = await subscriptionsRepo.findPlan(actor, planId);
   if (!plan) throw new NotFoundError('That plan');
 
-  const today = businessDate();
-
   return transaction(async (tx) => {
-    const subscribers = await subscriptionsRepo.listSubscribersOfPlan(tx, actor, planId);
-
-    for (const subscriber of subscribers) {
-      await subscriptionsRepo.closeVersion(tx, {
-        id: subscriber.versionId,
-        // A version dated tomorrow has not run; closing it at today would end
-        // it before it began, which `milk_subs_range` refuses.
-        effectiveTo: today,
-        status: 'CANCELLED',
-      });
-
-      await deliveriesRepo.cancelFrom(tx, {
-        subscriptionRootId: subscriber.rootId,
-        fromDate: today,
-      });
-
-      await notificationsRepo.create(tx, {
-        userId: subscriber.customerId,
-        type: 'SUBSCRIPTION',
-        title: 'Your plan has ended',
-        body: `${plan.name} is no longer offered, so your ${subscriber.productName} deliveries have stopped. Choose another plan to start again.`,
-        href: '/subscriptions',
-        subjectType: 'milk_subscription',
-        subjectId: subscriber.versionId,
-      });
-    }
-
+    const ended = await endEveryoneOn(tx, actor, plan);
     const retired = await subscriptionsRepo.retirePlan(tx, actor, planId);
     if (!retired) throw new NotFoundError('That plan');
-
-    return { plan: retired, ended: subscribers.length };
+    return { plan: retired, ended };
   });
+}
+
+/**
+ * Delete a plan.
+ *
+ * Retiring keeps the row for the record; deleting removes it. Both end the
+ * subscriptions still on it first, because a live subscription whose plan has
+ * gone would carry on generating deliveries nobody can see the terms of.
+ * Pending requests to switch onto the plan go with it (the FK cascades).
+ */
+export async function deletePlan(actor, { planId }) {
+  const plan = await subscriptionsRepo.findPlan(actor, planId);
+  if (!plan) throw new NotFoundError('That plan');
+
+  return transaction(async (tx) => {
+    const ended = await endEveryoneOn(tx, actor, plan);
+    const deleted = await subscriptionsRepo.deletePlan(tx, actor, planId);
+    if (!deleted) throw new NotFoundError('That plan');
+    return { plan: deleted, ended };
+  });
+}
+
+/**
+ * End every current subscription on a plan from today, withdraw the pending
+ * deliveries, and tell each customer. Returns how many were ended.
+ */
+async function endEveryoneOn(tx, actor, plan) {
+  const today = businessDate();
+  const subscribers = await subscriptionsRepo.listSubscribersOfPlan(tx, actor, plan.id);
+
+  for (const subscriber of subscribers) {
+    await subscriptionsRepo.closeVersion(tx, {
+      id: subscriber.versionId,
+      // A version dated tomorrow has not run; closing it at today would end
+      // it before it began, which `milk_subs_range` refuses.
+      effectiveTo: today,
+      status: 'CANCELLED',
+    });
+
+    await deliveriesRepo.cancelFrom(tx, {
+      subscriptionRootId: subscriber.rootId,
+      fromDate: today,
+    });
+
+    await notificationsRepo.create(tx, {
+      userId: subscriber.customerId,
+      type: 'SUBSCRIPTION',
+      title: 'Your plan has ended',
+      body: `${plan.name} is no longer offered, so your ${subscriber.productName} deliveries have stopped. Choose another plan to start again.`,
+      href: '/subscriptions',
+      subjectType: 'milk_subscription',
+      subjectId: subscriber.versionId,
+    });
+  }
+
+  return subscribers.length;
 }
 
 /**

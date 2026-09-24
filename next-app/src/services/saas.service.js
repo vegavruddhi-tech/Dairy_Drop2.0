@@ -8,7 +8,7 @@
  */
 
 import 'server-only';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import { saasSubscriptions, saasPayments, users, milkmanProfiles } from '@/db/schema/index.js';
@@ -34,9 +34,14 @@ export async function getMembership(actor) {
   const access = evaluateSaasAccess(current);
   const limit = current?.customerLimit ?? null;
 
+  // A payment in the queue that sits beside a live plan is a plan change.
+  const pending = await saasRepo.findPendingSaasSubscription(actor.userId);
+  const pendingChange = pending && pending.id !== current?.id ? pending : null;
+
   return {
     current,
     access,
+    pendingChange,
     plans,
     history,
     settings,
@@ -112,12 +117,29 @@ export async function submitPayment(actor, { planId, reference }) {
     throw new ValidationError('Enter the full transaction reference from your bank or UPI app.');
   }
 
-  const current = await saasRepo.findCurrentSaasSubscription(actor.userId);
-  if (current?.status === 'ACTIVE') {
-    throw new ConflictError('You already have an active plan.');
-  }
-  if (current?.status === 'PENDING_VERIFICATION') {
+  if (await saasRepo.findPendingSaasSubscription(actor.userId)) {
     throw new ConflictError('We are already checking a payment from you.');
+  }
+
+  /*
+   * Changing plans.
+   *
+   * A live plan (ACTIVE or TRIAL) is left running: the new one only takes
+   * over when an administrator verifies the payment, so nothing goes dark
+   * while the reference is being checked. Two things are refused up front —
+   * paying again for the plan you are already on, and moving to a plan with
+   * fewer seats than customers you serve.
+   */
+  const current = await saasRepo.findCurrentSaasSubscription(actor.userId);
+  if (current?.status === 'ACTIVE' && current.planId === plan.id) {
+    throw new ConflictError(`You are already on ${plan.name}.`);
+  }
+  const customerCount = await subscriptionsRepo.countActiveCustomers(db, actor.userId);
+  if (customerCount > plan.maxCustomers) {
+    throw new ConflictError(
+      `You serve ${customerCount} customers and ${plan.name} allows ${plan.maxCustomers}. ` +
+        'Choose a bigger plan, or remove some customers first.',
+    );
   }
 
   const startsAt = new Date();
@@ -125,15 +147,6 @@ export async function submitPayment(actor, { planId, reference }) {
   endsAt.setDate(endsAt.getDate() + plan.durationDays);
 
   return transaction(async (tx) => {
-    // A trial that is being upgraded is closed out so the partial unique index
-    // on "one live subscription" is satisfied.
-    if (current) {
-      await tx
-        .update(saasSubscriptions)
-        .set({ status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: 'Upgraded to a paid plan' })
-        .where(eq(saasSubscriptions.id, current.id));
-    }
-
     const [subscription] = await tx
       .insert(saasSubscriptions)
       .values({
@@ -164,7 +177,9 @@ export async function submitPayment(actor, { planId, reference }) {
         userId: admin.id,
         type: 'PAYMENT',
         title: 'Subscription payment to verify',
-        body: `${actor.name} submitted ${trimmed} for ${plan.name}.`,
+        body: current
+          ? `${actor.name} submitted ${trimmed} to change from ${current.planName ?? 'the free trial'} to ${plan.name}.`
+          : `${actor.name} submitted ${trimmed} for ${plan.name}.`,
         href: '/admin/verifications',
         subjectType: 'saas_subscription',
         subjectId: subscription.id,
@@ -178,9 +193,11 @@ export async function submitPayment(actor, { planId, reference }) {
 /**
  * Admin decision on a submitted payment.
  *
- * On approval the period runs from **now**, for the plan's duration. If you
- * would rather an early renewal extend the remaining time, change it here —
- * this is the one place that decides it.
+ * On approval the period runs from **now**, for the plan's duration. If the
+ * milkman was on another plan it is closed the same moment — days left on it
+ * are not carried over. If you would rather a change or an early renewal
+ * extend the remaining time, change it here — this is the one place that
+ * decides it.
  */
 export async function verifyPayment(actor, { subscriptionId, approve, rejectionReason }) {
   return transaction(async (tx) => {
@@ -204,6 +221,32 @@ export async function verifyPayment(actor, { subscriptionId, approve, rejectionR
       const endsAt = new Date(now);
       endsAt.setDate(endsAt.getDate() + (plan?.durationDays ?? 30));
 
+      // The plan they were on, if any. Closed first: only one live row may exist.
+      const [previous] = await tx
+        .select({ id: saasSubscriptions.id, planId: saasSubscriptions.planId, status: saasSubscriptions.status })
+        .from(saasSubscriptions)
+        .where(
+          and(
+            eq(saasSubscriptions.milkmanId, subscription.milkmanId),
+            inArray(saasSubscriptions.status, ['ACTIVE', 'TRIAL']),
+          ),
+        )
+        .limit(1);
+      const previousPlan = previous?.planId ? await saasRepo.findSaasPlan(previous.planId) : null;
+      const previousName = previous ? previousPlan?.name ?? 'Free trial' : null;
+
+      if (previous) {
+        await tx
+          .update(saasSubscriptions)
+          .set({
+            status: 'CANCELLED',
+            cancelledAt: now,
+            cancellationReason: `Changed to ${plan?.name ?? 'a new plan'}`,
+            updatedAt: now,
+          })
+          .where(eq(saasSubscriptions.id, previous.id));
+      }
+
       await tx
         .update(saasSubscriptions)
         .set({ status: 'ACTIVE', startsAt: now, endsAt, updatedAt: now })
@@ -217,16 +260,18 @@ export async function verifyPayment(actor, { subscriptionId, approve, rejectionR
       await notificationsRepo.create(tx, {
         userId: subscription.milkmanId,
         type: 'SUBSCRIPTION',
-        title: 'Your plan is active',
-        body: `Payment verified. Your panel is open until ${endsAt.toDateString()}.`,
-        href: '/milkman',
+        title: previousName ? `You are now on ${plan?.name ?? 'your new plan'}` : 'Your plan is active',
+        body: previousName
+          ? `Payment verified. You have moved from ${previousName} to ${plan?.name ?? 'your new plan'}; your panel is open until ${endsAt.toDateString()}.`
+          : `Payment verified. Your panel is open until ${endsAt.toDateString()}.`,
+        href: '/milkman/membership',
       });
 
       await auditService.record(tx, actor, {
         action: 'SAAS_PAYMENT_VERIFIED',
         subjectType: 'saas_subscription',
         subjectId: subscriptionId,
-        metadata: { reference: subscription.paymentReference, endsAt },
+        metadata: { reference: subscription.paymentReference, endsAt, changedFrom: previousName },
       });
 
       return { approved: true };

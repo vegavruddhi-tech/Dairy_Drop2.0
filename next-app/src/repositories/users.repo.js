@@ -94,6 +94,27 @@ export async function listCustomers(actor, { status = 'APPROVED', search, ...pag
     .offset(offset);
 }
 
+/**
+ * Name and phone for a set of customer ids, whatever their approval status.
+ *
+ * `listCustomers` filters to APPROVED, which is right for the customer book
+ * but wrong for money: a customer removed mid-month still delivered and still
+ * owes, and their line on the earnings page must carry a name.
+ */
+export async function findCustomerNames(actor, customerIds) {
+  if (customerIds.length === 0) return [];
+  return db
+    .select({ id: users.id, name: users.name, phone: users.phone })
+    .from(users)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.CUSTOMER_READ, columns: customerScope },
+        inArray(users.id, customerIds),
+        eq(users.role, 'CUSTOMER'),
+      ),
+    );
+}
+
 /** How many customers are waiting for a decision — drives the nav badge. */
 export async function countPendingCustomers(actor) {
   const [row] = await db

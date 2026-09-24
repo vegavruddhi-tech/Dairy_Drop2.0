@@ -36,6 +36,13 @@
       "when": 1790162412290,
       "tag": "0004_first_riptide",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790251566879,
+      "tag": "0005_saas_plan_change",
+      "breakpoints": true
     }
   ]
 }

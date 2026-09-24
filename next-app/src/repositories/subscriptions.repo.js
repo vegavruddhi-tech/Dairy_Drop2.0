@@ -147,6 +147,27 @@ export async function retirePlan(tx, actor, id) {
   return updatePlan(tx, actor, { id, patch: { isActive: false } });
 }
 
+/**
+ * Remove a plan outright.
+ *
+ * Safe for history because every enrolment snapshots its terms and every
+ * delivery its price; `milk_subscriptions.plan_id` is `ON DELETE SET NULL`,
+ * so old bills still add up. The service ends anyone still on the plan first —
+ * a live subscription with no plan behind it would keep generating deliveries.
+ */
+export async function deletePlan(tx, actor, id) {
+  const [row] = await tx
+    .delete(milkPlans)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.MILK_PLAN_MANAGE, columns: planScope },
+        eq(milkPlans.id, id),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 // ── Subscriptions ────────────────────────────────────────────────────────────
 
 /** Current versions for one customer. */

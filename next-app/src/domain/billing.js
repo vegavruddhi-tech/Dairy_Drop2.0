@@ -312,3 +312,44 @@ export function computeEarnings({ deliveries = [], purchases = [], payments = []
     purchaseCount: purchases.filter((p) => !VOID_PURCHASE_STATUSES.has(p.status)).length,
   };
 }
+
+/**
+ * The same figures as `computeEarnings`, split per customer.
+ *
+ * Every row must carry a `customerId`. The arithmetic is `computeEarnings`
+ * applied to each customer's own rows, so the per-customer lines sum to the
+ * month's totals exactly — there is no second formula to drift.
+ *
+ * Also carries `milkMilli`, the litres actually delivered, because "₹372 of
+ * milk" means little on a round without "12.4 L" beside it.
+ *
+ * @returns {Array<{customerId: string, milkMilli: number} & ReturnType<typeof computeEarnings>>}
+ *   sorted by billed amount, largest first
+ */
+export function computeEarningsByCustomer({ deliveries = [], purchases = [], payments = [] }) {
+  const groups = new Map();
+  const group = (customerId) => {
+    let entry = groups.get(customerId);
+    if (!entry) {
+      entry = { deliveries: [], purchases: [], payments: [] };
+      groups.set(customerId, entry);
+    }
+    return entry;
+  };
+
+  for (const row of deliveries) group(row.customerId).deliveries.push(row);
+  for (const row of purchases) group(row.customerId).purchases.push(row);
+  for (const row of payments) group(row.customerId).payments.push(row);
+
+  return [...groups]
+    .map(([customerId, rows]) => ({
+      customerId,
+      ...computeEarnings(rows),
+      milkMilli: sum(
+        rows.deliveries
+          .filter((d) => d.status === 'DELIVERED')
+          .map((d) => toMilli(d.deliveredQuantity ?? 0)),
+      ),
+    }))
+    .sort((a, b) => b.billedPaise - a.billedPaise);
+}

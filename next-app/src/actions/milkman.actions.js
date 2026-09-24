@@ -103,6 +103,13 @@ const retireMilkPlanAction = defineAction({
   revalidate: ['/milkman/plans', '/milkman/customers', '/milkman/round', '/milkman'],
 });
 
+const deleteMilkPlanAction = defineAction({
+  authorize: paid,
+  schema: V.idSchema,
+  handler: ({ actor, input }) => subscriptionService.deletePlan(actor, { planId: input.id }),
+  revalidate: ['/milkman/plans', '/milkman/customers', '/milkman/round', '/milkman'],
+});
+
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
 const saveProductAction = defineAction({
@@ -258,6 +265,10 @@ export async function saveMilkPlan(input) {
 
 export async function retireMilkPlan(input) {
   return retireMilkPlanAction(input);
+}
+
+export async function deleteMilkPlan(input) {
+  return deleteMilkPlanAction(input);
 }
 
 export async function saveProduct(input) {

@@ -63,6 +63,35 @@ export function PageHeader({ title, description, action }) {
 }
 
 /**
+ * Eyebrow heading with a count chip, for the sections of a list page.
+ * `tone` colours the chip: 'positive' for done, 'caution' for waiting,
+ * anything else brand blue.
+ */
+export function SectionHeading({ id, count, tone = 'brand', action, children }) {
+  const chip =
+    tone === 'positive'
+      ? 'bg-positive-soft text-positive'
+      : tone === 'caution'
+        ? 'bg-caution-soft text-caution'
+        : tone === 'neutral'
+          ? 'bg-surface-muted text-ink-muted'
+          : 'bg-brand-soft text-brand';
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <h2 id={id} className="text-xs font-bold uppercase tracking-wider text-ink-subtle">
+        {children}
+      </h2>
+      {count != null ? (
+        <span className={cn('tnum inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold', chip)}>
+          {count}
+        </span>
+      ) : null}
+      {action ? <div className="ml-auto">{action}</div> : null}
+    </div>
+  );
+}
+
+/**
  * The dashboard banner from the original apps: a deep emerald→teal→slate
  * gradient with two blurred glow orbs behind it, a live date pill, the
  * time-of-day greeting, and an optional shortcut on the right.

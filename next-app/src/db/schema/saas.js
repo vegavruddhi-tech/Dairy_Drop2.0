@@ -104,10 +104,18 @@ export const saasSubscriptions = pgTable(
      * At most one live subscription per milkman. The old system could hold
      * several and picked one by `ORDER BY created_at DESC LIMIT 1`, which meant
      * the answer to "is this milkman paid up" depended on insertion order.
+     *
+     * A payment awaiting verification is *not* live: it may sit beside the
+     * live row, which is how a plan change works — the current plan keeps
+     * running until an administrator confirms the new one.
      */
     oneLivePerMilkman: uniqueIndex('saas_subs_one_live_per_milkman')
       .on(t.milkmanId)
-      .where(sql`status in ('TRIAL','ACTIVE','PENDING_VERIFICATION')`),
+      .where(sql`status in ('TRIAL','ACTIVE')`),
+    /** ...and at most one payment in the queue at a time. */
+    onePendingPerMilkman: uniqueIndex('saas_subs_one_pending_per_milkman')
+      .on(t.milkmanId)
+      .where(sql`status = 'PENDING_VERIFICATION'`),
     /** A milkman gets exactly one trial, ever. */
     oneTrialPerMilkman: uniqueIndex('saas_subs_one_trial_per_milkman')
       .on(t.milkmanId)

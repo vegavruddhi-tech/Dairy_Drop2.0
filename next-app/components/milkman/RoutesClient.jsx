@@ -1,224 +1,354 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardBody, CardHeader, EmptyState } from '@/components/ui/index.jsx';
-import { Button, Input } from '@/components/ui/interactive.jsx';
+import { cn, Badge, EmptyState, Stat, SectionHeading } from '@/components/ui/index.jsx';
+import { Button, Input, Modal } from '@/components/ui/interactive.jsx';
+import { RoutesIcon, MapPinIcon, UsersIcon, TrashIcon, PlusIcon, CheckIcon } from '@/components/ui/Icons.jsx';
 import { addServiceArea, deleteServiceArea } from '@/actions/milkman.actions.js';
 
 /**
- * Modern Delivery Routes & Service Area Manager for Milkman Panel.
- * Allows adding, managing, and removing delivery sectors and pincodes.
+ * The delivery routes page: where the milkman delivers, in walking order.
+ *
+ * Adding and removing go through modals rather than an inline form and a
+ * browser `confirm()`, so the list never jumps and a mis-tap on the bin has
+ * one more step before a sector disappears from sign-ups.
+ *
+ * @param {object} props
+ * @param {Array}  props.initialAreas
+ * @param {Record<string, number>} [props.customerCounts] customers per pincode
  */
-export function RoutesManager({ initialAreas = [] }) {
+export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
   const [areas, setAreas] = useState(initialAreas);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState(null); // the area awaiting confirmation
   const [pending, startTransition] = useTransition();
 
-  async function handleAddArea(event) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const data = {
-      areaName: formData.get('areaName'),
-      pincode: formData.get('pincode'),
-      city: formData.get('city') || 'Gurgaon',
-      state: formData.get('state') || 'Haryana',
-      routeSequence: Number(formData.get('routeSequence')) || 0,
-    };
+  const sorted = [...areas].sort(
+    (a, b) => (a.routeSequence ?? 0) - (b.routeSequence ?? 0) || a.areaName.localeCompare(b.areaName),
+  );
+  const pincodes = new Set(sorted.map((area) => area.pincode));
+  const covered = [...pincodes].reduce((total, pincode) => total + (customerCounts[pincode] ?? 0), 0);
 
+  function handleAdd(data) {
     startTransition(async () => {
       const res = await addServiceArea(data);
       if (res.ok) {
-        toast.success(`Route ${data.areaName} (${data.pincode}) added successfully!`);
-        setShowAddModal(false);
-        // Refresh local state
-        setAreas((prev) => [...prev, res.data || data]);
+        toast.success(`${data.areaName} (${data.pincode}) added.`);
+        setAdding(false);
+        setAreas((prev) => [...prev, res.data ?? data]);
       } else {
-        toast.error(res.message || 'Could not add service area.');
+        toast.error(res.message ?? 'Could not add that route.');
       }
     });
   }
 
-  async function handleDeleteArea(id, name) {
-    if (!confirm(`Are you sure you want to remove ${name} from your delivery routes?`)) return;
-
+  function handleRemove(area) {
     startTransition(async () => {
-      const res = await deleteServiceArea({ id });
+      const res = await deleteServiceArea({ id: area.id });
       if (res.ok) {
-        toast.success(`Route ${name} removed.`);
-        setAreas((prev) => prev.filter((a) => a.id !== id));
+        toast.success(`${area.areaName} removed.`);
+        setAreas((prev) => prev.filter((a) => a.id !== area.id));
+        setRemoving(null);
       } else {
-        toast.error(res.message || 'Could not remove route.');
+        toast.error(res.message ?? 'Could not remove that route.');
       }
     });
   }
 
   return (
-    <div className="space-y-6">
-      {/* Top Action Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-            Delivery Routes & Sectors
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-600">
-            Configure the sectors, societies, and pincodes where you deliver morning milk.
-          </p>
-        </div>
+    <>
+      {/* ── Banner ────────────────────────────────────────────────────── */}
+      <section className="relative mb-5 overflow-hidden rounded-3xl bg-hero-blue p-5 text-white shadow-hero sm:p-6">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-14 -top-14 h-48 w-48 rounded-full bg-white/15 blur-2xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-sky-300/25 blur-2xl" />
 
-        <Button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 font-semibold shadow-md shadow-blue-600/20"
-        >
-          <span>+ Add New Route</span>
-        </Button>
+        <div className="relative z-10 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-md">
+              Coverage
+            </span>
+            <h1 className="mt-3 font-heading text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
+              Delivery routes
+            </h1>
+            <p className="mt-1 text-sm font-medium text-white/85">
+              {sorted.length === 0
+                ? 'Add the sectors you deliver to so households nearby can find you.'
+                : `${sorted.length} ${sorted.length === 1 ? 'sector' : 'sectors'} across ${pincodes.size} ${pincodes.size === 1 ? 'pincode' : 'pincodes'}, walked in this order.`}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="tap flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3.5 text-xs font-bold backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Add route
+          </button>
+        </div>
+      </section>
+
+      {/* ── Tiles ─────────────────────────────────────────────────────── */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Stat label="Sectors" value={sorted.length} icon={<RoutesIcon className="h-5 w-5" />} tone="brand" />
+        <Stat label="Pincodes" value={pincodes.size} icon={<MapPinIcon className="h-5 w-5" />} tone="info" />
+        <div className="col-span-2 sm:col-span-1">
+          <Stat
+            label="Customers covered"
+            value={covered}
+            icon={<UsersIcon className="h-5 w-5" />}
+            tone="positive"
+            hint="With an address in these pincodes"
+          />
+        </div>
       </div>
 
-      {/* Add Route Card / Form */}
-      {showAddModal && (
-        <Card className="border-2 border-blue-200 bg-white p-6 shadow-xl shadow-blue-500/5 animate-scale-in rounded-3xl">
-          <CardHeader
-            title="Add Delivery Sector / Area"
-            description="Customers in this sector and pincode will be able to discover your dairy and subscribe."
-            action={
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="text-xs font-bold text-slate-400 hover:text-slate-700"
-              >
-                ✕ Close
-              </button>
-            }
-          />
-          <CardBody className="pt-4">
-            <form onSubmit={handleAddArea} className="grid gap-4 sm:grid-cols-2">
-              <Input
-                name="areaName"
-                label="Sector / Society / Area Name"
-                placeholder="e.g. Sector 59, Sector 79, Palm Heights"
-                required
-                autoFocus
-              />
-
-              <Input
-                name="pincode"
-                label="Pincode (6-Digit)"
-                inputMode="numeric"
-                maxLength={6}
-                pattern="\d{6}"
-                placeholder="e.g. 122001"
-                required
-              />
-
-              <Input
-                name="city"
-                label="City"
-                defaultValue="Gurgaon"
-                placeholder="City name"
-                required
-              />
-
-              <Input
-                name="state"
-                label="State"
-                defaultValue="Haryana"
-                placeholder="State name"
-                required
-              />
-
-              <div className="sm:col-span-2">
-                <Input
-                  name="routeSequence"
-                  type="number"
-                  label="Morning Route Sequence (Order you visit this sector)"
-                  defaultValue="1"
-                  min="0"
-                  hint="Lower number means delivered earlier in the morning round."
-                />
-              </div>
-
-              <div className="sm:col-span-2 flex items-center justify-end gap-3 pt-2">
-                <Button variant="outline" type="button" onClick={() => setShowAddModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={pending} className="bg-blue-600 hover:bg-blue-700 font-semibold">
-                  Save Delivery Route →
-                </Button>
-              </div>
-            </form>
-          </CardBody>
-        </Card>
-      )}
-
-      {/* Routes Grid / List */}
-      {areas.length === 0 ? (
+      {/* ── The walk ──────────────────────────────────────────────────── */}
+      {sorted.length === 0 ? (
         <EmptyState
-          icon={
-            <svg className="h-10 w-10 text-slate-400 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-            </svg>
-          }
-          title="No delivery routes added yet"
-          description="Add your first delivery sector (e.g. Sector 59 or Sector 79) and pincode so households can find your dairy."
+          icon={<RoutesIcon className="h-8 w-8 text-brand" />}
+          title="No routes yet"
+          description="Add your first sector and its pincode. Customers who sign up there will see your dairy and can subscribe."
+          tip="Give each sector a route number in the order you ride it — the morning round is sorted by it."
           action={
-            <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700">
-              Add First Route
+            <Button onClick={() => setAdding(true)}>
+              <PlusIcon className="h-4 w-4" />
+              Add first route
             </Button>
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {areas.map((area, idx) => (
-            <Card
-              key={area.id || idx}
-              className="border border-slate-200 bg-white shadow-sm hover:border-blue-400 transition-all rounded-2xl overflow-hidden"
-            >
-              <CardBody className="p-5 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
-                      Stop #{area.routeSequence || idx + 1}
-                    </span>
-                    <h3 className="font-heading text-lg font-bold text-slate-900 mt-1">
-                      {area.areaName}
-                    </h3>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteArea(area.id, area.areaName)}
-                    className="text-slate-400 hover:text-red-600 p-1 transition-colors"
-                    title="Remove Route"
-                  >
-                    <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="space-y-1 text-xs text-slate-600 border-t border-slate-100 pt-3">
-                  <div className="flex justify-between">
-                    <span>Pincode:</span>
-                    <span className="font-mono font-bold text-slate-900">{area.pincode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Region:</span>
-                    <span className="font-semibold text-slate-800">{area.city}, {area.state}</span>
-                  </div>
-                  <div className="flex justify-between text-blue-600 font-semibold pt-1">
-                    <span>Status:</span>
-                    <span className="flex items-center gap-1 text-emerald-600">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                      Active for Discovery
-                    </span>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          ))}
-        </div>
+        <section aria-labelledby="routes-heading">
+          <SectionHeading id="routes-heading" count={sorted.length}>
+            In walking order
+          </SectionHeading>
+          <ol className="grid gap-3 sm:grid-cols-2">
+            {sorted.map((area, index) => (
+              <RouteCard
+                key={area.id ?? `${area.areaName}-${area.pincode}`}
+                area={area}
+                position={index + 1}
+                customers={customerCounts[area.pincode] ?? 0}
+                onRemove={() => setRemoving(area)}
+              />
+            ))}
+          </ol>
+        </section>
       )}
-    </div>
+
+      <AddRouteModal
+        open={adding}
+        onClose={() => setAdding(false)}
+        pending={pending}
+        nextSequence={sorted.length ? Math.max(...sorted.map((a) => a.routeSequence ?? 0)) + 1 : 1}
+        onSubmit={handleAdd}
+      />
+
+      {/* ── Remove, with one more step than a bin icon ────────────────── */}
+      <Modal
+        open={Boolean(removing)}
+        onClose={() => setRemoving(null)}
+        title={removing ? `Remove ${removing.areaName}?` : ''}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>Keep it</Button>
+            <Button variant="danger" loading={pending} onClick={() => removing && handleRemove(removing)}>
+              Remove route
+            </Button>
+          </>
+        }
+      >
+        {removing ? (
+          <div className="space-y-3 text-sm text-ink-muted">
+            <p>
+              New customers in <span className="font-bold text-ink">{removing.pincode}</span> will no longer
+              find your dairy under <span className="font-bold text-ink">{removing.areaName}</span>.
+            </p>
+            {(customerCounts[removing.pincode] ?? 0) > 0 ? (
+              <p className="rounded-xl border border-caution/25 bg-caution-soft px-3 py-2 text-xs font-semibold text-caution">
+                {customerCounts[removing.pincode]} existing{' '}
+                {customerCounts[removing.pincode] === 1 ? 'customer lives' : 'customers live'} in this pincode.
+                Their plans and deliveries are not affected.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </Modal>
+    </>
+  );
+}
+
+/** One sector on the walk. */
+function RouteCard({ area, position, customers, onRemove }) {
+  return (
+    <li className="card-surface flex items-start gap-3 p-4 transition-shadow hover:shadow-card-hover sm:p-5">
+      {/* The stop number, as a numbered tile: this is a list you walk. */}
+      <span
+        aria-label={`Stop ${position}`}
+        className="stat-number flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-hero-gradient text-base text-brand-ink shadow-sm shadow-brand/25"
+      >
+        {position}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 className="font-heading text-base font-extrabold tracking-tight text-ink">{area.areaName}</h3>
+          <span className="tnum rounded-md border border-border bg-surface-muted px-1.5 py-0.5 font-numeric text-[11px] font-bold text-ink-muted">
+            {area.pincode}
+          </span>
+        </div>
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-ink-muted">
+          <MapPinIcon className="h-4 w-4 shrink-0 text-ink-subtle" />
+          {[area.city, area.state].filter(Boolean).join(', ')}
+        </p>
+        <div className="mt-2.5 flex flex-wrap items-center gap-2">
+          <Badge tone="positive" dot>Live for sign-ups</Badge>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink-muted">
+            <UsersIcon className="h-3.5 w-3.5 text-ink-subtle" />
+            {customers} {customers === 1 ? 'customer' : 'customers'}
+          </span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${area.areaName}`}
+        title="Remove route"
+        className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-subtle shadow-xs transition-colors hover:border-critical/40 hover:bg-critical-soft hover:text-critical"
+      >
+        <TrashIcon className="h-4 w-4" />
+      </button>
+    </li>
+  );
+}
+
+/**
+ * The add form. Typing a six-digit pincode fills city and state from the
+ * postal lookup, the same way the customer address editor does.
+ */
+function AddRouteModal({ open, onClose, pending, nextSequence, onSubmit }) {
+  const [pincode, setPincode] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [looking, setLooking] = useState(false);
+
+  // Reset when the sheet closes so the next open starts clean.
+  useEffect(() => {
+    if (open) return;
+    setPincode('');
+    setCity('');
+    setState('');
+    setSuggestions([]);
+    setLooking(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!/^\d{6}$/.test(pincode)) {
+      setSuggestions([]);
+      return undefined;
+    }
+    let active = true;
+    setLooking(true);
+    fetch(`/api/pincode?pincode=${pincode}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        if (data?.ok) {
+          if (data.city) setCity(data.city);
+          if (data.state) setState(data.state);
+          setSuggestions(Array.isArray(data.areas) ? data.areas : []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => active && setLooking(false));
+    return () => {
+      active = false;
+    };
+  }, [pincode]);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Add a delivery route"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button form="route-form" type="submit" loading={pending}>
+            {pending ? null : <CheckIcon className="h-4 w-4" />}
+            Save route
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="route-form"
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          onSubmit({
+            areaName: String(form.get('areaName') ?? '').trim(),
+            pincode: String(form.get('pincode') ?? '').trim(),
+            city: String(form.get('city') ?? '').trim(),
+            state: String(form.get('state') ?? '').trim(),
+            routeSequence: Number(form.get('routeSequence')) || 0,
+          });
+        }}
+      >
+        <p className="text-sm text-ink-muted">
+          Customers who sign up in this sector and pincode will see your dairy.
+        </p>
+
+        <Input
+          name="pincode"
+          label="Pincode"
+          inputMode="numeric"
+          maxLength={6}
+          pattern="\d{6}"
+          placeholder="6 digits, e.g. 122001"
+          required
+          autoFocus
+          value={pincode}
+          onChange={(event) => setPincode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+          hint={looking ? 'Looking up city and state…' : city ? `${city}, ${state}` : undefined}
+        />
+
+        <div>
+          <Input
+            name="areaName"
+            label="Sector / society / area"
+            placeholder="e.g. Sector 59, Palm Heights"
+            required
+            list="route-area-suggestions"
+          />
+          {suggestions.length > 0 ? (
+            <datalist id="route-area-suggestions">
+              {suggestions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Input name="city" label="City" required value={city} onChange={(event) => setCity(event.target.value)} />
+          <Input name="state" label="State" required value={state} onChange={(event) => setState(event.target.value)} />
+        </div>
+
+        <Input
+          name="routeSequence"
+          type="number"
+          label="Stop number on your round"
+          defaultValue={nextSequence}
+          min="0"
+          hint="Lower numbers are delivered first."
+        />
+      </form>
+    </Modal>
   );
 }
