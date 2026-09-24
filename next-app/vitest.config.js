@@ -54,5 +54,9 @@ export default defineConfig({
      * latency.
      */
     testTimeout: 60_000,
+    // Setup hooks build fixtures — a customer, plans, a subscription, a day of
+    // deliveries — so they make more round trips than the test that follows.
+    // The 10s default is well under that against a remote database.
+    hookTimeout: 60_000,
   },
 });

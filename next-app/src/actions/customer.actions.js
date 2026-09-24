@@ -184,6 +184,23 @@ const quickApproveCustomerAction = defineAction({
 });
 
 /**
+ * Step off a retired plan onto one still on offer.
+ *
+ * Role-only guard for the same reason as registration: the customer is not
+ * changing anything they need approval for, they are escaping a plan that was
+ * withdrawn from under them. The service refuses unless it really was.
+ */
+const switchFromRetiredPlanAction = defineAction({
+  authorize: async (options) => {
+    const { requireRole, ROLES } = await import('@/auth/session.js');
+    return requireRole(ROLES.CUSTOMER, options);
+  },
+  schema: V.switchRetiredSchema,
+  handler: ({ actor, input }) => subscriptionService.switchFromRetiredPlan(actor, input),
+  revalidate: ['/subscriptions', '/dashboard', '/calendar'],
+});
+
+/**
  * Exported Server Actions.
  *
  * Next requires every export of a 'use server' module to be a literal async
@@ -237,6 +254,10 @@ export async function registerWithMilkman(input) {
 
 export async function applyToBecomeMilkman(input) {
   return applyToBecomeMilkmanAction(input);
+}
+
+export async function switchFromRetiredPlan(input) {
+  return switchFromRetiredPlanAction(input);
 }
 
 export async function setVacation(input) {

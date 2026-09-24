@@ -318,6 +318,12 @@ export const quantityRequestSchema = z.object({
   note: z.string().trim().max(300).optional().or(z.literal('')),
 });
 
+/** Stepping off a plan the milkman has withdrawn. */
+export const switchRetiredSchema = z.object({
+  rootId: uuid,
+  planId: uuid,
+});
+
 export const planChangeRequestSchema = z.object({
   rootId: uuid,
   planId: uuid,

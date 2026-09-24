@@ -12,7 +12,7 @@
  */
 
 import { toPaise, toMilli, roundHalfUp } from './money.js';
-import { daysInMonth, dayOfWeek, dayOfMonth, daysBetween } from './dates.js';
+import { daysInMonth, dayOfWeek, dayOfMonth, daysBetween, isClockTime, businessClockNow } from './dates.js';
 
 /**
  * Resolve a plan's rate into a **unit price** — ₹ per unit per delivery, carried
@@ -166,6 +166,36 @@ export function slotsOccupied(slot) {
  */
 export function productKey(name) {
   return String(name ?? '').trim().toLowerCase();
+}
+
+/** When a plan's round reaches the door for one slot, or null if unset. */
+export function windowStartFor(plan, slot) {
+  const start = slot === 'MORNING' ? plan?.morningStart : plan?.eveningStart;
+  // Postgres hands back 'HH:MM:SS'; compare on 'HH:MM'.
+  return isClockTime(start) ? String(start).slice(0, 5) : null;
+}
+
+/**
+ * The slots of `plan` whose round has not set off yet today.
+ *
+ * This is what decides whether a change can land today or has to wait. A
+ * customer switching at five in the morning should get the new terms with that
+ * morning's milk; one switching at eleven cannot, because the milkman has been
+ * and gone. A blanket "always tomorrow" got the second case right and the first
+ * one wrong.
+ *
+ * A plan with no window set returns nothing — without a time there is no way to
+ * know whether the round has passed, and waiting until tomorrow is the answer
+ * that cannot be wrong.
+ *
+ * @param {object} plan  carries `slot` and the window columns
+ * @param {string} [now] 'HH:MM' in business time; defaults to the clock
+ */
+export function slotsStillAheadToday(plan, now = businessClockNow()) {
+  return slotsOccupied(plan.slot).filter((slot) => {
+    const start = windowStartFor(plan, slot);
+    return start !== null && now < start;
+  });
 }
 
 /**

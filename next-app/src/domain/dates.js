@@ -239,6 +239,16 @@ export function formatClockTime(value) {
 }
 
 /**
+ * The wall-clock time right now in the business timezone, as 'HH:MM'.
+ *
+ * Comparable against a stored window with a plain string compare, which is why
+ * both are zero-padded 24-hour.
+ */
+export function businessClockNow(instant = new Date()) {
+  return formatInTimeZone(instant, TIMEZONE, 'HH:mm');
+}
+
+/**
  * A delivery window, as the customer reads it: '6:00 – 7:30 am'.
  *
  * The meridiem is printed once when both ends share it, which is the common

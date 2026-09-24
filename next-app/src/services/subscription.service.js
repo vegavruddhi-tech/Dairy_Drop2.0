@@ -9,7 +9,13 @@ import { eq } from 'drizzle-orm';
 import { db, transaction } from '@/db/index.js';
 import { milkSubscriptions } from '@/db/schema/index.js';
 import { businessDate, businessMonth, addDays } from '@/domain/dates.js';
-import { resolveUnitPrice, quotedMonthlyPaise, clashingSlots, slotLabel } from '@/domain/pricing.js';
+import {
+  resolveUnitPrice,
+  quotedMonthlyPaise,
+  clashingSlots,
+  slotLabel,
+  slotsStillAheadToday,
+} from '@/domain/pricing.js';
 import { paiseToDecimal } from '@/domain/money.js';
 import { NotFoundError, ConflictError, ValidationError } from '@/domain/errors.js';
 
@@ -277,6 +283,47 @@ export async function cancel(actor, { rootId, reason }) {
 }
 
 /**
+ * Move off a plan the milkman has withdrawn, without asking permission.
+ *
+ * A customer on a retired plan is stuck: their subscription still holds its
+ * delivery time, so every plan on offer reads "already on this", and the only
+ * ways out are cancelling milk altogether or waiting on a change request the
+ * milkman has to approve. They did not choose to be there — the plan was taken
+ * out of the catalog underneath them — so this lets them step across on their
+ * own.
+ *
+ * Deliberately narrow: it refuses unless the plan they are leaving really has
+ * been retired. An ordinary plan change still goes through the milkman, which
+ * is what keeps a customer from silently repricing themselves.
+ */
+export async function switchFromRetiredPlan(actor, { rootId, planId }) {
+  const current = await subscriptionsRepo.findCurrentByRoot(actor, rootId);
+  if (!current) throw new NotFoundError('That subscription');
+  if (current.status !== 'ACTIVE' && current.status !== 'PAUSED') {
+    throw new ConflictError('That subscription is not running.');
+  }
+
+  const leaving = current.planId
+    ? await subscriptionsRepo.findPlan(actor, current.planId)
+    : null;
+  if (leaving?.isActive !== false) {
+    throw new ConflictError(
+      'That plan is still offered, so a change has to go through your milkman.',
+    );
+  }
+
+  const target = await subscriptionsRepo.findPlan(actor, planId);
+  if (!target || !target.isActive) throw new NotFoundError('That plan');
+
+  // Everything else the customer holds still has to fit around the new slot.
+  const others = (await subscriptionsRepo.listCurrentForCustomer(actor, actor.userId))
+    .filter((s) => s.rootId !== rootId);
+  assertSlotIsFree(others, { slot: target.slot, productName: target.productName });
+
+  return transaction((tx) => applyPlanChange(tx, actor, { rootId, plan: target }));
+}
+
+/**
  * Retire a plan and end every subscription on it.
  *
  * Retiring used to be a catalog action only: the plan stopped being offered and
@@ -358,7 +405,27 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
   if (!currentVersion) throw new NotFoundError('That subscription');
 
   const today = businessDate();
-  const effectiveFrom = addDays(today, 1);
+
+  /*
+   * When the new terms start, decided by the round rather than by the calendar.
+   *
+   * A change used to always begin tomorrow, so that a customer could not alter
+   * a round the milkman was already out delivering. Right for the milkman, but
+   * wrong for anyone changing before dawn: they waited a whole extra day for
+   * milk that had not been loaded yet.
+   *
+   * So it now turns on the delivery window. If a slot's round has not set off,
+   * the change reaches it today; if it has, that slot waits until tomorrow.
+   *
+   * The same-day path needs the outgoing version closed *yesterday*, or the two
+   * would both be in force today. When the current version itself started
+   * today there is no yesterday to close it at, so that case keeps the old
+   * behaviour — rare, and safe.
+   */
+  const aheadToday = slotsStillAheadToday({ ...plan, slot: overrides.slot ?? plan.slot });
+  const startsToday = aheadToday.length > 0 && currentVersion.effectiveFrom < today;
+
+  const effectiveFrom = startsToday ? today : addDays(today, 1);
   const month = effectiveFrom.slice(0, 7);
 
   const quantity = overrides.quantity ?? plan.quantity;
@@ -422,10 +489,11 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
     return amended;
   }
 
-  // Close the outgoing version at the end of today.
+  // Close the outgoing version the day before the new one opens, so the two
+  // never overlap.
   await subscriptionsRepo.closeVersion(tx, {
     id: currentVersion.id,
-    effectiveTo: today,
+    effectiveTo: startsToday ? addDays(today, -1) : today,
     status: 'SUPERSEDED',
   });
 
@@ -443,10 +511,57 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
 
   // Withdraw scheduled days that belong to the old terms; the generator will
   // recreate them from the new version.
+  // Tomorrow onward is withdrawn either way; the nightly generator rebuilds it
+  // from the new version. Today is handled below, because it may already have
+  // a row that must not be duplicated.
   await deliveriesRepo.cancelFrom(tx, {
     subscriptionRootId: rootId,
-    fromDate: effectiveFrom,
+    fromDate: addDays(today, 1),
   });
+
+  /*
+   * Today's deliveries, when today is included.
+   *
+   * The generator will not run again until tomorrow, so a change taking effect
+   * now has to see to its own day. An existing undelivered row is *retargeted*
+   * rather than cancelled and replaced: the unique index covers (root, date,
+   * slot), so a cancelled row would block the replacement and the day would go
+   * blank. Only slots whose round has not set off — one already delivered stays
+   * exactly as it was.
+   */
+  if (startsToday) {
+    for (const slot of aheadToday) {
+      const terms = {
+        subscriptionVersionId: next.id,
+        productName: next.productName,
+        unit: next.unit,
+        plannedQuantity: next.quantity,
+        unitPrice: next.unitPrice,
+      };
+
+      const retargeted = await deliveriesRepo.retargetPending(tx, {
+        subscriptionRootId: rootId,
+        date: today,
+        slot,
+        patch: terms,
+      });
+
+      // No row for that slot yet — the old plan did not cover it.
+      if (!retargeted) {
+        await deliveriesRepo.insertGenerated(tx, [
+          {
+            subscriptionRootId: rootId,
+            customerId: next.customerId,
+            milkmanId: next.milkmanId,
+            deliveryDate: today,
+            slot,
+            status: 'PENDING',
+            ...terms,
+          },
+        ]);
+      }
+    }
+  }
 
   return next;
 }

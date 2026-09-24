@@ -58,9 +58,18 @@ export default async function SubscriptionsPage() {
     const wanted = { slot: plan.slot, productName: plan.productName };
     const clashes = clashingSlots(holding, wanted);
     if (clashes.length === 0) continue;
+    /*
+     * If the only thing in the way is a plan the milkman has withdrawn, the
+     * customer may step across on their own — they did not choose to be
+     * stranded on it.
+     */
+    const blocker = holding.find((s) => clashingSlots([s], wanted).length > 0);
+    const strandedOn = blocker && !onOffer.has(blocker.planId) ? blocker.rootId : null;
+
     blockedByPlan.set(plan.id, {
       times: clashes.map(slotLabel).join(' and '),
       productName: plan.productName,
+      switchFrom: strandedOn,
     });
   }
 

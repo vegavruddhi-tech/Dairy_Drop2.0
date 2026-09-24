@@ -76,6 +76,20 @@ suite('subscribing alongside what you already have', () => {
     return id;
   }
 
+  /*
+   * A fresh customer per test.
+   *
+   * The app caps a customer at two active plans, so a suite that shares one
+   * runs out of room before it has finished exercising the slot rule — and
+   * fails on the cap rather than on the thing under test.
+   */
+  const made = [];
+  async function freshCustomer(label) {
+    const created = await createTestCustomer(db, sql, milkmanId, label);
+    made.push(created.id);
+    return { fixture: created, actor: customerActor(created, milkmanId, roles) };
+  }
+
   beforeAll(async () => {
     ({ db } = await import('@/db/index.js'));
     ({ sql } = await import('drizzle-orm'));
@@ -88,12 +102,13 @@ suite('subscribing alongside what you already have', () => {
     if (!milkmanId) return;
 
     fixture = await createTestCustomer(db, sql, milkmanId, 'conflict');
+    made.push(fixture.id);
     actor = customerActor(fixture, milkmanId, roles);
   });
 
   afterAll(async () => {
     if (!db) return;
-    await removeTestCustomer(db, sql, fixture?.id);
+    for (const id of made) await removeTestCustomer(db, sql, id);
     for (const id of planIds) {
       await db.execute(sql`delete from "app".milk_plans where id = ${id}`);
     }
@@ -112,7 +127,10 @@ suite('subscribing alongside what you already have', () => {
 
   it('allows the same product at a different time', async () => {
     if (!milkmanId) return;
-    const created = await subscriptions.subscribe(actor, {
+    const { actor: mine } = await freshCustomer('same-product');
+    await subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'goat milk') });
+
+    const created = await subscriptions.subscribe(mine, {
       planId: await makePlan('EVENING', 'goat milk'),
     });
     expect(created.slot).toBe('EVENING');
@@ -120,16 +138,22 @@ suite('subscribing alongside what you already have', () => {
 
   it('refuses the same product at a time it already arrives', async () => {
     if (!milkmanId) return;
+    const { actor: mine } = await freshCustomer('same-slot');
+    await subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'cow milk') });
+
     await expect(
-      subscriptions.subscribe(actor, { planId: await makePlan('MORNING', 'cow milk') }),
+      subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'cow milk') }),
     ).rejects.toThrow(/already get cow milk in the morning/i);
   });
 
   it('refuses a both-slot plan when that product already has one of the times', async () => {
     if (!milkmanId) return;
+    const { actor: mine } = await freshCustomer('both-slot');
+    await subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'cow milk') });
+
     // Cow milk is already a morning delivery; BOTH needs morning as well.
     await expect(
-      subscriptions.subscribe(actor, { planId: await makePlan('BOTH', 'cow milk') }),
+      subscriptions.subscribe(mine, { planId: await makePlan('BOTH', 'cow milk') }),
     ).rejects.toThrow(/already get cow milk in the morning/i);
   });
 

@@ -277,6 +277,33 @@ export async function listLegacyBothRoots(tx, date) {
   return new Set(rows.map((row) => row.rootId));
 }
 
+/**
+ * Point an undelivered day at new terms, in place.
+ *
+ * A plan change that lands today cannot cancel the day and insert a fresh row:
+ * the unique index covers (root, date, slot) and the cancelled row still holds
+ * that key, so the insert is silently skipped and the customer's day goes
+ * blank. Nothing has been delivered under it, so there is no history to protect
+ * and editing it is honest.
+ *
+ * Restricted to PENDING, so a day already delivered is never rewritten.
+ */
+export async function retargetPending(tx, { subscriptionRootId, date, slot, patch }) {
+  const [row] = await tx
+    .update(deliveries)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(
+      and(
+        eq(deliveries.subscriptionRootId, subscriptionRootId),
+        eq(deliveries.deliveryDate, date),
+        eq(deliveries.slot, slot),
+        eq(deliveries.status, 'PENDING'),
+      ),
+    )
+    .returning({ id: deliveries.id });
+  return row ?? null;
+}
+
 export async function insertGenerated(tx, rows) {
   if (rows.length === 0) return [];
   return tx

@@ -13,6 +13,7 @@ import {
   resumeSubscription,
   cancelSubscription,
   requestPlanChange,
+  switchFromRetiredPlan,
 } from '@/actions/customer.actions.js';
 
 /** A plan the customer already holds, with its lifecycle actions. */
@@ -241,6 +242,37 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, m
                 ? `Subscribed at ₹${Number(subscribedRate).toFixed(2)}`
                 : 'Subscribed'}
             </Badge>
+          ) : blockedBy?.switchFrom ? (
+            <>
+              {/*
+                * Stranded, not blocked.
+                *
+                * The plan in the way has been withdrawn by the milkman, so
+                * every plan on offer read "already on this" and the only exits
+                * were cancelling their milk or waiting on an approval. They did
+                * not choose to be there, so they may step across on their own.
+                */}
+              <Button
+                className="w-full"
+                loading={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const result = await switchFromRetiredPlan({
+                      rootId: blockedBy.switchFrom,
+                      planId: plan.id,
+                    });
+                    if (result.ok) toast.success(`Switched to ${plan.name}. It starts tomorrow.`);
+                    else toast.error(result.message ?? 'Could not switch to that plan.');
+                  })
+                }
+              >
+                Switch to this
+              </Button>
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Your current plan is no longer offered. Switching starts this one
+                tomorrow; today stays on your old plan.
+              </p>
+            </>
           ) : blockedBy ? (
             <>
               <Button className="w-full" disabled>
