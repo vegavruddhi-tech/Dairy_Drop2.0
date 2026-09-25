@@ -1,26 +1,76 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
 import { Card, CardBody, EmptyState } from '@/components/ui/index.jsx';
 import { Button, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
 import { registerWithMilkman } from '@/actions/customer.actions.js';
+import { useFormDraft } from '@/lib/useFormDraft.js';
 
 /**
  * Modern High-Aesthetic Blue & White Customer Onboarding Wizard (English).
  * ZERO EMOJIS - Clean vector SVG icons only.
+ * Full form state persistence across login/signup redirects & refreshes.
  * 3-step setup: 1. Pincode -> 2. Select Dairy -> 3. Sector, Address & Milk Plans (Max 2 Plans).
  */
 export function RegisterFlow({ defaultName }) {
+  const {
+    draft,
+    saveDraft,
+    clearDraft,
+    isRestored,
+    isInitialized,
+  } = useFormDraft('dairydrop_draft_customer_register', {
+    step: 'pincode',
+    pincode: '',
+    result: null,
+    milkman: null,
+    selectedPlanIds: [],
+    name: defaultName || '',
+    phone: '',
+    area: '',
+    line1: '',
+    line2: '',
+    deliveryInstructions: '',
+  });
+
   const [step, setStep] = useState('pincode'); // 'pincode' | 'milkman' | 'details'
   const [pincode, setPincode] = useState('');
   const [result, setResult] = useState(null);
   const [milkman, setMilkman] = useState(null);
   const [selectedPlanIds, setSelectedPlanIds] = useState([]);
+  const [formData, setFormData] = useState({
+    name: defaultName || '',
+    phone: '',
+    area: '',
+    line1: '',
+    line2: '',
+    deliveryInstructions: '',
+  });
+
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
+
+  // Sync draft state to local states when loaded
+  useEffect(() => {
+    if (isInitialized && draft) {
+      if (draft.step) setStep(draft.step);
+      if (draft.pincode) setPincode(draft.pincode);
+      if (draft.result) setResult(draft.result);
+      if (draft.milkman) setMilkman(draft.milkman);
+      if (Array.isArray(draft.selectedPlanIds)) setSelectedPlanIds(draft.selectedPlanIds);
+      setFormData({
+        name: draft.name || defaultName || '',
+        phone: draft.phone || '',
+        area: draft.area || '',
+        line1: draft.line1 || '',
+        line2: draft.line2 || '',
+        deliveryInstructions: draft.deliveryInstructions || '',
+      });
+    }
+  }, [isInitialized]);
 
   async function lookup(event) {
     event.preventDefault();
@@ -35,38 +85,74 @@ export function RegisterFlow({ defaultName }) {
         return;
       }
 
-      setPincode(String(value));
+      const pCode = String(value);
+      setPincode(pCode);
       setResult(data);
       setStep('milkman');
+
+      saveDraft({
+        step: 'milkman',
+        pincode: pCode,
+        result: data,
+      });
+    });
+  }
+
+  function handleSelectDairy(option) {
+    setMilkman(option);
+    const initialPlans = option.plans?.length > 0 ? [option.plans[0].id] : [];
+    setSelectedPlanIds(initialPlans);
+    setStep('details');
+
+    saveDraft({
+      milkman: option,
+      selectedPlanIds: initialPlans,
+      step: 'details',
     });
   }
 
   function togglePlan(planId) {
     setSelectedPlanIds((prev) => {
+      let next;
       if (prev.includes(planId)) {
-        return prev.filter((id) => id !== planId);
+        next = prev.filter((id) => id !== planId);
+      } else {
+        if (prev.length >= 2) {
+          toast.error('You can select a maximum of 2 milk plans at a time.');
+          return prev;
+        }
+        next = [...prev, planId];
       }
-      if (prev.length >= 2) {
-        toast.error('You can select a maximum of 2 milk plans at a time.');
-        return prev;
-      }
-      return [...prev, planId];
+      saveDraft({ selectedPlanIds: next });
+      return next;
+    });
+  }
+
+  function handleInputChange(field, value) {
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      saveDraft({ [field]: value });
+      return updated;
     });
   }
 
   function submit(event) {
     event.preventDefault();
-    const data = Object.fromEntries(new FormData(event.currentTarget));
+    const currentData = {
+      ...formData,
+      ...Object.fromEntries(new FormData(event.currentTarget)),
+    };
 
     startTransition(async () => {
       const response = await registerWithMilkman({
-        ...data,
+        ...currentData,
         milkmanId: milkman.id,
         pincode,
         planIds: selectedPlanIds,
       });
 
       if (response.ok) {
+        clearDraft();
         toast.success('Registration request sent! Your milkman will approve your daily delivery.');
         window.location.href = '/pending';
       } else {
@@ -81,6 +167,41 @@ export function RegisterFlow({ defaultName }) {
 
   return (
     <div className="space-y-6">
+      {/* Draft Restored Pill Notice */}
+      {isRestored && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-blue-50/80 border border-blue-200 px-4 py-2.5 text-xs text-blue-900 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+            <span className="font-semibold">
+              Restored your saved registration form from previous session.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              clearDraft();
+              setStep('pincode');
+              setPincode('');
+              setResult(null);
+              setMilkman(null);
+              setSelectedPlanIds([]);
+              setFormData({
+                name: defaultName || '',
+                phone: '',
+                area: '',
+                line1: '',
+                line2: '',
+                deliveryInstructions: '',
+              });
+              toast.info('Form draft reset to start.');
+            }}
+            className="font-bold text-blue-700 hover:text-blue-800 underline shrink-0"
+          >
+            Start Over
+          </button>
+        </div>
+      )}
+
       {/* Blue & White Step Indicator Bar */}
       <div className="flex items-center justify-between gap-1.5 rounded-2xl bg-white p-2 border border-slate-200/90 shadow-sm">
         {[
@@ -139,6 +260,7 @@ export function RegisterFlow({ defaultName }) {
                   inputMode="numeric"
                   maxLength={6}
                   pattern="\d{6}"
+                  defaultValue={pincode}
                   placeholder="e.g. 122001 or 110001"
                   required
                   autoFocus
@@ -184,7 +306,13 @@ export function RegisterFlow({ defaultName }) {
               description="We are expanding to new sectors every week. You can try a neighbouring pincode or apply as a milkman to serve this area!"
               action={
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button variant="outline" onClick={() => setStep('pincode')}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setStep('pincode');
+                      saveDraft({ step: 'pincode' });
+                    }}
+                  >
                     Try Another Pincode
                   </Button>
                   <Link href="/become-a-milkman">
@@ -198,7 +326,10 @@ export function RegisterFlow({ defaultName }) {
               <header className="text-left">
                 <button
                   type="button"
-                  onClick={() => setStep('pincode')}
+                  onClick={() => {
+                    setStep('pincode');
+                    saveDraft({ step: 'pincode' });
+                  }}
                   className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors"
                 >
                   <span>←</span> Change pincode ({pincode})
@@ -241,14 +372,7 @@ export function RegisterFlow({ defaultName }) {
 
                       <Button
                         size="sm"
-                        onClick={() => {
-                          setMilkman(option);
-                          // Pre-select first plan if available
-                          if (option.plans?.length > 0) {
-                            setSelectedPlanIds([option.plans[0].id]);
-                          }
-                          setStep('details');
-                        }}
+                        onClick={() => handleSelectDairy(option)}
                         className="shrink-0 bg-blue-600 hover:bg-blue-700 font-semibold shadow-sm"
                       >
                         Choose Dairy →
@@ -278,7 +402,10 @@ export function RegisterFlow({ defaultName }) {
               <Button
                 variant="ghost"
                 className="w-full font-semibold"
-                onClick={() => setStep('pincode')}
+                onClick={() => {
+                  setStep('pincode');
+                  saveDraft({ step: 'pincode' });
+                }}
               >
                 Search Different Pincode
               </Button>
@@ -293,7 +420,10 @@ export function RegisterFlow({ defaultName }) {
           <header className="text-left">
             <button
               type="button"
-              onClick={() => setStep('milkman')}
+              onClick={() => {
+                setStep('milkman');
+                saveDraft({ step: 'milkman' });
+              }}
               className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors"
             >
               <span>←</span> Choose different dairy
@@ -327,7 +457,10 @@ export function RegisterFlow({ defaultName }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setStep('milkman')}
+                  onClick={() => {
+                    setStep('milkman');
+                    saveDraft({ step: 'milkman' });
+                  }}
                   className="text-xs font-bold text-blue-700 hover:underline"
                 >
                   Change
@@ -417,7 +550,8 @@ export function RegisterFlow({ defaultName }) {
                   <Input
                     name="name"
                     label="Your Full Name"
-                    defaultValue={defaultName}
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
                     error={errors.name}
                     placeholder="e.g. Rahul Sharma"
                     required
@@ -428,6 +562,8 @@ export function RegisterFlow({ defaultName }) {
                     label="Mobile Number (for Delivery Updates)"
                     inputMode="tel"
                     maxLength={10}
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
                     error={errors.phone}
                     placeholder="9876543210"
                     hint="Your milkman will use this number for delivery coordination."
@@ -448,6 +584,8 @@ export function RegisterFlow({ defaultName }) {
                           name="area"
                           label="Delivery Sector / Society"
                           options={options}
+                          value={formData.area || options[0].value}
+                          onChange={(e) => handleInputChange('area', e.target.value)}
                           required
                         />
                       );
@@ -457,6 +595,8 @@ export function RegisterFlow({ defaultName }) {
                         name="area"
                         label="Delivery Sector / Society"
                         placeholder="e.g. Sector 59, Sector 79, Green Valley"
+                        value={formData.area}
+                        onChange={(e) => handleInputChange('area', e.target.value)}
                         required
                       />
                     );
@@ -465,6 +605,8 @@ export function RegisterFlow({ defaultName }) {
                   <Input
                     name="line1"
                     label="Flat / House No. & Building Name"
+                    value={formData.line1}
+                    onChange={(e) => handleInputChange('line1', e.target.value)}
                     error={errors.line1}
                     placeholder="Flat 402, Tower B, Palm Heights"
                     required
@@ -473,12 +615,16 @@ export function RegisterFlow({ defaultName }) {
                   <Input
                     name="line2"
                     label="Street / Landmark (Optional)"
+                    value={formData.line2}
+                    onChange={(e) => handleInputChange('line2', e.target.value)}
                     placeholder="Near Central Park or Main Gate"
                   />
 
                   <Textarea
                     name="deliveryInstructions"
                     label="Special Delivery Instructions (Optional)"
+                    value={formData.deliveryInstructions}
+                    onChange={(e) => handleInputChange('deliveryInstructions', e.target.value)}
                     placeholder="e.g. Leave bottle in milk bag at door, ring bell once."
                     maxLength={500}
                   />

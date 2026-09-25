@@ -9,6 +9,7 @@ import { Card, CardBody } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
+import { VerificationStatusChecker } from '@/components/milkman/VerificationStatusChecker.jsx';
 import * as usersRepo from '@/repositories/users.repo.js';
 
 export const metadata = { title: 'Awaiting Approval • DairyDrop' };
@@ -112,7 +113,13 @@ export default async function PendingPage() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3 pt-1">
+                <div className="space-y-4 pt-1">
+                  <VerificationStatusChecker
+                    initialGate={gate.gate}
+                    initialMessage={gate.message}
+                    businessName={milkman?.businessName}
+                    targetRedirect="/dashboard"
+                  />
                   <p className="text-xs text-slate-500 leading-relaxed">
                     Your milkman usually confirms requests in 1 to 2 hours. As soon as they
                     accept, your daily deliveries and customer dashboard will activate

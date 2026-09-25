@@ -7,19 +7,60 @@ import Link from 'next/link';
 import { Input, Textarea } from '@/components/ui/interactive.jsx';
 import { MapPinIcon } from '@/components/ui/Icons.jsx';
 import { applyToBecomeMilkman } from '@/actions/customer.actions.js';
+import { useFormDraft } from '@/lib/useFormDraft.js';
 
 export function MilkmanApplicationForm({ defaultName }) {
+  const {
+    draft,
+    saveDraft,
+    clearDraft,
+    isRestored,
+    isInitialized,
+  } = useFormDraft('dairydrop_draft_milkman_application', {
+    businessName: defaultName ? `${defaultName} Dairy` : '',
+    phone: '',
+    pincode: '',
+    city: '',
+    state: '',
+    areaName: '',
+    businessAddress: '',
+    upiId: '',
+    qrCodeUrl: '',
+  });
+
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
 
   // Unified Location & Pincode Auto-Fill State
+  const [businessName, setBusinessName] = useState(defaultName ? `${defaultName} Dairy` : '');
+  const [phone, setPhone] = useState('');
   const [pincode, setPincode] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [areaName, setAreaName] = useState('');
+  const [businessAddress, setBusinessAddress] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+
   const [areaSuggestions, setAreaSuggestions] = useState([]);
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [locationResolved, setLocationResolved] = useState(false);
+
+  // Sync draft to state upon rehydration
+  useEffect(() => {
+    if (isInitialized && draft) {
+      if (draft.businessName) setBusinessName(draft.businessName);
+      if (draft.phone) setPhone(draft.phone);
+      if (draft.pincode) setPincode(draft.pincode);
+      if (draft.city) setCity(draft.city);
+      if (draft.state) setState(draft.state);
+      if (draft.areaName) setAreaName(draft.areaName);
+      if (draft.businessAddress) setBusinessAddress(draft.businessAddress);
+      if (draft.upiId) setUpiId(draft.upiId);
+      if (draft.qrCodeUrl) setQrCodeUrl(draft.qrCodeUrl);
+      if (draft.city && draft.state) setLocationResolved(true);
+    }
+  }, [isInitialized]);
 
   // Auto-fetch city, state, and area list as soon as 6-digit pincode is entered
   useEffect(() => {
@@ -34,15 +75,32 @@ export function MilkmanApplicationForm({ defaultName }) {
           if (!active) return;
           setIsFetchingLocation(false);
           if (data?.ok) {
-            if (data.city) setCity(data.city);
-            if (data.state) setState(data.state);
+            let nextCity = city;
+            let nextState = state;
+            let nextArea = areaName;
+
+            if (data.city) {
+              setCity(data.city);
+              nextCity = data.city;
+            }
+            if (data.state) {
+              setState(data.state);
+              nextState = data.state;
+            }
             if (Array.isArray(data.areas) && data.areas.length > 0) {
               setAreaSuggestions(data.areas);
               if (!areaName) {
                 setAreaName(data.areas[0]);
+                nextArea = data.areas[0];
               }
             }
             setLocationResolved(true);
+            saveDraft({
+              pincode: cleanPincode,
+              city: nextCity,
+              state: nextState,
+              areaName: nextArea,
+            });
             toast.success(`Location detected: ${data.city}, ${data.state}`);
           } else {
             setLocationResolved(false);
@@ -64,8 +122,6 @@ export function MilkmanApplicationForm({ defaultName }) {
     }
   }, [pincode]);
 
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-
   function handleQrUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -79,7 +135,9 @@ export function MilkmanApplicationForm({ defaultName }) {
     }
     const reader = new FileReader();
     reader.onload = (event) => {
-      setQrCodeUrl(event.target.result);
+      const dataUrl = event.target.result;
+      setQrCodeUrl(dataUrl);
+      saveDraft({ qrCodeUrl: dataUrl });
       toast.success('QR Code loaded successfully!');
     };
     reader.readAsDataURL(file);
@@ -87,19 +145,22 @@ export function MilkmanApplicationForm({ defaultName }) {
 
   function onSubmit(event) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const data = Object.fromEntries(new FormData(form));
-
-    // Ensure stateful values are synchronized
-    data.pincode = pincode;
-    data.city = city;
-    data.state = state;
-    data.areaName = areaName;
-    data.qrCodeUrl = qrCodeUrl;
+    const data = {
+      businessName,
+      phone,
+      pincode,
+      city,
+      state,
+      areaName,
+      businessAddress,
+      upiId,
+      qrCodeUrl,
+    };
 
     startTransition(async () => {
       const result = await applyToBecomeMilkman(data);
       if (result.ok) {
+        clearDraft();
         toast.success('Application submitted! Redirecting to verification status...');
         window.location.href = '/milkman/activate';
       } else {
@@ -111,6 +172,38 @@ export function MilkmanApplicationForm({ defaultName }) {
 
   return (
     <div className="space-y-5">
+      {/* Draft Restored Banner */}
+      {isRestored && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-blue-50/80 border border-blue-200 px-4 py-2.5 text-xs text-blue-900 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+            <span className="font-semibold">
+              Restored your saved dairy vendor details from previous session.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              clearDraft();
+              setBusinessName(defaultName ? `${defaultName} Dairy` : '');
+              setPhone('');
+              setPincode('');
+              setCity('');
+              setState('');
+              setAreaName('');
+              setBusinessAddress('');
+              setUpiId('');
+              setQrCodeUrl('');
+              setLocationResolved(false);
+              toast.info('Application form draft reset.');
+            }}
+            className="font-bold text-blue-700 hover:text-blue-800 underline shrink-0"
+          >
+            Clear Draft
+          </button>
+        </div>
+      )}
+
       {/* Benefit Highlights (Blue & White, Zero Emojis) */}
       <div className="grid grid-cols-3 gap-2.5 text-center text-xs font-semibold">
         <div className="rounded-2xl border border-blue-200 bg-white/90 p-3 text-blue-700 shadow-sm backdrop-blur-sm">
@@ -147,7 +240,11 @@ export function MilkmanApplicationForm({ defaultName }) {
           <Input
             name="businessName"
             label="Dairy or Business Name"
-            defaultValue={defaultName ? `${defaultName} Dairy` : ''}
+            value={businessName}
+            onChange={(e) => {
+              setBusinessName(e.target.value);
+              saveDraft({ businessName: e.target.value });
+            }}
             error={errors.businessName}
             placeholder="e.g. Shri Krishna Fresh Dairy"
             required
@@ -158,6 +255,11 @@ export function MilkmanApplicationForm({ defaultName }) {
             label="Contact / WhatsApp Mobile Number"
             inputMode="tel"
             maxLength={10}
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              saveDraft({ phone: e.target.value });
+            }}
             error={errors.phone}
             placeholder="9876543210"
             hint="Your customers and admin verification team will reach you here."
@@ -199,7 +301,11 @@ export function MilkmanApplicationForm({ defaultName }) {
                   id="pincode"
                   name="pincode"
                   value={pincode}
-                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setPincode(val);
+                    saveDraft({ pincode: val });
+                  }}
                   placeholder="Enter 6-digit Pincode (e.g. 122003)"
                   inputMode="numeric"
                   maxLength={6}
@@ -225,7 +331,10 @@ export function MilkmanApplicationForm({ defaultName }) {
                   id="city"
                   name="city"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    saveDraft({ city: e.target.value });
+                  }}
                   placeholder="e.g. Gurugram"
                   required
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -241,7 +350,10 @@ export function MilkmanApplicationForm({ defaultName }) {
                   id="state"
                   name="state"
                   value={state}
-                  onChange={(e) => setState(e.target.value)}
+                  onChange={(e) => {
+                    setState(e.target.value);
+                    saveDraft({ state: e.target.value });
+                  }}
                   placeholder="e.g. Haryana"
                   required
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -259,7 +371,10 @@ export function MilkmanApplicationForm({ defaultName }) {
                 id="areaName"
                 name="areaName"
                 value={areaName}
-                onChange={(e) => setAreaName(e.target.value)}
+                onChange={(e) => {
+                  setAreaName(e.target.value);
+                  saveDraft({ areaName: e.target.value });
+                }}
                 placeholder="e.g. Sector 45 or Civil Lines"
                 required
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -280,7 +395,10 @@ export function MilkmanApplicationForm({ defaultName }) {
                       <button
                         type="button"
                         key={area}
-                        onClick={() => setAreaName(area)}
+                        onClick={() => {
+                          setAreaName(area);
+                          saveDraft({ areaName: area });
+                        }}
                         className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
                           areaName === area
                             ? 'bg-blue-600 text-white shadow-sm'
@@ -299,6 +417,11 @@ export function MilkmanApplicationForm({ defaultName }) {
             <Textarea
               name="businessAddress"
               label="Street / Dairy Shop Address (Optional)"
+              value={businessAddress}
+              onChange={(e) => {
+                setBusinessAddress(e.target.value);
+                saveDraft({ businessAddress: e.target.value });
+              }}
               placeholder="e.g. Plot 14, Main Market Road or Farm House"
               maxLength={500}
             />
@@ -309,6 +432,11 @@ export function MilkmanApplicationForm({ defaultName }) {
             <Input
               name="upiId"
               label="Business UPI ID (Optional)"
+              value={upiId}
+              onChange={(e) => {
+                setUpiId(e.target.value);
+                saveDraft({ upiId: e.target.value });
+              }}
               error={errors.upiId}
               hint="Where your customers will pay you. You can also add it later."
               placeholder="dairybusiness@upi"
@@ -333,7 +461,10 @@ export function MilkmanApplicationForm({ defaultName }) {
                     </p>
                     <button
                       type="button"
-                      onClick={() => setQrCodeUrl('')}
+                      onClick={() => {
+                        setQrCodeUrl('');
+                        saveDraft({ qrCodeUrl: '' });
+                      }}
                       className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700"
                     >
                       ✕ Remove QR Code
@@ -393,6 +524,3 @@ export function MilkmanApplicationForm({ defaultName }) {
     </div>
   );
 }
-
-
-

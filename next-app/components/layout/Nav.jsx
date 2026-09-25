@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 
 import { cn } from '@/components/ui/index.jsx';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
 import { useT } from '@/i18n/provider.jsx';
 import { MenuIcon, CloseIcon } from '@/components/ui/Icons.jsx';
 
@@ -149,6 +150,11 @@ export function MoreMenu({ items, user, variant = 'header', label = 'More' }) {
                 </div>
               </div>
             ) : null}
+
+            {/* PWA Install Button for mobile */}
+            <div className="mb-3">
+              <PwaInstallButton variant="sidebar" />
+            </div>
 
             {/* Full language names here — there is room, unlike the header. */}
             <div className="mb-3">

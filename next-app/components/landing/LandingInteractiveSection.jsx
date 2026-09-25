@@ -138,41 +138,48 @@ export function LandingInteractiveSection() {
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/50">
-          <div className="grid grid-cols-12 bg-slate-50/80 border-b border-slate-200 p-4 sm:p-5 text-xs font-bold uppercase tracking-wider text-slate-500">
-            <div className="col-span-5 sm:col-span-4 text-slate-700">
-              {isHi ? 'सुविधा' : 'Service Feature'}
-            </div>
-            <div className="col-span-3 sm:col-span-4 text-slate-500">
-              {isHi ? 'पारंपरिक तरीका' : 'Traditional Milkman'}
-            </div>
-            <div className="col-span-4 sm:col-span-4 font-extrabold text-blue-600 flex items-center gap-1.5">
-              <span>{isHi ? 'DairyDrop प्लेटफॉर्म' : 'DairyDrop Platform'}</span>
-              <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-700 uppercase">
-                {isHi ? 'सत्यापित' : 'Verified'}
-              </span>
-            </div>
-          </div>
+        {/* Mobile Swipe Hint */}
+        <div className="flex sm:hidden items-center justify-end gap-1 text-[11px] font-semibold text-blue-600 px-1">
+          <span>{isHi ? 'तुलना देखने के लिए स्वाइप करें →' : 'Swipe table horizontally →'}</span>
+        </div>
 
-          <div className="divide-y divide-slate-100 text-xs sm:text-sm">
-            {comparisonRows.map((row, idx) => (
-              <div
-                key={idx}
-                className="grid grid-cols-12 p-4 sm:p-5 items-center hover:bg-slate-50/60 transition-colors"
-              >
-                <div className="col-span-5 sm:col-span-4 font-bold text-slate-900">
-                  {row.feature}
-                </div>
-                <div className="col-span-3 sm:col-span-4 text-slate-500 flex items-center gap-1.5">
-                  <span className="text-red-500 font-bold shrink-0">✕</span>
-                  <span>{row.oldWay}</span>
-                </div>
-                <div className="col-span-4 sm:col-span-4 font-bold text-blue-700 flex items-center gap-1.5 bg-blue-50/50 -my-3 py-3 px-2.5 rounded-xl">
-                  <span className="text-blue-600 font-bold shrink-0">✓</span>
-                  <span>{row.newWay}</span>
-                </div>
+        <div className="overflow-x-auto rounded-3xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/50 -mx-1 sm:mx-0">
+          <div className="min-w-[620px]">
+            <div className="grid grid-cols-12 bg-slate-50/80 border-b border-slate-200 p-4 sm:p-5 text-xs font-bold uppercase tracking-wider text-slate-500">
+              <div className="col-span-4 text-slate-700">
+                {isHi ? 'सुविधा' : 'Service Feature'}
               </div>
-            ))}
+              <div className="col-span-4 text-slate-500">
+                {isHi ? 'पारंपरिक तरीका' : 'Traditional Milkman'}
+              </div>
+              <div className="col-span-4 font-extrabold text-blue-600 flex items-center gap-1.5">
+                <span>{isHi ? 'DairyDrop प्लेटफॉर्म' : 'DairyDrop Platform'}</span>
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] text-blue-700 uppercase">
+                  {isHi ? 'सत्यापित' : 'Verified'}
+                </span>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-100 text-xs sm:text-sm">
+              {comparisonRows.map((row, idx) => (
+                <div
+                  key={idx}
+                  className="grid grid-cols-12 p-4 sm:p-5 items-center hover:bg-slate-50/60 transition-colors"
+                >
+                  <div className="col-span-4 font-bold text-slate-900 pr-2">
+                    {row.feature}
+                  </div>
+                  <div className="col-span-4 text-slate-600 flex items-start gap-2 pr-3">
+                    <span className="text-red-500 font-bold shrink-0 mt-0.5">✕</span>
+                    <span className="leading-snug">{row.oldWay}</span>
+                  </div>
+                  <div className="col-span-4 font-bold text-blue-700 flex items-start gap-2 bg-blue-50/60 -my-2.5 py-2.5 px-3 rounded-2xl border border-blue-100/60">
+                    <span className="text-blue-600 font-bold shrink-0 mt-0.5">✓</span>
+                    <span className="leading-snug">{row.newWay}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

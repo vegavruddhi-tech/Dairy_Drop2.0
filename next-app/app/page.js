@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { SignInButton, SignUpButton, Show } from '@clerk/nextjs';
+import { Show } from '@clerk/nextjs';
 
 import { getActor } from '@/auth/session.js';
 import { ROLE_HOME } from '@/auth/roles.js';
 import { getLocale } from '@/i18n/server.js';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 import { LandingInteractiveSection } from '@/components/landing/LandingInteractiveSection.jsx';
 
@@ -62,25 +63,9 @@ export default async function LandingPage() {
           </nav>
 
           {/* Nav Actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <PwaInstallButton variant="compact" />
             <LanguageToggle variant="compact" className="h-9" />
-
-            <Show when="signed-out">
-              <SignInButton mode="modal">
-                <button className="hidden sm:inline-flex items-center justify-center rounded-xl px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors">
-                  {isHi ? 'लॉग इन' : 'Sign In'}
-                </button>
-              </SignInButton>
-
-              <SignUpButton mode="modal">
-                <button className="relative inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 transition-all active:scale-[0.98]">
-                  <span>{isHi ? 'शुरू करें' : 'Get Started'}</span>
-                  <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </SignUpButton>
-            </Show>
 
             <Show when="signed-in">
               <Link

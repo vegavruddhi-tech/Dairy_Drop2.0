@@ -17,6 +17,7 @@ import { UserButton } from '@clerk/nextjs';
 import { cn, Badge } from '@/components/ui/index.jsx';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
 import { NotificationBell } from '@/components/ui/NotificationBell.jsx';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
 import { NavLink, MoreMenu } from './Nav.jsx';
 import { MilkDropIcon } from '@/components/ui/Icons.jsx';
 
@@ -62,10 +63,11 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
           ))}
         </nav>
 
-        {/* User Account & Language footer */}
-        <div className="absolute inset-x-0 bottom-0 space-y-2.5 border-t border-slate-200/80 bg-slate-50/70 p-3.5 backdrop-blur-sm">
+        {/* User Account, PWA install & Language footer */}
+        <div className="absolute inset-x-0 bottom-0 space-y-2 border-t border-slate-200/80 bg-slate-50/70 p-3.5 backdrop-blur-sm">
+          <PwaInstallButton variant="sidebar" />
           <LanguageToggle />
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex items-center gap-3 pt-0.5">
             <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8 rounded-xl shadow-xs' } }} showName />
           </div>
         </div>
@@ -84,7 +86,8 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <PwaInstallButton variant="compact" />
           <LanguageToggle variant="compact" className="h-9" />
           <NotificationBell />
         </div>
@@ -108,7 +111,8 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <PwaInstallButton variant="compact" />
           <NotificationBell />
           <LanguageToggle variant="compact" className="h-8" />
           <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8 rounded-xl' } }} />

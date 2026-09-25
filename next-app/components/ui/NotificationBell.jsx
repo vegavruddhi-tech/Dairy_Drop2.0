@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BellIcon, MilkDropIcon, PackageIcon, PaymentsIcon, InfoIcon } from '@/components/ui/Icons.jsx';
 import { getInboxNotifications, markNotificationsAsRead } from '@/actions/notification.actions.js';
+import { useRealtimeTable } from '@/lib/useRealtime.js';
 
 function getTypeIcon(type) {
   switch (type) {
@@ -57,10 +58,19 @@ export function NotificationBell({ className = '' }) {
     }
   }
 
+  // 1. Listen for realtime notification inserts
+  useRealtimeTable({
+    table: 'notifications',
+    onInsert: () => {
+      fetchNotifications();
+    },
+    onUpdate: () => {
+      fetchNotifications();
+    },
+  });
+
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000); // 30s poll
-    return () => clearInterval(interval);
   }, []);
 
   // Close on outside click

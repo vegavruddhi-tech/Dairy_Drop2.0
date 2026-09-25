@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { SignOutButton, Show } from '@clerk/nextjs';
 
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
+import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
 
 /**
  * High-precision Blue & White navigation bar for public & auth pages.
  * Responsive container alignment, subtle glassmorphic backdrop, language toggle,
- * and top-level Sign Out action for authenticated users.
+ * PWA Install button, and top-level Sign Out action for authenticated users.
  */
 export function PublicBar({ showBrand = true }) {
   return (
@@ -32,13 +33,15 @@ export function PublicBar({ showBrand = true }) {
           <div />
         )}
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <Link
             href="/"
             className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors"
           >
             <span>← Back to Home</span>
           </Link>
+
+          <PwaInstallButton variant="compact" />
 
           <LanguageToggle variant="compact" className="h-9" />
 
@@ -47,12 +50,12 @@ export function PublicBar({ showBrand = true }) {
             <SignOutButton redirectUrl="/">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all active:scale-[0.98]"
               >
                 <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
                   <path d="M16 13v-2H7V8l-5 4 5 4v-3zM20 3H9c-1.1 0-2 .9-2 2v4h2V5h11v14H9v-4H7v4c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
                 </svg>
-                <span>Sign Out</span>
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
             </SignOutButton>
           </Show>

@@ -6,6 +6,7 @@ import './globals.css';
 import { getLocale, getMessages } from '@/i18n/server.js';
 import { LocaleProvider } from '@/i18n/provider.jsx';
 import { INDIC_LOCALES } from '@/i18n/config.js';
+import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt.jsx';
 
 /**
  * The original apps' type stack, loaded through next/font so the files are
@@ -77,6 +78,7 @@ export default async function RootLayout({ children }) {
         <ClerkProvider afterSignOutUrl="/">
           <LocaleProvider locale={locale} messages={messages}>
             {children}
+            <PwaInstallPrompt />
 
             {/*
               Pill-shaped toasts, matching what the old apps showed: fully
