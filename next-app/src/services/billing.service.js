@@ -341,12 +341,9 @@ export async function getSixMonthPerformance(actor) {
       (sum, d) => sum + Math.round(rowQty(d) * 1000),
       0,
     );
-    const cowMilli = deliveredRows
-      .filter((d) => (d.milkType || '').toUpperCase() === 'COW')
-      .reduce((sum, d) => sum + Math.round(rowQty(d) * 1000), 0);
-    const buffaloMilli = deliveredRows
-      .filter((d) => (d.milkType || '').toUpperCase() === 'BUFFALO')
-      .reduce((sum, d) => sum + Math.round(rowQty(d) * 1000), 0);
+    // milkType lives on the subscription, not the delivery row — split is unavailable here.
+    const cowMilli = 0;
+    const buffaloMilli = 0;
 
     // Unique dates that had at least one actual delivery
     const deliveredDates = new Set(deliveredRows.map((d) => d.deliveryDate));
