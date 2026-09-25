@@ -6,6 +6,7 @@ import { RegisterFlow } from '@/components/customer/RegisterFlow.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Get Started • DairyDrop' };
 
 export default async function RegisterPage() {
