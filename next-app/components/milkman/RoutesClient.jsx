@@ -7,6 +7,7 @@ import { cn, Badge, EmptyState, Stat, SectionHeading } from '@/components/ui/ind
 import { Button, Input, Modal } from '@/components/ui/interactive.jsx';
 import { RoutesIcon, MapPinIcon, UsersIcon, TrashIcon, PlusIcon, CheckIcon } from '@/components/ui/Icons.jsx';
 import { addServiceArea, deleteServiceArea } from '@/actions/milkman.actions.js';
+import { useT } from '@/i18n/provider.jsx';
 
 /**
  * The delivery routes page: where the milkman delivers, in walking order.
@@ -20,6 +21,7 @@ import { addServiceArea, deleteServiceArea } from '@/actions/milkman.actions.js'
  * @param {Record<string, number>} [props.customerCounts] customers per pincode
  */
 export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
+  const { t } = useT();
   const [areas, setAreas] = useState(initialAreas);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(null); // the area awaiting confirmation
@@ -35,11 +37,11 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
     startTransition(async () => {
       const res = await addServiceArea(data);
       if (res.ok) {
-        toast.success(`${data.areaName} (${data.pincode}) added.`);
+        toast.success(`${data.areaName} (${data.pincode}) ${t('common.saved', {}, 'added.')}`);
         setAdding(false);
         setAreas((prev) => [...prev, res.data ?? data]);
       } else {
-        toast.error(res.message ?? 'Could not add that route.');
+        toast.error(res.message ?? t('common.tryAgain', {}, 'Could not add that route.'));
       }
     });
   }
@@ -48,11 +50,11 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
     startTransition(async () => {
       const res = await deleteServiceArea({ id: area.id });
       if (res.ok) {
-        toast.success(`${area.areaName} removed.`);
+        toast.success(`${area.areaName} ${t('common.delete', {}, 'removed.')}`);
         setAreas((prev) => prev.filter((a) => a.id !== area.id));
         setRemoving(null);
       } else {
-        toast.error(res.message ?? 'Could not remove that route.');
+        toast.error(res.message ?? t('common.tryAgain', {}, 'Could not remove that route.'));
       }
     });
   }
@@ -67,15 +69,15 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
         <div className="relative z-10 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider backdrop-blur-md">
-              Coverage
+              {t('routes.coverage', {}, 'Coverage')}
             </span>
             <h1 className="mt-3 font-heading text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
-              Delivery routes
+              {t('routes.title', {}, 'Delivery routes')}
             </h1>
             <p className="mt-1 text-sm font-medium text-white/85">
               {sorted.length === 0
-                ? 'Add the sectors you deliver to so households nearby can find you.'
-                : `${sorted.length} ${sorted.length === 1 ? 'sector' : 'sectors'} across ${pincodes.size} ${pincodes.size === 1 ? 'pincode' : 'pincodes'}, walked in this order.`}
+                ? t('routes.noRoutesDesc', {}, 'Add the sectors you deliver to so households nearby can find you.')
+                : `${sorted.length} ${sorted.length === 1 ? t('routes.sectors', {}, 'sector') : t('routes.sectors', {}, 'sectors')} · ${pincodes.size} ${pincodes.size === 1 ? t('routes.pincodes', {}, 'pincode') : t('routes.pincodes', {}, 'pincodes')} · ${t('routes.inWalkingOrder', {}, 'walked in this order.')}`}
             </p>
           </div>
 
@@ -85,22 +87,22 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
             className="tap flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3.5 text-xs font-bold backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
           >
             <PlusIcon className="h-4 w-4" />
-            Add route
+            {t('routes.addRoute', {}, 'Add route')}
           </button>
         </div>
       </section>
 
       {/* ── Tiles ─────────────────────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label="Sectors" value={sorted.length} icon={<RoutesIcon className="h-5 w-5" />} tone="brand" />
-        <Stat label="Pincodes" value={pincodes.size} icon={<MapPinIcon className="h-5 w-5" />} tone="info" />
+        <Stat label={t('routes.sectors', {}, 'Sectors')} value={sorted.length} icon={<RoutesIcon className="h-5 w-5" />} tone="brand" />
+        <Stat label={t('routes.pincodes', {}, 'Pincodes')} value={pincodes.size} icon={<MapPinIcon className="h-5 w-5" />} tone="info" />
         <div className="col-span-2 sm:col-span-1">
           <Stat
-            label="Customers covered"
+            label={t('routes.customersCovered', {}, 'Customers covered')}
             value={covered}
             icon={<UsersIcon className="h-5 w-5" />}
             tone="positive"
-            hint="With an address in these pincodes"
+            hint={t('routes.withAddressInPincodes', {}, 'With an address in these pincodes')}
           />
         </div>
       </div>
@@ -109,20 +111,20 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
       {sorted.length === 0 ? (
         <EmptyState
           icon={<RoutesIcon className="h-8 w-8 text-brand" />}
-          title="No routes yet"
-          description="Add your first sector and its pincode. Customers who sign up there will see your dairy and can subscribe."
-          tip="Give each sector a route number in the order you ride it — the morning round is sorted by it."
+          title={t('routes.noRoutesTitle', {}, 'No routes yet')}
+          description={t('routes.noRoutesDesc', {}, 'Add your first sector and its pincode. Customers who sign up there will see your dairy and can subscribe.')}
+          tip={t('routes.noRoutesTip', {}, 'Give each sector a route number in the order you ride it — the morning round is sorted by it.')}
           action={
             <Button onClick={() => setAdding(true)}>
               <PlusIcon className="h-4 w-4" />
-              Add first route
+              {t('routes.addFirstRoute', {}, 'Add first route')}
             </Button>
           }
         />
       ) : (
         <section aria-labelledby="routes-heading">
           <SectionHeading id="routes-heading" count={sorted.length}>
-            In walking order
+            {t('routes.inWalkingOrder', {}, 'In walking order')}
           </SectionHeading>
           <ol className="grid gap-3 sm:grid-cols-2">
             {sorted.map((area, index) => (
@@ -150,12 +152,12 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
       <Modal
         open={Boolean(removing)}
         onClose={() => setRemoving(null)}
-        title={removing ? `Remove ${removing.areaName}?` : ''}
+        title={removing ? `${t('routes.removeRoute', {}, 'Remove')} ${removing.areaName}?` : ''}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setRemoving(null)}>Keep it</Button>
+            <Button variant="ghost" onClick={() => setRemoving(null)}>{t('routes.keepIt', {}, 'Keep it')}</Button>
             <Button variant="danger" loading={pending} onClick={() => removing && handleRemove(removing)}>
-              Remove route
+              {t('routes.removeRoute', {}, 'Remove route')}
             </Button>
           </>
         }
@@ -168,9 +170,7 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
             </p>
             {(customerCounts[removing.pincode] ?? 0) > 0 ? (
               <p className="rounded-xl border border-caution/25 bg-caution-soft px-3 py-2 text-xs font-semibold text-caution">
-                {customerCounts[removing.pincode]} existing{' '}
-                {customerCounts[removing.pincode] === 1 ? 'customer lives' : 'customers live'} in this pincode.
-                Their plans and deliveries are not affected.
+                {customerCounts[removing.pincode]} {t('routes.customers', {}, 'customers')} in this pincode.
               </p>
             ) : null}
           </div>
@@ -182,6 +182,7 @@ export function RoutesManager({ initialAreas = [], customerCounts = {} }) {
 
 /** One sector on the walk. */
 function RouteCard({ area, position, customers, onRemove }) {
+  const { t } = useT();
   return (
     <li className="card-surface flex items-start gap-3 p-4 transition-shadow hover:shadow-card-hover sm:p-5">
       {/* The stop number, as a numbered tile: this is a list you walk. */}
@@ -204,10 +205,10 @@ function RouteCard({ area, position, customers, onRemove }) {
           {[area.city, area.state].filter(Boolean).join(', ')}
         </p>
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          <Badge tone="positive" dot>Live for sign-ups</Badge>
+          <Badge tone="positive" dot>{t('routes.liveForSignups', {}, 'Live for sign-ups')}</Badge>
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-ink-muted">
             <UsersIcon className="h-3.5 w-3.5 text-ink-subtle" />
-            {customers} {customers === 1 ? 'customer' : 'customers'}
+            {customers} {customers === 1 ? t('routes.customer', {}, 'customer') : t('routes.customers', {}, 'customers')}
           </span>
         </div>
       </div>
@@ -216,7 +217,7 @@ function RouteCard({ area, position, customers, onRemove }) {
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${area.areaName}`}
-        title="Remove route"
+        title={t('routes.removeRoute', {}, 'Remove route')}
         className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-ink-subtle shadow-xs transition-colors hover:border-critical/40 hover:bg-critical-soft hover:text-critical"
       >
         <TrashIcon className="h-4 w-4" />
@@ -230,6 +231,7 @@ function RouteCard({ area, position, customers, onRemove }) {
  * postal lookup, the same way the customer address editor does.
  */
 function AddRouteModal({ open, onClose, pending, nextSequence, onSubmit }) {
+  const { t } = useT();
   const [pincode, setPincode] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -274,13 +276,13 @@ function AddRouteModal({ open, onClose, pending, nextSequence, onSubmit }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Add a delivery route"
+      title={t('routes.addRouteTitle', {}, 'Add a delivery route')}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>{t('common.cancel', {}, 'Cancel')}</Button>
           <Button form="route-form" type="submit" loading={pending}>
             {pending ? null : <CheckIcon className="h-4 w-4" />}
-            Save route
+            {t('routes.saveRoute', {}, 'Save route')}
           </Button>
         </>
       }
@@ -301,28 +303,28 @@ function AddRouteModal({ open, onClose, pending, nextSequence, onSubmit }) {
         }}
       >
         <p className="text-sm text-ink-muted">
-          Customers who sign up in this sector and pincode will see your dairy.
+          {t('routes.addRouteSubtitle', {}, 'Customers who sign up in this sector and pincode will see your dairy.')}
         </p>
 
         <Input
           name="pincode"
-          label="Pincode"
+          label={t('routes.pincode', {}, 'Pincode')}
           inputMode="numeric"
           maxLength={6}
           pattern="\d{6}"
-          placeholder="6 digits, e.g. 122001"
+          placeholder={t('routes.pincodePlaceholder', {}, '6 digits, e.g. 122001')}
           required
           autoFocus
           value={pincode}
           onChange={(event) => setPincode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-          hint={looking ? 'Looking up city and state…' : city ? `${city}, ${state}` : undefined}
+          hint={looking ? t('routes.lookingUp', {}, 'Looking up city and state…') : city ? `${city}, ${state}` : undefined}
         />
 
         <div>
           <Input
             name="areaName"
-            label="Sector / society / area"
-            placeholder="e.g. Sector 59, Palm Heights"
+            label={t('routes.sectorArea', {}, 'Sector / society / area')}
+            placeholder={t('routes.sectorAreaPlaceholder', {}, 'e.g. Sector 59, Palm Heights')}
             required
             list="route-area-suggestions"
           />
@@ -336,17 +338,17 @@ function AddRouteModal({ open, onClose, pending, nextSequence, onSubmit }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Input name="city" label="City" required value={city} onChange={(event) => setCity(event.target.value)} />
-          <Input name="state" label="State" required value={state} onChange={(event) => setState(event.target.value)} />
+          <Input name="city" label={t('routes.city', {}, 'City')} required value={city} onChange={(event) => setCity(event.target.value)} />
+          <Input name="state" label={t('routes.state', {}, 'State')} required value={state} onChange={(event) => setState(event.target.value)} />
         </div>
 
         <Input
           name="routeSequence"
           type="number"
-          label="Stop number on your round"
+          label={t('routes.stopNumber', {}, 'Stop number on your round')}
           defaultValue={nextSequence}
           min="0"
-          hint="Lower numbers are delivered first."
+          hint={t('routes.stopNumberHint', {}, 'Lower numbers are delivered first.')}
         />
       </form>
     </Modal>

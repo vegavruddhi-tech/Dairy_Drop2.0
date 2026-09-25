@@ -6,13 +6,22 @@ import { toast } from 'sonner';
 import { Modal, Button, Input, Textarea } from '@/components/ui/interactive.jsx';
 import { businessDate, addDays } from '@/domain/dates.js';
 import { declareDayOff, cancelDayOff } from '@/actions/milkman.actions.js';
+import { useT } from '@/i18n/provider.jsx';
 
-const FESTIVAL_PRESETS = [
+const FESTIVAL_PRESETS_EN = [
   { label: 'Diwali / Deepawali', note: 'Dairy closed for Diwali celebrations. Deliveries resume tomorrow 6 AM.' },
   { label: 'Holi Festival', note: 'Dairy closed for Holi festival. Deliveries resume tomorrow 6 AM.' },
   { label: 'Govardhan Puja', note: 'Dairy closed for Govardhan Puja. Deliveries resume tomorrow 6 AM.' },
   { label: 'Dairy Maintenance', note: 'Scheduled plant & chiller maintenance. Deliveries paused today.' },
   { label: 'Personal / Family Event', note: 'Taking a family day off. Deliveries resume tomorrow morning.' },
+];
+
+const FESTIVAL_PRESETS_HI = [
+  { label: 'दिवाली / दीपोत्सव', note: 'दिवाली उत्सव के कारण डेयरी बंद रहेगी। डिलीवरी कल सुबह 6 बजे से शुरू होगी।' },
+  { label: 'होली पर्व', note: 'होली त्योहार के कारण डेयरी बंद रहेगी। डिलीवरी कल सुबह 6 बजे से शुरू होगी।' },
+  { label: 'गोवर्धन पूजा', note: 'गोवर्धन पूजा के कारण डेयरी बंद रहेगी। डिलीवरी कल सुबह 6 बजे से शुरू होगी।' },
+  { label: 'डेयरी रखरखाव', note: 'संयंत्र और चिलर का निर्धारित रखरखाव। आज डिलीवरी रोकी गई है।' },
+  { label: 'व्यक्तिगत / पारिवारिक कार्य', note: 'पारिवारिक कार्य के कारण अवकाश। डिलीवरी कल सुबह से शुरू होगी।' },
 ];
 
 /**
@@ -21,6 +30,10 @@ const FESTIVAL_PRESETS = [
  */
 export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount = 0 }) {
   const [pending, startTransition] = useTransition();
+  const { locale, t } = useT();
+  const isHi = locale === 'hi';
+
+  const presets = isHi ? FESTIVAL_PRESETS_HI : FESTIVAL_PRESETS_EN;
 
   const today = businessDate();
   const [mode, setMode] = useState('single'); // 'single' | 'range'
@@ -40,7 +53,7 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
   function handleSchedule(event) {
     event.preventDefault();
     if (startDate > endDate && mode === 'range') {
-      toast.error('End date cannot be earlier than start date.');
+      toast.error(isHi ? 'अंतिम तारीख शुरुआती तारीख से पहले नहीं हो सकती।' : 'End date cannot be earlier than start date.');
       return;
     }
 
@@ -54,11 +67,13 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
 
       if (result.ok) {
         toast.success(
-          `Day off declared for ${startDate}${isMultiDay ? ` to ${endDate}` : ''}! ${result.data?.skipped ?? 0} pending deliveries skipped at ₹0. Customers notified.`,
+          isHi
+            ? `${startDate}${isMultiDay ? ` से ${endDate}` : ''} के लिए छुट्टी घोषित की गई! ${result.data?.skipped ?? 0} लंबित डिलीवरी ₹0 पर छोड़ी गईं। ग्राहकों को सूचित कर दिया गया।`
+            : `Day off declared for ${startDate}${isMultiDay ? ` to ${endDate}` : ''}! ${result.data?.skipped ?? 0} pending deliveries skipped at ₹0. Customers notified.`,
         );
         onClose();
       } else {
-        toast.error(result.message ?? 'Could not declare day off.');
+        toast.error(result.message ?? (isHi ? 'छुट्टी घोषित नहीं की जा सकी।' : 'Could not declare day off.'));
       }
     });
   }
@@ -72,11 +87,13 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
 
       if (result.ok) {
         toast.success(
-          `Day off cancelled! ${result.data?.restored ?? 0} deliveries restored to PENDING.`,
+          isHi
+            ? `छुट्टी रद्द कर दी गई! ${result.data?.restored ?? 0} डिलीवरी फिर से PENDING में बदल दी गईं।`
+            : `Day off cancelled! ${result.data?.restored ?? 0} deliveries restored to PENDING.`,
         );
         onClose();
       } else {
-        toast.error(result.message ?? 'Could not cancel day off.');
+        toast.error(result.message ?? (isHi ? 'छुट्टी रद्द नहीं हो सकी।' : 'Could not cancel day off.'));
       }
     });
   }
@@ -85,7 +102,7 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
     <Modal
       open={open}
       onClose={onClose}
-      title="Declare Route Day Off / Dairy Holiday"
+      title={isHi ? 'रूट पर छुट्टी / अवकाश घोषित करें' : 'Declare Route Day Off / Dairy Holiday'}
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <Button
@@ -96,12 +113,12 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
             loading={pending}
             className="text-xs text-slate-700 font-semibold hover:bg-slate-50"
           >
-            Cancel Day Off (Resume Route)
+            {isHi ? 'छुट्टी रद्द करें (रूट फिर से शुरू करें)' : 'Cancel Day Off (Resume Route)'}
           </Button>
 
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={onClose} disabled={pending}>
-              Cancel
+              {isHi ? 'रद्द करें' : 'Cancel'}
             </Button>
             <Button
               form="milkman-holiday-form"
@@ -110,7 +127,9 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
               className="font-bold"
               loading={pending}
             >
-              Skip Route ({daysCount} {daysCount === 1 ? 'Day' : 'Days'})
+              {isHi
+                ? `रूट छोड़ें (${daysCount} ${daysCount === 1 ? 'दिन' : 'दिन'})`
+                : `Skip Route (${daysCount} ${daysCount === 1 ? 'Day' : 'Days'})`}
             </Button>
           </div>
         </div>
@@ -131,7 +150,7 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Single Day Off
+            {isHi ? 'एक दिन की छुट्टी' : 'Single Day Off'}
           </button>
           <button
             type="button"
@@ -145,7 +164,7 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Multi-Day Holiday Range
+            {isHi ? 'कई दिनों का अवकाश' : 'Multi-Day Holiday Range'}
           </button>
         </div>
 
@@ -154,7 +173,11 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
           <Input
             name="startDate"
             type="date"
-            label={mode === 'range' ? 'Start Date' : 'Holiday Date'}
+            label={
+              mode === 'range'
+                ? isHi ? 'शुरुआती तारीख' : 'Start Date'
+                : isHi ? 'छुट्टी की तारीख' : 'Holiday Date'
+            }
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             required
@@ -163,7 +186,7 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
             <Input
               name="endDate"
               type="date"
-              label="End Date"
+              label={isHi ? 'अंतिम तारीख' : 'End Date'}
               min={startDate}
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
@@ -175,10 +198,10 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
         {/* Reason / Festival Quick Presets */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-            Quick Reason / Festival Presets
+            {isHi ? 'त्वरित कारण / त्योहार प्रीसेट' : 'Quick Reason / Festival Presets'}
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {FESTIVAL_PRESETS.map((p, i) => (
+            {presets.map((p, i) => (
               <button
                 key={i}
                 type="button"
@@ -194,10 +217,18 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
         {/* Custom Broadcast Message */}
         <Textarea
           name="note"
-          label="Broadcast Message to Customers (Sent in notification)"
+          label={
+            isHi
+              ? 'ग्राहकों के लिए संदेश (नोटिफिकेशन में भेजा जाएगा)'
+              : 'Broadcast Message to Customers (Sent in notification)'
+          }
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. Dairy will be closed for Diwali. Regular morning deliveries resume the day after."
+          placeholder={
+            isHi
+              ? 'उदा. दिवाली के कारण डेयरी बंद रहेगी। नियमित डिलीवरी अगले दिन सुबह 6 बजे से शुरू होगी।'
+              : 'e.g. Dairy will be closed for Diwali. Regular morning deliveries resume the day after.'
+          }
           rows={2}
           maxLength={300}
         />
@@ -210,9 +241,11 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
             </svg>
           </div>
           <div className="text-xs text-amber-900 leading-relaxed">
-            <p className="font-bold">Safe Operation Guarantee</p>
+            <p className="font-bold">{isHi ? 'सुरक्षित संचालन गारंटी' : 'Safe Operation Guarantee'}</p>
             <p className="mt-0.5 text-amber-800">
-              Only <strong>PENDING</strong> deliveries will be skipped (billed at ₹0). Any stops you have already marked as <strong>DELIVERED</strong> today will remain intact and safely billed.
+              {isHi
+                ? 'केवल लंबित (PENDING) डिलीवरी छोड़ी जाएंगी (₹0 बिल होंगी)। आज आपके द्वारा पहले से डिलीवर (DELIVERED) के रूप में चिह्नित स्टॉप्स सुरक्षित रूप से बिल रहेंगे।'
+                : 'Only PENDING deliveries will be skipped (billed at ₹0). Any stops you have already marked as DELIVERED today will remain intact and safely billed.'}
             </p>
           </div>
         </div>

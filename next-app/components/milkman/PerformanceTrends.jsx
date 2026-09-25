@@ -11,12 +11,15 @@ import {
   UsersIcon,
   SparklesIcon,
 } from '@/components/ui/Icons.jsx';
+import { useT } from '@/i18n/provider.jsx';
 
 /**
  * 6-Month Performance Trends & Customer Increment Analytics.
  * Renders revenue comparison, volume charts, MoM growth badges, and complete monthly breakdown table.
  */
 export function PerformanceTrends({ performance }) {
+  const { locale } = useT();
+  const isHi = locale === 'hi';
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'revenue' | 'customers' | 'table'
   const { series = [], summary = {} } = performance || {};
 
@@ -36,13 +39,15 @@ export function PerformanceTrends({ performance }) {
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand-soft px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-brand">
             <SparklesIcon className="h-3.5 w-3.5" />
-            6-Month Growth & Analytics
+            {isHi ? '6-माह की वृद्धि और विश्लेषण' : '6-Month Growth & Analytics'}
           </div>
           <h2 className="mt-1 font-heading text-xl font-black text-ink sm:text-2xl">
-            Business Performance Report
+            {isHi ? 'व्यापार प्रदर्शन रिपोर्ट (Business Report)' : 'Business Performance Report'}
           </h2>
           <p className="text-xs font-medium text-ink-muted">
-            Rolling metrics from {series[0]?.monthLabel} to {series[series.length - 1]?.monthLabel}
+            {isHi
+              ? `${series[0]?.monthLabel} से ${series[series.length - 1]?.monthLabel} तक के आंकड़े`
+              : `Rolling metrics from ${series[0]?.monthLabel} to ${series[series.length - 1]?.monthLabel}`}
           </p>
         </div>
 
@@ -58,7 +63,7 @@ export function PerformanceTrends({ performance }) {
                 : 'hover:text-ink',
             )}
           >
-            Overview
+            {isHi ? 'सारांश (Overview)' : 'Overview'}
           </button>
           <button
             type="button"
@@ -70,7 +75,7 @@ export function PerformanceTrends({ performance }) {
                 : 'hover:text-ink',
             )}
           >
-            Revenue Chart
+            {isHi ? 'राजस्व चार्ट (Revenue)' : 'Revenue Chart'}
           </button>
           <button
             type="button"
@@ -82,7 +87,7 @@ export function PerformanceTrends({ performance }) {
                 : 'hover:text-ink',
             )}
           >
-            Growth & Volume
+            {isHi ? 'ग्राहक वृद्धि व मात्रा' : 'Growth & Volume'}
           </button>
           <button
             type="button"
@@ -94,7 +99,7 @@ export function PerformanceTrends({ performance }) {
                 : 'hover:text-ink',
             )}
           >
-            Full Table
+            {isHi ? 'पूर्ण तालिका (Table)' : 'Full Table'}
           </button>
         </div>
       </div>
@@ -102,36 +107,40 @@ export function PerformanceTrends({ performance }) {
       {/* ── 6-Month Summary Highlights ───────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat
-          label="6-Mo Billed"
+          label={isHi ? '6-माह कुल बिल' : '6-Mo Billed'}
           value={formatPaise(summary.totalBilledPaise, { whole: true })}
           icon={<EarningsIcon className="h-5 w-5" />}
           tone="brand"
-          hint={`6-Mo Total Volume`}
+          hint={isHi ? '6-माह कुल बिल राशि' : '6-Mo Total Volume'}
         />
         <Stat
-          label="6-Mo Collected"
+          label={isHi ? '6-माह कुल वसूली' : '6-Mo Collected'}
           value={formatPaise(summary.totalCollectedPaise, { whole: true })}
           icon={<CheckIcon className="h-5 w-5" />}
           tone="positive"
-          hint={`${summary.overallCollectionRate}% Recovery Rate`}
+          hint={isHi ? `${summary.overallCollectionRate}% रिकवरी दर` : `${summary.overallCollectionRate}% Recovery Rate`}
         />
         <Stat
-          label="Active Households"
+          label={isHi ? 'सक्रिय परिवार' : 'Active Households'}
           value={summary.currentCustomerCount}
           icon={<UsersIcon className="h-5 w-5" />}
           tone="info"
           hint={
             summary.netCustomerGrowth >= 0
-              ? `+${summary.netCustomerGrowth} net growth in 6 mos`
+              ? isHi
+                ? `6 माह में +${summary.netCustomerGrowth} नई वृद्धि`
+                : `+${summary.netCustomerGrowth} net growth in 6 mos`
+              : isHi
+              ? `6 माह में ${summary.netCustomerGrowth}`
               : `${summary.netCustomerGrowth} in 6 mos`
           }
         />
         <Stat
-          label="Total Milk Output"
+          label={isHi ? 'कुल दूध डिलीवरी' : 'Total Milk Output'}
           value={formatMilli(summary.totalMilkMilli)}
           icon={<MilkDropIcon className="h-5 w-5" />}
           tone="neutral"
-          hint={`${summary.totalOrders} extra orders fulfilled`}
+          hint={isHi ? `${summary.totalOrders} अतिरिक्त ऑर्डर पूरे किए` : `${summary.totalOrders} extra orders fulfilled`}
         />
       </div>
 
@@ -139,8 +148,12 @@ export function PerformanceTrends({ performance }) {
       {(activeTab === 'overview' || activeTab === 'revenue') && (
         <Card>
           <CardHeader
-            title="Monthly Revenue & Collection Efficiency"
-            description="Comparison between Total Billed (Blue) and Actual Collected (Green) per month"
+            title={isHi ? 'मासिक राजस्व एवं वसूली दक्षता' : 'Monthly Revenue & Collection Efficiency'}
+            description={
+              isHi
+                ? 'कुल बिल (नीला) और वास्तविक प्राप्त (हरा) का माहवार तुलनात्मक विवरण'
+                : 'Comparison between Total Billed (Blue) and Actual Collected (Green) per month'
+            }
           />
           <CardBody>
             <div className="mt-2 space-y-6">
@@ -191,15 +204,15 @@ export function PerformanceTrends({ performance }) {
                 <div className="flex items-center gap-4">
                   <span className="inline-flex items-center gap-1.5 font-bold text-ink">
                     <span className="h-3 w-3 rounded-md bg-hero-blue" />
-                    Billed Amount
+                    {isHi ? 'बिल राशि (Billed)' : 'Billed Amount'}
                   </span>
                   <span className="inline-flex items-center gap-1.5 font-bold text-ink">
                     <span className="h-3 w-3 rounded-md bg-emerald-500" />
-                    Collected Amount
+                    {isHi ? 'वसूली राशि (Collected)' : 'Collected Amount'}
                   </span>
                 </div>
                 <span className="font-semibold text-ink-muted">
-                  Overall Collection Rate:{' '}
+                  {isHi ? 'औसत वसूली दर:' : 'Overall Collection Rate:'}{' '}
                   <span className="font-black text-emerald-600">{summary.overallCollectionRate}%</span>
                 </span>
               </div>
@@ -214,8 +227,8 @@ export function PerformanceTrends({ performance }) {
           {/* Customer Increment & Growth Cards */}
           <Card>
             <CardHeader
-              title="Customer Growth & Retention"
-              description="Active households served and Month-over-Month (MoM) increment"
+              title={isHi ? 'ग्राहक वृद्धि एवं जुड़ाव दर' : 'Customer Growth & Retention'}
+              description={isHi ? 'सक्रिय परिवार एवं माह-दर-माह (MoM) वृद्धि' : 'Active households served and Month-over-Month (MoM) increment'}
             />
             <CardBody>
               <div className="space-y-3">
@@ -233,7 +246,7 @@ export function PerformanceTrends({ performance }) {
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-bold text-ink">{item.monthLabel}</span>
                           <span className="font-heading text-sm font-black text-ink">
-                            {item.customerCount} <span className="text-xs font-semibold text-ink-muted">households</span>
+                            {item.customerCount} <span className="text-xs font-semibold text-ink-muted">{isHi ? 'परिवार' : 'households'}</span>
                           </span>
                         </div>
                         {/* Visual Progress Bar */}
@@ -249,7 +262,7 @@ export function PerformanceTrends({ performance }) {
                       <div className="shrink-0 text-right">
                         {idx === 0 ? (
                           <span className="inline-flex rounded-lg bg-surface px-2 py-1 text-[11px] font-bold text-ink-subtle border border-border">
-                            Base Month
+                            {isHi ? 'आरंभिक माह' : 'Base Month'}
                           </span>
                         ) : isPositive ? (
                           <span className="inline-flex items-center gap-0.5 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-black text-emerald-700 border border-emerald-200/60">
@@ -257,7 +270,7 @@ export function PerformanceTrends({ performance }) {
                           </span>
                         ) : isNeutral ? (
                           <span className="inline-flex rounded-lg bg-surface px-2 py-1 text-[11px] font-bold text-ink-muted border border-border">
-                            0% change
+                            {isHi ? '0% बदलाव' : '0% change'}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-0.5 rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-black text-rose-700 border border-rose-200/60">
@@ -275,8 +288,8 @@ export function PerformanceTrends({ performance }) {
           {/* Monthly Milk Output & Daily Average */}
           <Card>
             <CardHeader
-              title="Milk Volume & Breakdown"
-              description="Total Litres delivered per month (Cow vs. Buffalo)"
+              title={isHi ? 'दूध मात्रा एवं वितरण' : 'Milk Volume & Breakdown'}
+              description={isHi ? 'कुल डिलीवर लीटर प्रति माह (गाय vs भैंस)' : 'Total Litres delivered per month (Cow vs. Buffalo)'}
             />
             <CardBody>
               <div className="space-y-4">
@@ -290,12 +303,12 @@ export function PerformanceTrends({ performance }) {
                         <div>
                           <p className="text-sm font-extrabold text-ink">{item.monthLabel}</p>
                           <p className="text-[11px] font-medium text-ink-muted">
-                            Daily Average: <span className="font-bold text-ink">{formatMilli(item.dailyAvgMilli)}/day</span>
+                            {isHi ? 'दैनिक औसत:' : 'Daily Average:'} <span className="font-bold text-ink">{formatMilli(item.dailyAvgMilli)}/{isHi ? 'दिन' : 'day'}</span>
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="font-heading text-base font-black text-ink">{formatMilli(item.milkMilli)}</p>
-                          <p className="text-[11px] font-semibold text-ink-muted">{item.deliveryCount} drops</p>
+                          <p className="text-[11px] font-semibold text-ink-muted">{item.deliveryCount} {isHi ? 'डिलीवरी' : 'drops'}</p>
                         </div>
                       </div>
 
@@ -317,11 +330,11 @@ export function PerformanceTrends({ performance }) {
                           <div className="mt-1.5 flex items-center justify-between text-[10px] font-bold text-ink-muted">
                             <span className="flex items-center gap-1">
                               <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-                              Cow: {formatMilli(item.cowMilli)} ({cowPct}%)
+                              {isHi ? 'गाय:' : 'Cow:'} {formatMilli(item.cowMilli)} ({cowPct}%)
                             </span>
                             <span className="flex items-center gap-1">
                               <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
-                              Buffalo: {formatMilli(item.buffaloMilli)} ({buffaloPct}%)
+                              {isHi ? 'भैंस:' : 'Buffalo:'} {formatMilli(item.buffaloMilli)} ({buffaloPct}%)
                             </span>
                           </div>
                         </div>
@@ -339,21 +352,21 @@ export function PerformanceTrends({ performance }) {
       {(activeTab === 'overview' || activeTab === 'table') && (
         <Card>
           <CardHeader
-            title="6-Month Detailed Ledger & Performance"
-            description="Complete month-by-month financial, volume, and customer breakdown"
+            title={isHi ? '6-माह विस्तृत बहीखाता एवं रिपोर्ट' : '6-Month Detailed Ledger & Performance'}
+            description={isHi ? 'माह-दर-माह वित्तीय, वॉल्यूम एवं ग्राहक विवरण' : 'Complete month-by-month financial, volume, and customer breakdown'}
           />
           <CardBody className="overflow-x-auto p-0">
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="border-b border-border bg-surface-muted/60 text-[11px] font-extrabold uppercase tracking-wider text-ink-muted">
                 <tr>
-                  <th className="py-3 pl-4 pr-3">Month</th>
-                  <th className="px-3 py-3">Customers</th>
-                  <th className="px-3 py-3">MoM Growth</th>
-                  <th className="px-3 py-3">Milk Vol</th>
-                  <th className="px-3 py-3">Billed (₹)</th>
-                  <th className="px-3 py-3">Collected (₹)</th>
-                  <th className="px-3 py-3">Outstanding</th>
-                  <th className="py-3 pl-3 pr-4 text-right">Recovery Rate</th>
+                  <th className="py-3 pl-4 pr-3">{isHi ? 'महीना' : 'Month'}</th>
+                  <th className="px-3 py-3">{isHi ? 'ग्राहक' : 'Customers'}</th>
+                  <th className="px-3 py-3">{isHi ? 'मासिक वृद्धि' : 'MoM Growth'}</th>
+                  <th className="px-3 py-3">{isHi ? 'दूध मात्रा' : 'Milk Vol'}</th>
+                  <th className="px-3 py-3">{isHi ? 'कुल बिल (₹)' : 'Billed (₹)'}</th>
+                  <th className="px-3 py-3">{isHi ? 'प्राप्त (₹)' : 'Collected (₹)'}</th>
+                  <th className="px-3 py-3">{isHi ? 'बकाया' : 'Outstanding'}</th>
+                  <th className="py-3 pl-3 pr-4 text-right">{isHi ? 'वसूली दर' : 'Recovery Rate'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -363,7 +376,7 @@ export function PerformanceTrends({ performance }) {
                       {item.monthLabel}
                       {idx === series.length - 1 && (
                         <span className="ml-1.5 rounded-full bg-brand-soft px-1.5 py-0.5 text-[9px] font-black uppercase text-brand">
-                          Current
+                          {isHi ? 'वर्तमान' : 'Current'}
                         </span>
                       )}
                     </td>
@@ -416,10 +429,10 @@ export function PerformanceTrends({ performance }) {
               </tbody>
               <tfoot className="border-t-2 border-border bg-surface-muted/40 font-bold text-ink">
                 <tr>
-                  <td className="py-3 pl-4 pr-3 uppercase tracking-wider font-extrabold text-[11px]">6-Month Total</td>
-                  <td className="px-3 py-3">{summary.currentCustomerCount} active</td>
+                  <td className="py-3 pl-4 pr-3 uppercase tracking-wider font-extrabold text-[11px]">{isHi ? '6-माह कुल' : '6-Month Total'}</td>
+                  <td className="px-3 py-3">{summary.currentCustomerCount} {isHi ? 'सक्रिय' : 'active'}</td>
                   <td className="px-3 py-3">
-                    {summary.netCustomerGrowth >= 0 ? `+${summary.netCustomerGrowth} net` : `${summary.netCustomerGrowth} net`}
+                    {summary.netCustomerGrowth >= 0 ? `+${summary.netCustomerGrowth} ${isHi ? 'कुल वृद्धि' : 'net'}` : `${summary.netCustomerGrowth} net`}
                   </td>
                   <td className="px-3 py-3">{formatMilli(summary.totalMilkMilli)}</td>
                   <td className="px-3 py-3 text-ink font-black">{formatPaise(summary.totalBilledPaise, { whole: true })}</td>

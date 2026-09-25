@@ -477,7 +477,7 @@ export function CustomerRow({ customer, summary }) {
                 </p>
                 {monthlyPaise > 0 ? (
                   <p className="font-heading tnum mt-0.5 text-[11px] font-bold text-slate-400">
-                    ~{formatPaise(monthlyPaise, { whole: true })}/{t('subscriptions.perMonth', {}, 'mo')}
+                    ~{formatPaise(monthlyPaise, { whole: true })}{t('subscriptions.perMonth', {}, '/mo')}
                   </p>
                 ) : null}
               </div>

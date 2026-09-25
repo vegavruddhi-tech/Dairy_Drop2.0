@@ -6,8 +6,11 @@ import { Card, CardBody, CardHeader } from '@/components/ui/index.jsx';
 import { Button, Input } from '@/components/ui/interactive.jsx';
 import { PaymentsIcon, CheckIcon } from '@/components/ui/Icons.jsx';
 import { updatePaymentSettings } from '@/actions/milkman.actions.js';
+import { useT } from '@/i18n/provider.jsx';
 
 export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
+  const { locale } = useT();
+  const isHi = locale === 'hi';
   const [upiId, setUpiId] = useState(initialUpiId || '');
   const [qrCodeUrl, setQrCodeUrl] = useState(initialQrCodeUrl || '');
   const [pending, startTransition] = useTransition();
@@ -17,14 +20,14 @@ export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
     if (!file) return;
 
     if (file.size > 3 * 1024 * 1024) {
-      toast.error('Image size must be under 3MB.');
+      toast.error(isHi ? 'इमेज साइज 3MB से कम होना चाहिए।' : 'Image size must be under 3MB.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       setQrCodeUrl(uploadEvent.target?.result);
-      toast.success('QR Code image uploaded.');
+      toast.success(isHi ? 'QR कोड इमेज अपलोड हो गई।' : 'QR Code image uploaded.');
     };
     reader.readAsDataURL(file);
   };
@@ -37,9 +40,9 @@ export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
       });
 
       if (res.ok) {
-        toast.success('Payment & QR Code settings updated successfully!');
+        toast.success(isHi ? 'पेमेंट और QR सेटिंग्स सुरक्षित कर ली गई हैं!' : 'Payment & QR Code settings updated successfully!');
       } else {
-        toast.error(res.message || 'Failed to update payment settings.');
+        toast.error(res.message || (isHi ? 'पेमेंट सेटिंग्स अपडेट करने में विफल।' : 'Failed to update payment settings.'));
       }
     });
   };
@@ -47,24 +50,28 @@ export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
   return (
     <Card>
       <CardHeader
-        title="Your UPI & QR Code Settings"
-        description="Customers scan this QR code and pay to this UPI ID on their monthly bills"
+        title={isHi ? 'आपकी UPI और QR कोड सेटिंग्स' : 'Your UPI & QR Code Settings'}
+        description={
+          isHi
+            ? 'ग्राहक अपने मासिक बिल का भुगतान करने के लिए इस QR कोड को स्कैन करते हैं और इस UPI ID पर पैसे भेजते हैं'
+            : 'Customers scan this QR code and pay to this UPI ID on their monthly bills'
+        }
       />
       <CardBody className="space-y-5">
         <div>
           <Input
-            label="Your UPI ID"
+            label={isHi ? 'आपकी UPI ID' : 'Your UPI ID'}
             value={upiId}
             onChange={(e) => setUpiId(e.target.value)}
             placeholder="e.g. yourdairy@upi, 9876543210@paytm"
-            helper="Your customers will see this UPI ID on their /billing checkout"
+            helper={isHi ? 'ग्राहकों को यह UPI ID उनके बिल भुगतान पेज पर दिखेगी' : 'Your customers will see this UPI ID on their /billing checkout'}
           />
         </div>
 
         {/* QR Code Upload / Preview Box */}
         <div className="space-y-2">
           <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
-            Your UPI QR Code Image
+            {isHi ? 'आपका UPI QR कोड फोटो' : 'Your UPI QR Code Image'}
           </label>
 
           {qrCodeUrl ? (
@@ -73,16 +80,20 @@ export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
                 <img src={qrCodeUrl} alt="Your Payment QR Code" className="h-full w-full object-contain" />
               </div>
               <div className="space-y-2 text-center sm:text-left">
-                <p className="font-heading text-sm font-bold text-ink">QR Code Ready</p>
+                <p className="font-heading text-sm font-bold text-ink">
+                  {isHi ? 'QR कोड तैयार है' : 'QR Code Ready'}
+                </p>
                 <p className="text-xs text-ink-muted">
-                  Customers scan this image directly in GooglePay / PhonePe / Paytm when paying monthly milk bills.
+                  {isHi
+                    ? 'ग्राहक मासिक दूध के बिल का भुगतान करते समय सीधे GooglePay / PhonePe / Paytm से इस इमेज को स्कैन कर सकते हैं।'
+                    : 'Customers scan this image directly in GooglePay / PhonePe / Paytm when paying monthly milk bills.'}
                 </p>
                 <button
                   type="button"
                   onClick={() => setQrCodeUrl('')}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors"
                 >
-                  Remove / Change QR
+                  {isHi ? 'QR हटाएं / बदलें' : 'Remove / Change QR'}
                 </button>
               </div>
             </div>
@@ -92,10 +103,10 @@ export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
                 <PaymentsIcon className="h-5 w-5" />
               </span>
               <span className="font-heading text-xs font-bold text-ink">
-                Click to Upload Your QR Code Image
+                {isHi ? 'QR कोड फोटो अपलोड करने के लिए क्लिक करें' : 'Click to Upload Your QR Code Image'}
               </span>
               <span className="text-[11px] font-medium text-ink-muted mt-0.5">
-                Upload GooglePay, PhonePe, Paytm or BharatPe QR (PNG, JPG up to 3MB)
+                {isHi ? 'GooglePay, PhonePe, Paytm या BharatPe QR अपलोड करें (PNG, JPG अधिकतम 3MB)' : 'Upload GooglePay, PhonePe, Paytm or BharatPe QR (PNG, JPG up to 3MB)'}
               </span>
               <input
                 type="file"
@@ -115,7 +126,7 @@ export function PaymentSettings({ initialUpiId = '', initialQrCodeUrl = '' }) {
             className="w-full sm:w-auto"
           >
             <CheckIcon className="h-4 w-4" />
-            Save Payment & QR Settings
+            {isHi ? 'पेमेंट और QR सेटिंग्स सेव करें' : 'Save Payment & QR Settings'}
           </Button>
         </div>
       </CardBody>

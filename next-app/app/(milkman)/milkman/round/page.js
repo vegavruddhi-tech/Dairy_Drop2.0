@@ -1,7 +1,7 @@
 import { requireMilkman } from '@/auth/session.js';
 import { businessDate, formatDate, addDays } from '@/domain/dates.js';
 import { formatPaise, formatMilli } from '@/domain/money.js';
-import { getT } from '@/i18n/server.js';
+import { getT, getLocale } from '@/i18n/server.js';
 import * as deliveryService from '@/services/delivery.service.js';
 
 import { Stat, EmptyState, SectionHeading } from '@/components/ui/index.jsx';
@@ -20,19 +20,13 @@ export const metadata = { title: 'Round' };
 
 /**
  * The daily round.
- *
- * Optimised for one-handed use at 5am: every stop is a single card with the
- * address, a tap-to-call number, and three large status buttons. No tabs, no
- * modals in the common path.
- *
- * The header is the same deep-blue banner as the dashboard, carrying the day,
- * a progress bar and the date controls, so the milkman sees how far through
- * the round they are before reading a single stop.
  */
 export default async function RoundPage({ searchParams }) {
   const actor = await requireMilkman();
   const params = await searchParams;
   const t = await getT();
+  const locale = await getLocale();
+  const isHi = locale === 'hi';
   const today = businessDate();
   const date = typeof params?.date === 'string' ? params.date : today;
   const isToday = date === today;
@@ -46,10 +40,16 @@ export default async function RoundPage({ searchParams }) {
 
   const subtitle =
     summary.total === 0
-      ? t('deliveries.noDeliveries', {}, 'No stops scheduled for this day.')
+      ? isHi
+        ? 'इस दिन के लिए कोई स्टॉप्स निर्धारित नहीं हैं।'
+        : t('deliveries.noDeliveries', {}, 'No stops scheduled for this day.')
       : remaining.length === 0
-        ? `All ${summary.total} ${summary.total === 1 ? 'stop' : 'stops'} done · ${litres} of milk out`
-        : `${done.length} / ${summary.total} ${t('common.delivered', {}, 'done')} · ${remaining.length} ${t('deliveries.pendingOnly', {}, 'left')} · ${litres}`;
+        ? isHi
+          ? `सभी ${summary.total} स्टॉप्स पूरे हो गए · ${litres} कुल दूध`
+          : `${t('deliveries.allDeliveries', {}, 'All')} ${summary.total} ${t('deliveries.title', {}, 'stops')} ${t('common.delivered', {}, 'done')} · ${litres} ${t('dashboard.totalMilkRequired', {}, 'of milk out')}`
+        : isHi
+          ? `${done.length} / ${summary.total} पूरे हुए · ${remaining.length} बाकी · ${litres}`
+          : `${done.length} / ${summary.total} ${t('common.delivered', {}, 'done')} · ${remaining.length} ${t('deliveries.pendingOnly', {}, 'left')} · ${litres}`;
 
   return (
     <>
@@ -65,10 +65,10 @@ export default async function RoundPage({ searchParams }) {
                 {isToday ? (
                   <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-200" />
                 ) : null}
-                {isToday ? t('common.today', {}, 'Today') : t('deliveries.title', {}, 'Round')}
+                {isToday ? (isHi ? 'आज' : t('common.today', {}, 'Today')) : (isHi ? 'डिलीवरी राउंड' : t('deliveries.title', {}, 'Round'))}
               </span>
               <h1 className="mt-3 font-heading text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
-                {isToday ? t('dashboard.todayDelivery', {}, "Today's round") : formatDate(date)}
+                {isToday ? (isHi ? 'आज का डिलीवरी राउंड' : t('dashboard.todayDelivery', {}, "Today's round")) : formatDate(date)}
               </h1>
               <p className="mt-1 text-sm font-medium text-white/85">
                 {isToday ? formatDate(date) : subtitle}
@@ -79,7 +79,7 @@ export default async function RoundPage({ searchParams }) {
             <nav aria-label="Change day" className="flex shrink-0 items-center gap-1.5">
               <a
                 href={`/milkman/round?date=${addDays(date, -1)}`}
-                aria-label="Previous day"
+                aria-label={isHi ? 'पिछला दिन' : 'Previous day'}
                 className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/15 backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
               >
                 <ChevronLeftIcon className="h-4 w-4" />
@@ -89,12 +89,12 @@ export default async function RoundPage({ searchParams }) {
                   href={`/milkman/round?date=${today}`}
                   className="tap flex h-10 items-center rounded-xl border border-white/25 bg-white/15 px-3 text-xs font-bold backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
                 >
-                  {t('common.today', {}, 'Today')}
+                  {isHi ? 'आज' : t('common.today', {}, 'Today')}
                 </a>
               ) : null}
               <a
                 href={`/milkman/round?date=${addDays(date, 1)}`}
-                aria-label="Next day"
+                aria-label={isHi ? 'अगला दिन' : 'Next day'}
                 className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-white/25 bg-white/15 backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
               >
                 <ChevronRightIcon className="h-4 w-4" />
@@ -105,7 +105,7 @@ export default async function RoundPage({ searchParams }) {
           {/* Progress. */}
           <div className="mt-5">
             <div className="flex items-end justify-between gap-3 text-xs font-semibold text-white/85">
-              <span>{isToday ? subtitle : `${progress}% ${t('common.delivered', {}, 'complete')}`}</span>
+              <span>{isToday ? subtitle : `${progress}% ${isHi ? 'पूरा' : t('common.delivered', {}, 'complete')}`}</span>
               <span className="tnum shrink-0 font-heading text-lg font-black text-white">{progress}%</span>
             </div>
             <div
@@ -127,22 +127,34 @@ export default async function RoundPage({ searchParams }) {
 
       {/* ── Tiles ─────────────────────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label={t('deliveries.allDeliveries', {}, 'Stops')} value={summary.total} icon={<RoutesIcon className="h-5 w-5" />} tone="brand" />
-        <Stat label={t('common.delivered', {}, 'Done')} value={done.length} icon={<CheckIcon className="h-5 w-5" />} tone="positive" />
         <Stat
-          label={t('deliveries.pendingOnly', {}, 'Left')}
+          label={isHi ? 'कुल स्टॉप्स' : t('deliveries.allDeliveries', {}, 'Stops')}
+          value={summary.total}
+          icon={<RoutesIcon className="h-5 w-5" />}
+          tone="brand"
+        />
+        <Stat
+          label={isHi ? 'पूर्ण' : t('common.delivered', {}, 'Done')}
+          value={done.length}
+          icon={<CheckIcon className="h-5 w-5" />}
+          tone="positive"
+        />
+        <Stat
+          label={isHi ? 'बाकी' : t('deliveries.pendingOnly', {}, 'Left')}
           value={remaining.length}
           icon={<ClockIcon className="h-5 w-5" />}
           tone={remaining.length ? 'caution' : 'neutral'}
         />
         <Stat
-          label={t('dashboard.totalMilkRequired', {}, 'Milk out')}
+          label={isHi ? 'कुल दूध' : t('dashboard.totalMilkRequired', {}, 'Milk out')}
           value={litres}
           icon={<MilkDropIcon className="h-5 w-5" />}
           tone="info"
           hint={
             summary.extrasCount > 0
-              ? `+ ${summary.extrasCount} extra${summary.extrasCount === 1 ? '' : 's'}`
+              ? isHi
+                ? `+ ${summary.extrasCount} अतिरिक्त`
+                : `+ ${summary.extrasCount} extra${summary.extrasCount === 1 ? '' : 's'}`
               : undefined
           }
         />
@@ -151,8 +163,12 @@ export default async function RoundPage({ searchParams }) {
       {stops.length === 0 ? (
         <EmptyState
           icon={<DeliveryIcon className="h-6 w-6 text-brand" />}
-          title={t('deliveries.noDeliveries', {}, 'Nothing scheduled')}
-          description={t('subscriptions.subtitle', {}, "Deliveries are generated overnight from your customers' active plans.")}
+          title={isHi ? 'कोई डिलीवरी निर्धारित नहीं है' : t('deliveries.noDeliveries', {}, 'Nothing scheduled')}
+          description={
+            isHi
+              ? 'ग्राहकों के सक्रिय प्लान के आधार पर रात में डिलीवरी तैयार की जाती हैं।'
+              : t('subscriptions.subtitle', {}, "Deliveries are generated overnight from your customers' active plans.")
+          }
         />
       ) : (
         <>
@@ -164,7 +180,7 @@ export default async function RoundPage({ searchParams }) {
                 tone="caution"
                 action={<DayOffButton date={date} count={remaining.length} />}
               >
-                {t('deliveries.pendingOnly', {}, 'To deliver')}
+                {isHi ? 'डिलीवर करने के लिए' : t('deliveries.pendingOnly', {}, 'To deliver')}
               </SectionHeading>
               <div className="space-y-2.5">
                 {remaining.map((stop) => (
@@ -173,7 +189,7 @@ export default async function RoundPage({ searchParams }) {
               </div>
             </section>
           ) : (
-            <RoundComplete summary={summary} />
+            <RoundComplete summary={summary} t={t} isHi={isHi} />
           )}
 
           {done.length > 0 ? (
@@ -189,7 +205,7 @@ export default async function RoundPage({ searchParams }) {
  * Shown once nothing is left to deliver. Milk and extras are both listed
  * because both are billed.
  */
-function RoundComplete({ summary }) {
+function RoundComplete({ summary, t, isHi = false }) {
   return (
     <section className="card-surface relative mb-8 overflow-hidden p-5 text-center sm:p-6">
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-hero-gradient" />
@@ -199,19 +215,31 @@ function RoundComplete({ summary }) {
       >
         <CheckIcon className="h-7 w-7" />
       </span>
-      <h2 className="mt-3 font-heading text-xl font-extrabold text-ink">Round complete</h2>
-      <p className="mt-0.5 text-sm font-medium text-ink-muted">Nice work — everything for today is marked.</p>
+      <h2 className="mt-3 font-heading text-xl font-extrabold text-ink">
+        {isHi ? 'राउंड पूरा हुआ' : t ? t('dashboard.markAllDelivered', {}, 'Round complete') : 'Round complete'}
+      </h2>
+      <p className="mt-0.5 text-sm font-medium text-ink-muted">
+        {isHi
+          ? 'शानदार काम — आज के सभी स्टॉप्स चिह्नित कर दिए गए हैं।'
+          : t ? t('deliveries.deliveredSuccessToast', {}, 'Nice work — everything for today is marked.') : 'Nice work — everything for today is marked.'}
+      </p>
 
       <p className="stat-number mt-4 text-3xl text-ink">{formatPaise(summary.billedPaise, { whole: true })}</p>
-      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-subtle">billed today</p>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-subtle">
+        {isHi ? 'आज का कुल बिल' : t ? t('dashboard.todayRevenue', {}, 'billed today') : 'billed today'}
+      </p>
 
       <dl className="mx-auto mt-4 grid max-w-xs grid-cols-2 gap-2">
         <div className="rounded-xl bg-surface-muted px-3 py-2">
-          <dt className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">Milk</dt>
+          <dt className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
+            {isHi ? 'दूध' : t ? t('shop.milkCategory', {}, 'Milk') : 'Milk'}
+          </dt>
           <dd className="tnum text-sm font-extrabold text-ink">{formatPaise(summary.milkPaise, { whole: true })}</dd>
         </div>
         <div className="rounded-xl bg-surface-muted px-3 py-2">
-          <dt className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">Extras</dt>
+          <dt className="text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
+            {isHi ? 'अतिरिक्त' : t ? t('orders.extras', {}, 'Extras') : 'Extras'}
+          </dt>
           <dd className="tnum text-sm font-extrabold text-ink">{formatPaise(summary.extrasPaise, { whole: true })}</dd>
         </div>
       </dl>

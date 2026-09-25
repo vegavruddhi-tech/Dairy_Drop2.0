@@ -7,27 +7,19 @@ import { PhoneIcon, CheckIcon, ClockIcon, CloseIcon } from '@/components/ui/Icon
 
 /**
  * The per-customer half of the earnings page.
- *
- * Both blocks render twice: a table from `md` up, and a stack of cards below
- * it. A six-column money table scrolled sideways on a phone is how the old
- * app did it, and the milkman ended up reading the customer name and the
- * outstanding figure on different screens.
- *
- * `?customer=<id>` (the picker at the top of the page) narrows both to that
- * one customer; tapping a name here is a shortcut to the same thing.
  */
 
 const monthHref = (month, customerId) =>
   customerId ? `/milkman/earnings?month=${month}&customer=${customerId}` : `/milkman/earnings?month=${month}`;
 
-function Owed({ paise }) {
+function Owed({ paise, isHi }) {
   return paise > 0 ? (
     <Badge tone="caution" dot>
-      {formatPaise(paise, { whole: true })} due
+      {formatPaise(paise, { whole: true })} {isHi ? 'बकाया' : 'due'}
     </Badge>
   ) : (
     <Badge tone="positive" dot>
-      Settled
+      {isHi ? 'हिसाब पूरा (Settled)' : 'Settled'}
     </Badge>
   );
 }
@@ -103,17 +95,21 @@ function PaymentTile({ status }) {
  * @param {Array}  props.rows        `earnings.byCustomer`
  * @param {string|null} props.focused customer id, when one is selected
  */
-export function CustomerEarnings({ month, rows, focused }) {
+export function CustomerEarnings({ month, rows, focused, isHi = false }) {
   const focusedRow = focused ? rows.find((row) => row.customerId === focused) : null;
   const shown = focusedRow ? [focusedRow] : rows;
 
   return (
     <Card>
       <CardHeader
-        title="By customer"
+        title={isHi ? 'ग्राहक अनुसार विवरण (By Customer)' : 'By customer'}
         description={
           focusedRow
-            ? `Showing ${focusedRow.customerName} for ${formatMonth(month)}`
+            ? isHi
+              ? `${formatMonth(month)} के लिए ${focusedRow.customerName} का विवरण`
+              : `Showing ${focusedRow.customerName} for ${formatMonth(month)}`
+            : isHi
+            ? `${formatMonth(month)} के बिलों का विवरण (अधिकतम बिल पहले)`
             : `Where ${formatMonth(month)}'s money sits, largest bill first`
         }
         action={
@@ -122,7 +118,7 @@ export function CustomerEarnings({ month, rows, focused }) {
               href={monthHref(month)}
               className="tap shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-ink-muted hover:bg-surface-muted"
             >
-              Show all
+              {isHi ? 'सभी देखें (Show all)' : 'Show all'}
             </Link>
           ) : null
         }
@@ -130,7 +126,7 @@ export function CustomerEarnings({ month, rows, focused }) {
       <CardBody className="p-0 pt-3">
         {rows.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-ink-muted">
-            Nothing delivered, ordered or paid this month yet.
+            {isHi ? 'इस महीने अभी तक कोई डिलीवरी, ऑर्डर या भुगतान नहीं हुआ।' : 'Nothing delivered, ordered or paid this month yet.'}
           </p>
         ) : (
           <>
@@ -138,9 +134,6 @@ export function CustomerEarnings({ month, rows, focused }) {
             <ul className="divide-y divide-border md:hidden">
               {shown.map((row) => {
                 const active = row.customerId === focused;
-                // The name is the link, not the whole card: the phone number
-                // beside it is a `tel:` link of its own, and one anchor cannot
-                // contain another.
                 return (
                   <li
                     key={row.customerId}
@@ -155,30 +148,32 @@ export function CustomerEarnings({ month, rows, focused }) {
                           className="tap -mx-1 block rounded-lg px-1 active:bg-surface-muted"
                         >
                           <span className="block truncate font-heading text-[15px] font-extrabold tracking-tight text-ink">{row.customerName}</span>
-                          <span className="block text-xs font-semibold text-brand">{active ? 'Show everyone' : 'Only this customer →'}</span>
+                          <span className="block text-xs font-semibold text-brand">
+                            {active ? (isHi ? 'सभी ग्राहक दिखाएं' : 'Show everyone') : (isHi ? 'केवल यह ग्राहक →' : 'Only this customer →')}
+                          </span>
                         </Link>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">Billed</p>
+                        <p className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">{isHi ? 'कुल बिल' : 'Billed'}</p>
                         <p className="stat-number text-xl leading-none text-ink">{formatPaise(row.billedPaise, { whole: true })}</p>
                       </div>
                     </div>
 
                     <dl className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-surface-muted/70 px-3 py-2 text-xs">
                       <div className="min-w-0">
-                        <dt className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">Milk</dt>
+                        <dt className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">{isHi ? 'दूध' : 'Milk'}</dt>
                         <dd className="tnum font-extrabold text-ink">{formatPaise(row.milkPaise, { whole: true })}</dd>
                         <dd className="text-[11px] font-medium text-ink-muted">{formatMilli(row.milkMilli)}</dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">Extras</dt>
+                        <dt className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">{isHi ? 'अतिरिक्त' : 'Extras'}</dt>
                         <dd className="tnum font-extrabold text-ink">{formatPaise(row.productsPaise, { whole: true })}</dd>
                         <dd className="text-[11px] font-medium text-ink-muted">
-                          {row.purchaseCount} {row.purchaseCount === 1 ? 'order' : 'orders'}
+                          {row.purchaseCount} {isHi ? 'ऑर्डर' : row.purchaseCount === 1 ? 'order' : 'orders'}
                         </dd>
                       </div>
                       <div className="min-w-0">
-                        <dt className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">Collected</dt>
+                        <dt className="text-[10.5px] font-bold uppercase tracking-wide text-ink-subtle">{isHi ? 'प्राप्त' : 'Collected'}</dt>
                         <dd className="tnum font-extrabold text-positive">{formatPaise(row.collectedPaise, { whole: true })}</dd>
                       </div>
                     </dl>
@@ -188,7 +183,7 @@ export function CustomerEarnings({ month, rows, focused }) {
                     </div>
 
                     <div className="mt-2.5 flex items-center justify-between gap-3">
-                      <Owed paise={row.outstandingPaise} />
+                      <Owed paise={row.outstandingPaise} isHi={isHi} />
                       <PhoneButton number={row.customerPhone} name={row.customerName} />
                     </div>
                   </li>
@@ -201,12 +196,12 @@ export function CustomerEarnings({ month, rows, focused }) {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Customer</Th>
-                    <Th numeric>Milk</Th>
-                    <Th numeric>Extras</Th>
-                    <Th numeric>Billed</Th>
-                    <Th numeric>Collected</Th>
-                    <Th className="text-right">Outstanding</Th>
+                    <Th>{isHi ? 'ग्राहक' : 'Customer'}</Th>
+                    <Th numeric>{isHi ? 'दूध' : 'Milk'}</Th>
+                    <Th numeric>{isHi ? 'अतिरिक्त उत्पाद' : 'Extras'}</Th>
+                    <Th numeric>{isHi ? 'कुल बिल' : 'Billed'}</Th>
+                    <Th numeric>{isHi ? 'प्राप्त राशि' : 'Collected'}</Th>
+                    <Th className="text-right">{isHi ? 'बकाया' : 'Outstanding'}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,8 +223,8 @@ export function CustomerEarnings({ month, rows, focused }) {
                               >
                                 <span className="font-extrabold">{row.customerName}</span>
                                 <span className="block text-xs font-medium text-ink-muted">
-                                  {row.deliveredCount} {row.deliveredCount === 1 ? 'delivery' : 'deliveries'}
-                                  {row.purchaseCount ? ` · ${row.purchaseCount} ${row.purchaseCount === 1 ? 'order' : 'orders'}` : ''}
+                                  {row.deliveredCount} {isHi ? 'डिलीवरी' : row.deliveredCount === 1 ? 'delivery' : 'deliveries'}
+                                  {row.purchaseCount ? ` · ${row.purchaseCount} ${isHi ? 'ऑर्डर' : row.purchaseCount === 1 ? 'order' : 'orders'}` : ''}
                                 </span>
                               </Link>
                               <Phone number={row.customerPhone} className="block" />
@@ -244,7 +239,7 @@ export function CustomerEarnings({ month, rows, focused }) {
                         <Td numeric className="font-extrabold">{formatPaise(row.billedPaise)}</Td>
                         <Td numeric className="text-positive">{formatPaise(row.collectedPaise)}</Td>
                         <Td className="text-right">
-                          <Owed paise={row.outstandingPaise} />
+                          <Owed paise={row.outstandingPaise} isHi={isHi} />
                         </Td>
                       </tr>
                     );
@@ -261,21 +256,20 @@ export function CustomerEarnings({ month, rows, focused }) {
 
 /**
  * The month's collections ledger, newest first.
- *
- * @param {object} props
- * @param {string} props.month
- * @param {Array}  props.payments
- * @param {{customerId: string, customerName: string}|null} [props.focusedRow]
- *   narrows the list to one customer
  */
-export function PaymentHistory({ month, payments, focusedRow }) {
+export function PaymentHistory({ month, payments, focusedRow, isHi = false }) {
+
   return (
     <Card>
       <CardHeader
-        title="Payment history"
+        title={isHi ? 'भुगतान इतिहास (Payment history)' : 'Payment history'}
         description={
           focusedRow
-            ? `${focusedRow.customerName}'s payments against ${formatMonth(month)}`
+            ? isHi
+              ? `${formatMonth(month)} के लिए ${focusedRow.customerName} के भुगतान`
+              : `${focusedRow.customerName}'s payments against ${formatMonth(month)}`
+            : isHi
+            ? `${formatMonth(month)} के लिए दर्ज सभी भुगतान`
             : `Everything recorded against ${formatMonth(month)}`
         }
       />
@@ -283,7 +277,11 @@ export function PaymentHistory({ month, payments, focusedRow }) {
         {payments.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-ink-muted">
             {focusedRow
-              ? `No payments from ${focusedRow.customerName} for this month yet.`
+              ? isHi
+                ? `इस महीने ${focusedRow.customerName} की ओर से कोई भुगतान दर्ज नहीं है।`
+                : `No payments from ${focusedRow.customerName} for this month yet.`
+              : isHi
+              ? 'इस महीने अभी कोई भुगतान दर्ज नहीं हुआ है।'
               : 'No payments recorded for this month yet.'}
           </p>
         ) : (
@@ -307,11 +305,11 @@ export function PaymentHistory({ month, payments, focusedRow }) {
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
                       <StatusBadge status={payment.status} />
                       <span className="font-semibold">{payment.method}</span>
-                      {payment.reference ? <span className="tnum">Ref {payment.reference}</span> : null}
+                      {payment.reference ? <span className="tnum">{isHi ? 'रेफरेंस' : 'Ref'} {payment.reference}</span> : null}
                     </div>
                     <p className="mt-1.5 text-xs text-ink-muted">
                       {formatInstant(payment.createdAt)}
-                      {payment.verifiedAt ? ` · confirmed ${formatInstant(payment.verifiedAt)}` : ''}
+                      {payment.verifiedAt ? ` · ${isHi ? 'पुष्टि' : 'confirmed'} ${formatInstant(payment.verifiedAt)}` : ''}
                     </p>
                     {payment.rejectionReason ? (
                       <p className="mt-1 text-xs text-critical">{payment.rejectionReason}</p>
@@ -326,12 +324,12 @@ export function PaymentHistory({ month, payments, focusedRow }) {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Customer</Th>
-                    <Th>Recorded</Th>
-                    <Th>Method</Th>
-                    <Th>Reference</Th>
-                    <Th>State</Th>
-                    <Th numeric>Amount</Th>
+                    <Th>{isHi ? 'ग्राहक' : 'Customer'}</Th>
+                    <Th>{isHi ? 'दर्ज समय' : 'Recorded'}</Th>
+                    <Th>{isHi ? 'भुगतान विधि' : 'Method'}</Th>
+                    <Th>{isHi ? 'रेफरेंस / UTR' : 'Reference'}</Th>
+                    <Th>{isHi ? 'स्थिति' : 'State'}</Th>
+                    <Th numeric>{isHi ? 'राशि' : 'Amount'}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -345,7 +343,7 @@ export function PaymentHistory({ month, payments, focusedRow }) {
                         <span className="text-sm">{formatInstant(payment.createdAt)}</span>
                         {payment.verifiedAt ? (
                           <span className="block text-xs text-ink-muted">
-                            Confirmed {formatInstant(payment.verifiedAt)}
+                            {isHi ? 'पुष्टि:' : 'Confirmed'} {formatInstant(payment.verifiedAt)}
                           </span>
                         ) : null}
                       </Td>

@@ -1,6 +1,7 @@
 import { requireMilkman } from '@/auth/session.js';
 import { formatDate, formatDateShort, formatInstant } from '@/domain/dates.js';
 import { formatPaise } from '@/domain/money.js';
+import { getT, getLocale } from '@/i18n/server.js';
 import * as productService from '@/services/product.service.js';
 
 import { EmptyState, Card, CardBody, CardHeader, Table, Th, Td, Stat, SectionHeading, Badge, cn } from '@/components/ui/index.jsx';
@@ -13,12 +14,12 @@ const rupeesToPaise = (value) => Math.round(Number(value ?? 0) * 100);
 
 /**
  * Extras: paneer, ghee, curd — anything a customer orders on top of the milk.
- *
- * New orders wait for a yes; accepted ones ride along on the round and are
- * handed over there. Delivered ones fall into the ledger at the bottom.
  */
 export default async function OrdersPage() {
   const actor = await requireMilkman();
+  const t = await getT();
+  const locale = await getLocale();
+  const isHi = locale === 'hi';
 
   const [pending, accepted, history] = await Promise.all([
     productService.listOrders(actor, { status: 'PENDING', limit: 50 }),
@@ -32,12 +33,14 @@ export default async function OrdersPage() {
 
   const subtitle =
     open === 0
-      ? 'Nothing open — every order is handed over.'
+      ? isHi
+        ? 'कोई ऑर्डर खुला नहीं है — सभी उत्पाद डिलीवर हो चुके हैं।'
+        : t('orders.nothingOpen', {}, 'Nothing open — every order is handed over.')
       : [
-          `${open} open`,
-          pending.length ? `${pending.length} new` : null,
-          accepted.length ? `${accepted.length} to hand over` : null,
-          `${formatPaise(openPaise, { whole: true })} in play`,
+          `${open} ${isHi ? 'खुले ऑर्डर' : t('orders.open', {}, 'open')}`,
+          pending.length ? `${pending.length} ${isHi ? 'नए' : t('orders.new', {}, 'new')}` : null,
+          accepted.length ? `${accepted.length} ${isHi ? 'डिलीवर करने के लिए' : t('orders.toHandOver', {}, 'to hand over')}` : null,
+          isHi ? `${formatPaise(openPaise, { whole: true })} कुल मान` : `${formatPaise(openPaise, { whole: true })} in play`,
         ]
           .filter(Boolean)
           .join(' · ');
@@ -55,17 +58,19 @@ export default async function OrdersPage() {
               {pending.length > 0 ? (
                 <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-200" />
               ) : null}
-              Extras
+              {isHi ? 'अतिरिक्त उत्पाद' : t('orders.extras', {}, 'Extras')}
             </span>
             <h1 className="mt-3 font-heading text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
-              Orders
+              {isHi ? 'अतिरिक्त उत्पाद ऑर्डर' : t('orders.title', {}, 'Orders')}
             </h1>
             <p className="mt-1 text-sm font-medium text-white/85">{subtitle}</p>
           </div>
 
           <div className="flex shrink-0 flex-col items-center rounded-2xl border border-white/20 bg-white/15 px-4 py-2 backdrop-blur-md">
             <span className="stat-number text-3xl leading-none text-white">{open}</span>
-            <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-white/80">open</span>
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-white/80">
+              {isHi ? 'खुले' : t('orders.open', {}, 'open')}
+            </span>
           </div>
         </div>
       </section>
@@ -73,26 +78,26 @@ export default async function OrdersPage() {
       {/* ── Tiles ─────────────────────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat
-          label="New"
+          label={isHi ? 'नए' : t('orders.new', {}, 'New')}
           value={pending.length}
           icon={<CartIcon className="h-5 w-5" />}
           tone={pending.length ? 'caution' : 'neutral'}
-          hint="Waiting for your yes"
+          hint={isHi ? 'आपकी स्वीकृति की प्रतीक्षा' : t('orders.waitingForYes', {}, 'Waiting for your yes')}
         />
         <Stat
-          label="To hand over"
+          label={isHi ? 'डिलीवर करने के लिए' : t('orders.toHandOver', {}, 'To hand over')}
           value={accepted.length}
           icon={<DeliveryIcon className="h-5 w-5" />}
           tone={accepted.length ? 'brand' : 'neutral'}
-          hint="Riding on your round"
+          hint={isHi ? 'राउंड में साथ ले जाने के लिए' : t('orders.ridingOnRound', {}, 'Riding on your round')}
         />
         <div className="col-span-2 sm:col-span-1">
           <Stat
-            label="Delivered"
+            label={isHi ? 'डिलीवर हुआ' : t('orders.delivered', {}, 'Delivered')}
             value={history.length}
             icon={<CheckIcon className="h-5 w-5" />}
             tone="positive"
-            hint={history.length ? `${formatPaise(historyPaise, { whole: true })} · last ${history.length}` : 'Nothing yet'}
+            hint={history.length ? `${formatPaise(historyPaise, { whole: true })} · ${history.length}` : (isHi ? 'अभी कुछ नहीं' : t('common.noData', {}, 'Nothing yet'))}
           />
         </div>
       </div>
@@ -102,15 +107,23 @@ export default async function OrdersPage() {
         <div className="mb-6">
           <EmptyState
             icon={<OrdersIcon className="h-8 w-8 text-brand" />}
-            title="No open orders"
-            description="When a customer orders paneer, ghee or anything from your catalogue, it lands here for you to accept and carry on the round."
-            tip="Accepted orders show up on the stop card in Deliveries under “Also carry”, so nothing is forgotten on the bike."
+            title={isHi ? 'कोई खुला ऑर्डर नहीं है' : t('orders.noOpenOrders', {}, 'No open orders')}
+            description={
+              isHi
+                ? 'जब कोई ग्राहक पनीर, घी या आपके कैटलॉग से कोई उत्पाद ऑर्डर करेगा, तो वह यहाँ स्वीकार करने और राउंड पर ले जाने के लिए आएगा।'
+                : t('orders.noOpenOrdersDesc', {}, 'When a customer orders paneer, ghee or anything from your catalogue, it lands here for you to accept and carry on the round.')
+            }
+            tip={
+              isHi
+                ? 'स्वीकृत ऑर्डर डिलीवरी शीट में दिखाई देते हैं ताकि कोई भी सामान छूटे नहीं।'
+                : t('orders.noOpenOrdersTip', {}, 'Accepted orders show up on the stop card in Deliveries under “Also carry”, so nothing is forgotten on the bike.')
+            }
           />
         </div>
       ) : (
         [
-          { key: 'new', title: 'New', tone: 'caution', rows: pending, accent: 'bg-caution' },
-          { key: 'accepted', title: 'To hand over', tone: 'brand', rows: accepted, accent: 'bg-brand' },
+          { key: 'new', title: isHi ? 'नए ऑर्डर' : t('orders.new', {}, 'New'), tone: 'caution', rows: pending, accent: 'bg-caution' },
+          { key: 'accepted', title: isHi ? 'डिलीवर करने के लिए' : t('orders.toHandOver', {}, 'To hand over'), tone: 'brand', rows: accepted, accent: 'bg-brand' },
         ].map((section) =>
           section.rows.length > 0 ? (
             <section key={section.key} className="mb-8" aria-labelledby={`${section.key}-heading`}>
@@ -119,7 +132,7 @@ export default async function OrdersPage() {
               </SectionHeading>
               <div className="space-y-3">
                 {section.rows.map((order) => (
-                  <OrderCard key={order.id} order={order} accent={section.accent} />
+                  <OrderCard key={order.id} order={order} accent={section.accent} t={t} isHi={isHi} />
                 ))}
               </div>
             </section>
@@ -131,8 +144,12 @@ export default async function OrdersPage() {
       {history.length > 0 ? (
         <Card>
           <CardHeader
-            title="Delivered"
-            description={`The last ${history.length} handed over · ${formatPaise(historyPaise, { whole: true })}`}
+            title={isHi ? 'डिलीवर किए गए ऑर्डर' : t('orders.deliveredHeading', {}, 'Delivered')}
+            description={
+              isHi
+                ? `${history.length} डिलीवर किए गए · ${formatPaise(historyPaise, { whole: true })}`
+                : `${history.length} ${t('orders.delivered', {}, 'handed over')} · ${formatPaise(historyPaise, { whole: true })}`
+            }
           />
           <CardBody className="p-0 pt-3">
             {/* Phone: one row per order. */}
@@ -159,10 +176,10 @@ export default async function OrdersPage() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Customer</Th>
-                    <Th>Item</Th>
-                    <Th>Date</Th>
-                    <Th numeric>Amount</Th>
+                    <Th>{isHi ? 'ग्राहक' : t('orders.customer', {}, 'Customer')}</Th>
+                    <Th>{isHi ? 'उत्पाद' : t('orders.item', {}, 'Item')}</Th>
+                    <Th>{isHi ? 'दिनांक' : t('orders.date', {}, 'Date')}</Th>
+                    <Th numeric>{isHi ? 'राशि' : t('orders.amount', {}, 'Amount')}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -187,7 +204,7 @@ export default async function OrdersPage() {
 }
 
 /** One open order: who, what, for when, and the buttons that move it on. */
-function OrderCard({ order, accent }) {
+function OrderCard({ order, accent, t, isHi = false }) {
   return (
     <article className="card-surface relative overflow-hidden p-4 transition-shadow hover:shadow-card-hover sm:p-5">
       <div aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-0 h-1', accent)} />
@@ -201,14 +218,18 @@ function OrderCard({ order, accent }) {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className="font-heading text-base font-extrabold tracking-tight text-ink">{order.customerName}</h3>
             <Badge tone={order.status === 'PENDING' ? 'caution' : 'brand'}>
-              {order.status === 'PENDING' ? 'New' : 'Accepted'}
+              {order.status === 'PENDING'
+                ? isHi ? 'नया' : (t ? t('orders.new', {}, 'New') : 'New')
+                : isHi ? 'स्वीकृत' : (t ? t('common.approved', {}, 'Accepted') : 'Accepted')}
             </Badge>
           </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs font-semibold text-ink-muted">
             <CalendarIcon className="h-4 w-4 text-ink-subtle" />
-            For {formatDateShort(order.orderDate)}
+            {formatDateShort(order.orderDate)}
             <span className="text-ink-subtle">·</span>
-            <span className="font-medium text-ink-subtle">ordered {formatInstant(order.createdAt)}</span>
+            <span className="font-medium text-ink-subtle">
+              {isHi ? 'ऑर्डर समय' : t ? t('orders.orderedAt', {}, 'ordered') : 'ordered'} {formatInstant(order.createdAt)}
+            </span>
           </p>
           {order.deliveryAddress ? (
             <p className="mt-1 flex items-start gap-1.5 text-sm font-medium text-ink-muted">
@@ -253,3 +274,4 @@ function OrderCard({ order, accent }) {
     </article>
   );
 }
+

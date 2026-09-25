@@ -9,6 +9,7 @@ import { Button, Modal, Input, Select, Textarea } from '@/components/ui/interact
 import { saveProduct, deleteProduct, updateOrderStatus } from '@/actions/milkman.actions.js';
 import { TOP_CATALOG_PRODUCTS, resolveProductImage } from '@/domain/catalogPresets.js';
 import { CheckIcon, DeliveryIcon, PlusIcon, EditIcon, TrashIcon } from '@/components/ui/Icons.jsx';
+import { useT } from '@/i18n/provider.jsx';
 
 const UNITS = [
   { value: 'L', label: 'Litres' },
@@ -34,10 +35,18 @@ const STOCK_LABEL = { critical: 'Out of stock', caution: 'Running low', positive
 const rupeesToPaise = (value) => Math.round(Number(value ?? 0) * 100);
 
 export function ProductEditor({ product, trigger }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const units = [
+    { value: 'L', label: t('shop.litres', {}, 'Litres') },
+    { value: 'kg', label: t('shop.kilograms', {}, 'Kilograms') },
+    { value: 'g', label: t('shop.grams', {}, 'Grams') },
+    { value: 'pcs', label: t('shop.pieces', {}, 'Pieces') },
+  ];
 
   const [name, setName] = useState(product?.name ?? 'Fresh Malai Paneer');
   const [unit, setUnit] = useState(product?.unit ?? 'kg');
@@ -83,10 +92,10 @@ export function ProductEditor({ product, trigger }) {
     startTransition(async () => {
       const result = await deleteProduct({ id: product.id });
       if (result.ok) {
-        toast.success(`Deleted ${product.name}`);
+        toast.success(`${product.name} ${t('common.delete', {}, 'deleted')}`);
         close();
       } else {
-        toast.error(result.message ?? 'Could not delete product.');
+        toast.error(result.message ?? t('common.tryAgain', {}, 'Could not delete product.'));
         setConfirmDelete(false);
       }
     });
@@ -99,14 +108,14 @@ export function ProductEditor({ product, trigger }) {
       ) : (
         <Button onClick={() => setOpen(true)}>
           {product ? <EditIcon className="h-4 w-4" /> : <PlusIcon className="h-4 w-4" />}
-          {product ? 'Edit' : 'Add item'}
+          {product ? t('common.edit', {}, 'Edit') : t('shop.add', {}, 'Add item')}
         </Button>
       )}
 
       <Modal
         open={open}
         onClose={close}
-        title={product ? `Edit · ${product.name}` : 'Add to your catalog'}
+        title={product ? `${t('common.edit', {}, 'Edit')} · ${product.name}` : t('shop.addFirstItem', {}, 'Add to your catalog')}
         footer={
           <div className="flex w-full items-center justify-between gap-2">
             {product?.id ? (
@@ -118,14 +127,14 @@ export function ProductEditor({ product, trigger }) {
                 onClick={handleDelete}
               >
                 <TrashIcon className="h-4 w-4" />
-                {confirmDelete ? 'Really delete' : 'Delete'}
+                {confirmDelete ? t('shop.reallyDelete', {}, 'Really delete') : t('common.delete', {}, 'Delete')}
               </Button>
             ) : <div />}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" onClick={close}>Cancel</Button>
+              <Button variant="ghost" onClick={close}>{t('common.cancel', {}, 'Cancel')}</Button>
               <Button form="product-form" type="submit" loading={pending && !confirmDelete}>
                 <CheckIcon className="h-4 w-4" />
-                Save
+                {t('common.save', {}, 'Save')}
               </Button>
             </div>
           </div>
@@ -147,12 +156,12 @@ export function ProductEditor({ product, trigger }) {
                 isActive: data.isActive === 'on' || data.isActive === true,
               });
               if (result.ok) {
-                toast.success('Saved to your catalog.', { id: toastId });
+                toast.success(t('common.saved', {}, 'Saved to your catalog.'), { id: toastId });
                 setErrors({});
               } else {
                 setOpen(true);
                 setErrors(result.fieldErrors ?? {});
-                toast.error(result.message ?? 'Could not save product.', { id: toastId });
+                toast.error(result.message ?? t('common.tryAgain', {}, 'Could not save product.'), { id: toastId });
               }
             });
           }}
@@ -160,15 +169,15 @@ export function ProductEditor({ product, trigger }) {
           {/* Presets: the usual dairy items with a photo and a description ready. */}
           <div className="space-y-2 rounded-2xl border border-brand/20 bg-brand-soft/60 p-3.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-brand">Start from a preset</span>
-              <span className="text-[10px] font-medium text-ink-subtle">Fills photo, price and description</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-brand">{t('shop.startPreset', {}, 'Start from a preset')}</span>
+              <span className="text-[10px] font-medium text-ink-subtle">{t('shop.presetHint', {}, 'Fills photo, price and description')}</span>
             </div>
             <select
               onChange={(e) => handlePresetSelect(e.target.value)}
               className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-ink shadow-xs focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
               defaultValue=""
             >
-              <option value="" disabled>Choose a dairy item…</option>
+              <option value="" disabled>{t('shop.choosePreset', {}, 'Choose a dairy item…')}</option>
               {TOP_CATALOG_PRODUCTS.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} · ₹{p.defaultPrice}/{p.unit}
@@ -190,7 +199,7 @@ export function ProductEditor({ product, trigger }) {
 
           <Input
             name="name"
-            label="Product name"
+            label={t('shop.productName', {}, 'Product name')}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -204,7 +213,7 @@ export function ProductEditor({ product, trigger }) {
           <div className="grid grid-cols-2 gap-3">
             <Input
               name="pricePerUnit"
-              label="Price (₹)"
+              label={t('shop.price', {}, 'Price (₹)')}
               inputMode="decimal"
               value={pricePerUnit}
               onChange={(e) => setPricePerUnit(e.target.value)}
@@ -213,27 +222,27 @@ export function ProductEditor({ product, trigger }) {
             />
             <Select
               name="unit"
-              label="Per"
+              label={t('shop.per', {}, 'Per')}
               value={unit}
               onChange={(event) => setUnit(event.target.value)}
-              options={UNITS}
+              options={units}
             />
           </div>
 
           <Input
             name="availableQuantity"
-            label="Stock available today"
+            label={t('shop.stockToday', {}, 'Stock available today')}
             inputMode="decimal"
             value={availableQuantity}
             onChange={(e) => setAvailableQuantity(e.target.value)}
             error={errors.availableQuantity}
-            hint="Customers cannot order more than this."
+            hint={t('shop.stockHint', {}, 'Customers cannot order more than this.')}
             required
           />
 
           <Textarea
             name="description"
-            label="Description"
+            label={t('shop.description', {}, 'Description')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             maxLength={500}
@@ -246,7 +255,7 @@ export function ProductEditor({ product, trigger }) {
               defaultChecked={product ? product.isActive : true}
               className="h-4 w-4 rounded border-border accent-brand"
             />
-            Visible to customers in the shop
+            {t('shop.visibleInShop', {}, 'Visible to customers in the shop')}
           </label>
         </form>
       </Modal>

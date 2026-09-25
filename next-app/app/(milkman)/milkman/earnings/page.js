@@ -2,6 +2,7 @@ import { requireMilkman } from '@/auth/session.js';
 import { businessMonth, formatMonth, addMonths } from '@/domain/dates.js';
 import { formatPaise, formatMilli } from '@/domain/money.js';
 import * as billingService from '@/services/billing.service.js';
+import { getLocale } from '@/i18n/server.js';
 
 import { Card, CardBody, CardHeader, Stat, cn } from '@/components/ui/index.jsx';
 import {
@@ -37,6 +38,8 @@ export default async function EarningsPage({ searchParams }) {
   const thisMonth = businessMonth();
   const month = typeof params?.month === 'string' ? params.month : thisMonth;
   const focused = typeof params?.customer === 'string' ? params.customer : null;
+  const locale = await getLocale();
+  const isHi = locale === 'hi';
 
   const [earnings, performance] = await Promise.all([
     billingService.getEarnings(actor, { month }),
@@ -90,12 +93,12 @@ export default async function EarningsPage({ searchParams }) {
                 {formatMonth(month)}
               </span>
               <h1 className="mt-3 truncate font-heading text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl">
-                {focusedRow ? focusedRow.customerName : 'Earnings'}
+                {focusedRow ? focusedRow.customerName : (isHi ? 'कुल कमाई (Earnings)' : 'Earnings')}
               </h1>
               <p className="mt-1 text-sm font-medium text-white/85">
-                {formatPaise(view.billedPaise, { whole: true })} billed ·{' '}
-                {formatPaise(view.collectedPaise, { whole: true })} collected ·{' '}
-                {formatPaise(view.outstandingPaise, { whole: true })} outstanding
+                {isHi
+                  ? `${formatPaise(view.billedPaise, { whole: true })} कुल बिल · ${formatPaise(view.collectedPaise, { whole: true })} प्राप्त · ${formatPaise(view.outstandingPaise, { whole: true })} बकाया`
+                  : `${formatPaise(view.billedPaise, { whole: true })} billed · ${formatPaise(view.collectedPaise, { whole: true })} collected · ${formatPaise(view.outstandingPaise, { whole: true })} outstanding`}
               </p>
             </div>
 
@@ -112,7 +115,7 @@ export default async function EarningsPage({ searchParams }) {
                   href={withCustomer(`/milkman/earnings?month=${thisMonth}`)}
                   className="tap flex h-10 items-center rounded-xl border border-white/25 bg-white/15 px-3 text-xs font-bold backdrop-blur-sm transition-colors hover:bg-white/25 active:scale-95"
                 >
-                  Now
+                  {isHi ? 'वर्तमान' : 'Now'}
                 </a>
               ) : null}
               <a
@@ -131,13 +134,17 @@ export default async function EarningsPage({ searchParams }) {
               <span>
                 {view.billedPaise > 0
                   ? collectedRate >= 100
-                    ? 'Everything billed has been collected'
-                    : `${formatPaise(view.outstandingPaise, { whole: true })} still to come in`
-                  : 'Nothing billed yet this month'}
+                    ? (isHi ? 'सभी बिल का पूरा भुगतान प्राप्त हो चुका है (100%)' : 'Everything billed has been collected')
+                    : (isHi
+                        ? `${formatPaise(view.outstandingPaise, { whole: true })} अभी आना बाकी है`
+                        : `${formatPaise(view.outstandingPaise, { whole: true })} still to come in`)
+                  : (isHi ? 'इस महीने अभी कोई बिल नहीं बना है' : 'Nothing billed yet this month')}
               </span>
               <span className="shrink-0">
                 <span className="tnum font-heading text-lg font-black text-white">{collectedRate}%</span>
-                <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-white/80">collected</span>
+                <span className="ml-1 text-[11px] font-bold uppercase tracking-wider text-white/80">
+                  {isHi ? 'वसूली' : 'collected'}
+                </span>
               </span>
             </div>
             <div
@@ -163,45 +170,62 @@ export default async function EarningsPage({ searchParams }) {
         <p className="text-xs font-medium text-ink-muted">
           {focusedRow ? (
             <>
-              Every figure on this page is {focusedRow.customerName}'s alone.{' '}
+              {isHi
+                ? `इस पेज के सभी आंकड़े केवल ${focusedRow.customerName} के हैं। `
+                : `Every figure on this page is ${focusedRow.customerName}'s alone. `}
               <a href={`/milkman/earnings?month=${month}`} className="font-bold text-brand hover:underline">
-                Show everyone
+                {isHi ? 'सभी ग्राहक दिखाएं' : 'Show everyone'}
               </a>
             </>
           ) : (
-            `${earnings.byCustomer.length} ${earnings.byCustomer.length === 1 ? 'customer' : 'customers'} with a line this month`
+            isHi
+              ? `इस महीने कुल ${earnings.byCustomer.length} ग्राहक सक्रिय रहे`
+              : `${earnings.byCustomer.length} ${earnings.byCustomer.length === 1 ? 'customer' : 'customers'} with a line this month`
           )}
         </p>
       </div>
 
       {/* ── Tiles ─────────────────────────────────────────────────────── */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Billed" value={formatPaise(view.billedPaise, { whole: true })} icon={<EarningsIcon className="h-5 w-5" />} tone="brand" />
-        <Stat label="Collected" value={formatPaise(view.collectedPaise, { whole: true })} icon={<CheckIcon className="h-5 w-5" />} tone="positive" />
         <Stat
-          label="Outstanding"
+          label={isHi ? 'कुल बिल (Billed)' : 'Billed'}
+          value={formatPaise(view.billedPaise, { whole: true })}
+          icon={<EarningsIcon className="h-5 w-5" />}
+          tone="brand"
+        />
+        <Stat
+          label={isHi ? 'प्राप्त (Collected)' : 'Collected'}
+          value={formatPaise(view.collectedPaise, { whole: true })}
+          icon={<CheckIcon className="h-5 w-5" />}
+          tone="positive"
+        />
+        <Stat
+          label={isHi ? 'बकाया (Outstanding)' : 'Outstanding'}
           value={formatPaise(view.outstandingPaise, { whole: true })}
           icon={<RequestsIcon className="h-5 w-5" />}
           tone={view.outstandingPaise > 0 ? 'caution' : 'neutral'}
         />
         <Stat
-          label="Deliveries"
+          label={isHi ? 'डिलीवरी (Deliveries)' : 'Deliveries'}
           value={view.deliveredCount}
           icon={<DeliveryIcon className="h-5 w-5" />}
           tone="info"
-          hint={milkMilli > 0 ? `${formatMilli(milkMilli)} of milk` : undefined}
+          hint={milkMilli > 0 ? (isHi ? `${formatMilli(milkMilli)} दूध` : `${formatMilli(milkMilli)} of milk`) : undefined}
         />
       </div>
 
       {/* ── Who the money is with ─────────────────────────────────────── */}
       <section className="mb-5">
-        <CustomerEarnings month={month} rows={earnings.byCustomer} focused={focusedRow?.customerId ?? null} />
+        <CustomerEarnings month={month} rows={earnings.byCustomer} focused={focusedRow?.customerId ?? null} isHi={isHi} />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* ── Milk vs extras ────────────────────────────────────────── */}
         <Card>
-          <CardHeader title="Where it came from" description="Milk against extras, this month" />
+          <CardHeader
+            title={isHi ? 'कमाई का स्रोत' : 'Where it came from'}
+            description={isHi ? 'दूध बनाम अतिरिक्त उत्पाद (इस माह)' : 'Milk against extras, this month'}
+          />
           <CardBody>
             {view.billedPaise > 0 ? (
               <div className="mb-4">
@@ -210,8 +234,14 @@ export default async function EarningsPage({ searchParams }) {
                   <div className="h-full bg-caution transition-[width] duration-500" style={{ width: `${100 - milkShare}%` }} />
                 </div>
                 <div className="mt-2 flex items-center gap-4 text-[11px] font-bold uppercase tracking-wide text-ink-subtle">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand" />Milk {milkShare}%</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-caution" />Extras {100 - milkShare}%</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-brand" />
+                    {isHi ? 'दूध' : 'Milk'} {milkShare}%
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-caution" />
+                    {isHi ? 'अतिरिक्त उत्पाद' : 'Extras'} {100 - milkShare}%
+                  </span>
                 </div>
               </div>
             ) : null}
@@ -220,9 +250,9 @@ export default async function EarningsPage({ searchParams }) {
               <div className="flex items-center gap-3">
                 <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"><MilkDropIcon className="h-4 w-4" /></span>
                 <dt className="min-w-0 flex-1">
-                  <span className="block font-bold text-ink">Milk</span>
+                  <span className="block font-bold text-ink">{isHi ? 'दूध (Milk)' : 'Milk'}</span>
                   <span className="block text-xs font-medium text-ink-muted">
-                    {view.deliveredCount} {view.deliveredCount === 1 ? 'delivery' : 'deliveries'}{milkMilli > 0 ? ` · ${formatMilli(milkMilli)}` : ''}
+                    {view.deliveredCount} {isHi ? 'डिलीवरी' : view.deliveredCount === 1 ? 'delivery' : 'deliveries'}{milkMilli > 0 ? ` · ${formatMilli(milkMilli)}` : ''}
                   </span>
                 </dt>
                 <dd className="tnum font-extrabold text-ink">{formatPaise(view.milkPaise)}</dd>
@@ -230,13 +260,13 @@ export default async function EarningsPage({ searchParams }) {
               <div className="flex items-center gap-3">
                 <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-caution-soft text-caution"><CartIcon className="h-4 w-4" /></span>
                 <dt className="min-w-0 flex-1">
-                  <span className="block font-bold text-ink">Extras</span>
-                  <span className="block text-xs font-medium text-ink-muted">{view.purchaseCount} {view.purchaseCount === 1 ? 'order' : 'orders'}</span>
+                  <span className="block font-bold text-ink">{isHi ? 'अतिरिक्त उत्पाद (Extras)' : 'Extras'}</span>
+                  <span className="block text-xs font-medium text-ink-muted">{view.purchaseCount} {isHi ? 'ऑर्डर' : view.purchaseCount === 1 ? 'order' : 'orders'}</span>
                 </dt>
                 <dd className="tnum font-extrabold text-ink">{formatPaise(view.productsPaise)}</dd>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-3">
-                <dt className="font-bold text-ink">Total billed</dt>
+                <dt className="font-bold text-ink">{isHi ? 'कुल बिल' : 'Total billed'}</dt>
                 <dd className="stat-number text-lg text-ink">{formatPaise(view.billedPaise)}</dd>
               </div>
             </dl>
@@ -245,10 +275,15 @@ export default async function EarningsPage({ searchParams }) {
 
         {/* ── Top extras, ranked ────────────────────────────────────── */}
         <Card>
-          <CardHeader title="Top extras" description="By revenue this month" />
+          <CardHeader
+            title={isHi ? 'शीर्ष अतिरिक्त उत्पाद' : 'Top extras'}
+            description={isHi ? 'इस महीने राजस्व अनुसार' : 'By revenue this month'}
+          />
           <CardBody className={view.topProducts.length === 0 ? 'p-0' : undefined}>
             {view.topProducts.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm font-medium text-ink-muted">No extras sold yet.</p>
+              <p className="px-5 py-8 text-center text-sm font-medium text-ink-muted">
+                {isHi ? 'अभी तक कोई अतिरिक्त उत्पाद नहीं बिका।' : 'No extras sold yet.'}
+              </p>
             ) : (
               <ol className="space-y-3">
                 {view.topProducts.map((product, index) => {
@@ -274,7 +309,7 @@ export default async function EarningsPage({ searchParams }) {
                             <div className={cn('h-full rounded-full', index === 0 ? 'bg-brand' : 'bg-brand/50')} style={{ width: `${share}%` }} />
                           </div>
                           <span className="tnum shrink-0 text-[11px] font-semibold text-ink-subtle">
-                            {product.count} {product.count === 1 ? 'order' : 'orders'}
+                            {product.count} {isHi ? 'ऑर्डर' : product.count === 1 ? 'order' : 'orders'}
                           </span>
                         </div>
                       </div>
@@ -289,7 +324,7 @@ export default async function EarningsPage({ searchParams }) {
 
       {/* ── Collections history ───────────────────────────────────────── */}
       <section className="mt-5">
-        <PaymentHistory month={month} payments={payments} focusedRow={focusedRow} />
+        <PaymentHistory month={month} payments={payments} focusedRow={focusedRow} isHi={isHi} />
       </section>
 
       {/* ── 6-Month Rolling Performance & Growth Analytics ─────────────── */}
