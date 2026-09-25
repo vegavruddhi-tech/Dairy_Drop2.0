@@ -54,15 +54,36 @@ export function VerificationStatusChecker({
           return;
         }
 
+        // Milkman has been approved by admin! Now ready to start trial or choose plan
+        const isMilkmanApproved =
+          (data.isVerified === true || data.profile?.isVerified === true) &&
+          initialGate === 'MILKMAN_UNVERIFIED';
+
+        // Any gate change (e.g. MILKMAN_UNVERIFIED -> SAAS_NONE or SAAS_PENDING_VERIFICATION -> OK)
+        const gateChanged = data.gate && initialGate && data.gate !== initialGate;
+
+        if (isMilkmanApproved || gateChanged) {
+          toast.success(
+            isHi
+              ? 'बधाई हो! आपकी डेयरी को एडमिन द्वारा सत्यापित कर दिया गया है।'
+              : 'Congratulations! Your dairy business has been verified by the admin.',
+          );
+          setTimeout(() => {
+            window.location.reload();
+          }, 800);
+          return;
+        }
+
         if (data.message) {
           setStatusMessage(data.message);
         }
 
         if (isManual) {
           toast.info(
-            isHi
-              ? 'सत्यापन अभी प्रगति पर है। हम आपकी डेयरी विवरण की जांच कर रहे हैं।'
-              : 'Verification is currently in progress. We are reviewing your dairy details.',
+            data.message ||
+              (isHi
+                ? 'सत्यापन अभी प्रगति पर है। हम आपकी डेयरी विवरण की जांच कर रहे हैं।'
+                : 'Verification is currently in progress. We are reviewing your dairy details.'),
           );
         }
       } catch (err) {
@@ -78,7 +99,7 @@ export function VerificationStatusChecker({
         setLoading(false);
       }
     },
-    [loading, isHi, targetRedirect],
+    [loading, isHi, initialGate, targetRedirect],
   );
 
   // 1. Supabase Realtime WebSocket Listeners (Instant DB Push Event)
