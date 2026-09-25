@@ -55,30 +55,35 @@ import {
  * @returns {Promise<ActorContext|null>}
  */
 export const getActor = cache(async () => {
-  const { userId: clerkId } = await clerkAuth();
-  if (!clerkId) return null;
+  try {
+    const { userId: clerkId } = await clerkAuth();
+    if (!clerkId) return null;
 
-  let account = await findAccountByClerkId(clerkId);
+    let account = await findAccountByClerkId(clerkId);
 
-  // Lazy provisioning. The `user.created` webhook usually wins the race, but it
-  // is eventually consistent — a brand-new user can land here first, and
-  // "signed in but no account" is a confusing thing to show them.
-  if (!account) {
-    const clerkUser = await currentUser();
-    if (!clerkUser) return null;
+    // Lazy provisioning. The `user.created` webhook usually wins the race, but it
+    // is eventually consistent — a brand-new user can land here first, and
+    // "signed in but no account" is a confusing thing to show them.
+    if (!account) {
+      const clerkUser = await currentUser();
+      if (!clerkUser) return null;
 
-    account = await upsertFromClerk({
-      clerkId,
-      email: clerkUser.primaryEmailAddress?.emailAddress ?? clerkUser.emailAddresses?.[0]?.emailAddress,
-      name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username,
-      imageUrl: clerkUser.imageUrl,
-      phone: clerkUser.primaryPhoneNumber?.phoneNumber,
-    });
+      account = await upsertFromClerk({
+        clerkId,
+        email: clerkUser.primaryEmailAddress?.emailAddress ?? clerkUser.emailAddresses?.[0]?.emailAddress,
+        name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username,
+        imageUrl: clerkUser.imageUrl,
+        phone: clerkUser.primaryPhoneNumber?.phoneNumber,
+      });
+    }
+
+    if (!account) return null;
+
+    return buildActor(account);
+  } catch (err) {
+    console.error('[getActor error]:', err);
+    return null;
   }
-
-  if (!account) return null;
-
-  return buildActor(account);
 });
 
 /** Shape a database row into the context every layer below expects. */
