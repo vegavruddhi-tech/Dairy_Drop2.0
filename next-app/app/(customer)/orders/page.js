@@ -30,31 +30,29 @@ export default async function OrdersPage() {
         />
       ) : (
         <Card>
-          <CardBody className="p-0">
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Item</Th>
-                  <Th numeric>Qty</Th>
-                  <Th numeric>Amount</Th>
-                  <Th>Status</Th>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Item</Th>
+                <Th numeric>Qty</Th>
+                <Th numeric>Amount</Th>
+                <Th className="text-right sm:text-left">Status</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {orders.map((order) => (
+                <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                  <Td>
+                    <span className="font-bold text-slate-900">{order.productName}</span>
+                    <span className="block text-xs font-medium text-slate-400">{formatDate(order.orderDate)}</span>
+                  </Td>
+                  <Td numeric className="font-semibold text-slate-700">{Number(order.quantity)} {order.unit}</Td>
+                  <Td numeric className="font-bold text-slate-900">₹{Number(order.amount).toFixed(2)}</Td>
+                  <Td className="text-right sm:text-left"><StatusBadge status={order.status} /></Td>
                 </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id}>
-                    <Td>
-                      <span className="font-medium">{order.productName}</span>
-                      <span className="block text-xs text-ink-muted">{formatDate(order.orderDate)}</span>
-                    </Td>
-                    <Td numeric>{Number(order.quantity)} {order.unit}</Td>
-                    <Td numeric>₹{Number(order.amount).toFixed(2)}</Td>
-                    <Td><StatusBadge status={order.status} /></Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </CardBody>
+              ))}
+            </tbody>
+          </Table>
         </Card>
       )}
     </>

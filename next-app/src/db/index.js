@@ -26,9 +26,10 @@ if (!process.env.DATABASE_URL) {
 function createPool() {
   const p = new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
-    idleTimeoutMillis: 60_000,
-    connectionTimeoutMillis: 20_000,
+    max: Number(process.env.DATABASE_POOL_MAX ?? (process.env.NODE_ENV === 'production' ? 10 : 5)),
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    allowExitOnIdle: true,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
     ssl: process.env.DATABASE_URL.includes('localhost')

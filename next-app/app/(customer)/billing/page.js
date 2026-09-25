@@ -106,10 +106,10 @@ export default async function BillingPage({ searchParams }) {
                   <tbody>
                     {bill.milkLines.map((line) => (
                       <tr key={line.subscriptionRootId}>
-                        <Td>
-                          <span className="font-medium">{line.productName}</span>
+                        <Td className="min-w-[100px] sm:min-w-0">
+                          <span className="font-bold text-slate-900">{line.productName}</span>
                           {line.skippedDays > 0 ? (
-                            <span className="block text-xs text-ink-muted">
+                            <span className="block text-[11px] text-ink-muted">
                               {line.skippedDays} day{line.skippedDays === 1 ? '' : 's'} skipped — not charged
                             </span>
                           ) : null}
@@ -117,7 +117,7 @@ export default async function BillingPage({ searchParams }) {
                         <Td numeric>{line.deliveredDays}</Td>
                         <Td numeric>{formatMilli(line.deliveredMilli, line.unit)}</Td>
                         <Td numeric>₹{Number(line.unitPrice).toFixed(2)}</Td>
-                        <Td numeric>{formatPaise(line.amountPaise)}</Td>
+                        <Td numeric className="font-bold text-slate-900">{formatPaise(line.amountPaise)}</Td>
                       </tr>
                     ))}
                   </tbody>

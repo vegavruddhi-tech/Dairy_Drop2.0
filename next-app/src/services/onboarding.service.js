@@ -30,7 +30,6 @@ import * as usersRepo from '@/repositories/users.repo.js';
 import * as saasRepo from '@/repositories/saas.repo.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
-import * as auditService from './audit.service.js';
 
 /** Milkmen serving a pincode. Public — used before anyone signs in. */
 export async function findMilkmenForPincode(pincode) {
@@ -402,6 +401,200 @@ export async function updateCustomerAddress(actor, input) {
         landmark: input.landmark || null,
         deliveryInstructions: input.deliveryInstructions || null,
         isDefault: true,
+      });
+    }
+
+    return { ok: true };
+  });
+}
+
+/**
+ * Customer updates their own profile details and delivery address.
+ */
+export async function updateCustomerProfile(actor, input) {
+  return transaction(async (tx) => {
+    // 1. Update personal details & delivery area on users table
+    await tx
+      .update(users)
+      .set({
+        name: input.name,
+        phone: input.phone,
+        deliveryArea: input.area,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, actor.userId));
+
+    // 2. Update default address in addresses table
+    const [existing] = await tx
+      .select({ id: addresses.id })
+      .from(addresses)
+      .where(and(eq(addresses.userId, actor.userId), eq(addresses.isDefault, true)))
+      .limit(1);
+
+    if (existing) {
+      await tx
+        .update(addresses)
+        .set({
+          recipientName: input.name,
+          recipientPhone: input.phone,
+          line1: input.line1,
+          line2: input.line2 || null,
+          area: input.area,
+          city: input.city || 'City',
+          state: input.state || 'State',
+          pincode: input.pincode,
+          landmark: input.landmark || null,
+          deliveryInstructions: input.deliveryInstructions || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(addresses.id, existing.id));
+    } else {
+      await tx.insert(addresses).values({
+        userId: actor.userId,
+        recipientName: input.name,
+        recipientPhone: input.phone,
+        line1: input.line1,
+        line2: input.line2 || null,
+        area: input.area,
+        city: input.city || 'City',
+        state: input.state || 'State',
+        pincode: input.pincode,
+        landmark: input.landmark || null,
+        deliveryInstructions: input.deliveryInstructions || null,
+        isDefault: true,
+      });
+    }
+
+    return { ok: true };
+  });
+}
+
+/**
+ * Customer switches to another milkman.
+ * Hard Rule: Customer MUST clear all outstanding dues with previous milkman before switching.
+ */
+export async function switchMilkman(actor, input) {
+  // 1. Dues Settlement Check
+  if (actor.tenantId) {
+    const { getBill } = await import('@/services/billing.service.js');
+    const { formatPaise } = await import('@/domain/money.js');
+    const currentBill = await getBill(actor, { month: businessMonth() });
+    if (currentBill && currentBill.balancePaise > 0) {
+      throw new ConflictError(
+        `You have an outstanding balance of ${formatPaise(currentBill.balancePaise)} with your current milkman. Please settle all pending dues before switching.`,
+      );
+    }
+  }
+
+  // 2. Validate new milkman
+  if (input.newMilkmanId === actor.tenantId) {
+    throw new ConflictError('You are already subscribed to this dairy provider.');
+  }
+
+  await assertCanAcceptCustomer(input.newMilkmanId);
+
+  const [serviceArea] = await db
+    .select()
+    .from(serviceAreas)
+    .where(
+      and(
+        eq(serviceAreas.milkmanId, input.newMilkmanId),
+        eq(serviceAreas.pincode, input.pincode),
+        eq(serviceAreas.isActive, true),
+      ),
+    )
+    .limit(1);
+
+  if (!serviceArea) {
+    throw new ConflictError('That dairy provider does not deliver to your pincode.');
+  }
+
+  const oldMilkmanId = actor.tenantId;
+
+  return transaction(async (tx) => {
+    // 3. Update customer's milkman (tenantId) and set approval status to PENDING
+    await tx
+      .update(users)
+      .set({
+        tenantId: input.newMilkmanId,
+        approvalStatus: 'PENDING',
+        deliveryArea: input.area,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, actor.userId));
+
+    // 4. Cancel active subscriptions under the previous milkman
+    await tx
+      .update(milkSubscriptions)
+      .set({ status: 'CANCELLED', updatedAt: new Date() })
+      .where(
+        and(
+          eq(milkSubscriptions.customerId, actor.userId),
+          ne(milkSubscriptions.status, 'CANCELLED'),
+        ),
+      );
+
+    // 5. Enrol in new milk plans under the new milkman
+    const planIds = Array.isArray(input.planIds) ? input.planIds.slice(0, 2) : [];
+    const month = businessMonth();
+    const startDate = businessDate();
+
+    for (const planId of planIds) {
+      const [plan] = await tx
+        .select()
+        .from(milkPlans)
+        .where(and(eq(milkPlans.id, planId), eq(milkPlans.milkmanId, input.newMilkmanId)))
+        .limit(1);
+
+      if (plan) {
+        const { resolveUnitPrice } = await import('@/domain/pricing.js');
+        const { unitPrice } = resolveUnitPrice(plan, month);
+        const subId = crypto.randomUUID();
+
+        await tx.insert(milkSubscriptions).values({
+          id: subId,
+          rootId: subId,
+          customerId: actor.userId,
+          milkmanId: input.newMilkmanId,
+          planId: plan.id,
+          productName: plan.productName,
+          quantity: plan.quantity,
+          unit: plan.unit,
+          frequency: plan.frequency,
+          slot: plan.slot,
+          morningStart: plan.morningStart,
+          morningEnd: plan.morningEnd,
+          eveningStart: plan.eveningStart,
+          eveningEnd: plan.eveningEnd,
+          unitPrice,
+          quotedMonthlyPrice: plan.monthlyPrice ? String(plan.monthlyPrice) : null,
+          status: 'ACTIVE',
+          effectiveFrom: startDate,
+        });
+      }
+    }
+
+    // 6. Notify the new milkman
+    await notificationsRepo.create(tx, {
+      userId: input.newMilkmanId,
+      type: 'APPROVAL',
+      title: 'New customer transfer request',
+      body: `${actor.name || 'A customer'} in ${input.area} has switched to your dairy and requested daily delivery.`,
+      href: '/milkman/customers?status=PENDING',
+      subjectType: 'user',
+      subjectId: actor.userId,
+    });
+
+    // 7. Notify previous milkman
+    if (oldMilkmanId) {
+      await notificationsRepo.create(tx, {
+        userId: oldMilkmanId,
+        type: 'CUSTOMER_REMOVED',
+        title: 'Customer transferred out',
+        body: `${actor.name || 'A customer'} in ${input.area} has cleared all dues and switched to another dairy provider.`,
+        href: '/milkman/customers',
+        subjectType: 'user',
+        subjectId: actor.userId,
       });
     }
 

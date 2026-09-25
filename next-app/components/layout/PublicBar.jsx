@@ -14,18 +14,11 @@ export function PublicBar({ showBrand = true }) {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5 sm:px-8">
         {showBrand ? (
           <Link href="/" className="flex items-center gap-2.5 group">
-            <span
-              aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/25 transition-transform group-hover:scale-105 group-active:scale-95"
-            >
-              <svg
-                className="h-5 w-5 fill-current"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-              </svg>
-            </span>
+            <img
+              src="/image.png"
+              alt="DairyDrop"
+              className="h-9 w-9 rounded-xl object-contain shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105 group-active:scale-95"
+            />
             <div className="flex flex-col">
               <span className="font-heading text-lg font-extrabold tracking-tight text-slate-950">
                 DairyDrop

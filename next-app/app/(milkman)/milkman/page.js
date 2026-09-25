@@ -43,14 +43,24 @@ export default async function MilkmanDashboard() {
     productsRepo.countPendingOrders(actor),
   ]);
 
-  const remaining = round.summary.total - round.summary.delivered - round.summary.skipped - round.summary.undelivered;
-  const progressPercent = round.summary.total > 0
-    ? Math.round(((round.summary.total - remaining) / round.summary.total) * 100)
+  const summary = round?.summary ?? { total: 0, delivered: 0, skipped: 0, undelivered: 0, litres: 0 };
+  const remaining = Math.max(
+    0,
+    (summary.total ?? 0) - (summary.delivered ?? 0) - (summary.skipped ?? 0) - (summary.undelivered ?? 0),
+  );
+  const progressPercent = summary.total > 0
+    ? Math.round(((summary.total - remaining) / summary.total) * 100)
     : 0;
 
   const left = daysRemaining(actor.saas);
   const limit = actor.saas?.customerLimit;
-  const nearLimit = limit ? customerCount >= limit * 0.8 : false;
+  const nearLimit = limit ? (customerCount ?? 0) >= limit * 0.8 : false;
+
+  const billedPaise = earnings?.billedPaise ?? 0;
+  const collectedPaise = earnings?.collectedPaise ?? 0;
+  const pendingDuePaise = Math.max(0, billedPaise - collectedPaise);
+  const reqs = requests ?? { total: 0, quantity: 0, plan: 0 };
+  const extras = Array.isArray(todayExtras) ? todayExtras : [];
 
   return (
     <div className="space-y-7">
@@ -61,7 +71,7 @@ export default async function MilkmanDashboard() {
         subtitle={
           remaining > 0
             ? `${remaining} stops pending delivery on today's morning round`
-            : `All ${round.summary.total} stops completed for today.`
+            : `All ${summary.total} stops completed for today.`
         }
         action={<HeroAction href="/milkman/round">{remaining > 0 ? 'Start Round' : 'View Round'}</HeroAction>}
       />
@@ -85,11 +95,11 @@ export default async function MilkmanDashboard() {
           actionText="View Orders"
           actionHref="/milkman/orders"
         />
-      ) : requests.total > 0 ? (
+      ) : reqs.total > 0 ? (
         <NextActionCard
           stepNumber="!"
           tone="blue"
-          title={`${requests.total} Customer Request${requests.total === 1 ? '' : 's'} to Resolve`}
+          title={`${reqs.total} Customer Request${reqs.total === 1 ? '' : 's'} to Resolve`}
           description="Customers have submitted quantity or plan change requests for upcoming deliveries."
           actionText="View Requests"
           actionHref="/milkman/requests"
@@ -99,14 +109,14 @@ export default async function MilkmanDashboard() {
           icon={<SunIcon className="h-5 w-5 text-emerald-600" />}
           tone="emerald"
           title="Morning Delivery Round in Progress"
-          description={`${round.summary.delivered} delivered out of ${round.summary.total} stops (${progressPercent}% completed).`}
+          description={`${summary.delivered} delivered out of ${summary.total} stops (${progressPercent}% completed).`}
           actionText="Open Delivery Sheet"
           actionHref="/milkman/round"
         />
       ) : null}
 
       {/* ── TODAY'S EXTRAS PACKING SUMMARY (PANEER / GHEE / CURD) ─────── */}
-      {todayExtras.length > 0 ? (
+      {extras.length > 0 ? (
         <div className="rounded-3xl border-2 border-amber-300/90 bg-linear-to-r from-amber-50/90 via-orange-50/50 to-amber-50/90 p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5">
@@ -115,7 +125,7 @@ export default async function MilkmanDashboard() {
               </span>
               <div>
                 <h3 className="font-heading text-base font-black text-amber-950">
-                  Today's Extra Items to Carry ({todayExtras.length} items)
+                  Today's Extra Items to Carry ({extras.length} items)
                 </h3>
                 <p className="text-xs font-semibold text-amber-800/90">
                   Pack these in your carry bag along with regular milk before starting the morning round:
@@ -131,7 +141,7 @@ export default async function MilkmanDashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-            {todayExtras.map((item) => (
+            {extras.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between gap-3 rounded-2xl bg-white/95 border border-amber-200/80 p-3 shadow-2xs"
@@ -218,7 +228,7 @@ export default async function MilkmanDashboard() {
         </div>
 
         {/* Live Delivery Progress Bar */}
-        {round.summary.total > 0 ? (
+        {summary.total > 0 ? (
           <div className="mb-6 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700">
               <span>Delivery Progress</span>
@@ -234,7 +244,7 @@ export default async function MilkmanDashboard() {
         ) : null}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<RoutesIcon className="h-5 w-5" />} tone="info" label="Total Stops" value={round.summary.total} />
+          <Stat icon={<RoutesIcon className="h-5 w-5" />} tone="info" label="Total Stops" value={summary.total} />
           <Stat
             icon={
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -243,7 +253,7 @@ export default async function MilkmanDashboard() {
             }
             tone="positive"
             label="Delivered"
-            value={round.summary.delivered}
+            value={summary.delivered}
           />
           <Stat
             icon={
@@ -255,7 +265,7 @@ export default async function MilkmanDashboard() {
             label="Remaining"
             value={remaining}
           />
-          <Stat icon={<MilkDropIcon className="h-5 w-5" />} tone="brand" label="Milk Out" value={formatMilli(Math.round(Number(round.summary.litres) * 1000))} />
+          <Stat icon={<MilkDropIcon className="h-5 w-5" />} tone="brand" label="Milk Out" value={formatMilli(Math.round(Number(summary.litres) * 1000))} />
         </div>
       </div>
 
@@ -271,7 +281,7 @@ export default async function MilkmanDashboard() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label="Total Billed" value={formatPaise(earnings.billedPaise, { whole: true })} />
+          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label="Total Billed" value={formatPaise(billedPaise, { whole: true })} />
           <Stat
             icon={
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -280,7 +290,7 @@ export default async function MilkmanDashboard() {
             }
             tone="positive"
             label="Collected"
-            value={formatPaise(earnings.collectedPaise, { whole: true })}
+            value={formatPaise(collectedPaise, { whole: true })}
           />
           <Stat
             icon={
@@ -290,7 +300,7 @@ export default async function MilkmanDashboard() {
             }
             tone="caution"
             label="Pending Due"
-            value={formatPaise(earnings.billedPaise - earnings.collectedPaise, { whole: true })}
+            value={formatPaise(pendingDuePaise, { whole: true })}
           />
           <Stat
             icon={<UsersIcon className="h-5 w-5" />}
@@ -302,7 +312,7 @@ export default async function MilkmanDashboard() {
       </section>
 
       {/* ── Pending Tasks & Attention ───────────────────────────────────── */}
-      {requests.total > 0 || pendingCustomers > 0 ? (
+      {reqs.total > 0 || pendingCustomers > 0 ? (
         <div className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-3">
           <h3 className="font-heading text-base font-black text-slate-900">
             Requires Your Attention
@@ -315,18 +325,18 @@ export default async function MilkmanDashboard() {
                 label={`${pendingCustomers} customer${pendingCustomers === 1 ? '' : 's'} waiting for approval`}
               />
             ) : null}
-            {requests.quantity > 0 ? (
+            {reqs.quantity > 0 ? (
               <ActionRow
                 href="/milkman/requests"
-                badge={`${requests.quantity} requests`}
-                label={`${requests.quantity} quantity change${requests.quantity === 1 ? '' : 's'} to answer`}
+                badge={`${reqs.quantity} requests`}
+                label={`${reqs.quantity} quantity change${reqs.quantity === 1 ? '' : 's'} to answer`}
               />
             ) : null}
-            {requests.plan > 0 ? (
+            {reqs.plan > 0 ? (
               <ActionRow
                 href="/milkman/requests"
-                badge={`${requests.plan} requests`}
-                label={`${requests.plan} plan change${requests.plan === 1 ? '' : 's'} to answer`}
+                badge={`${reqs.plan} requests`}
+                label={`${reqs.plan} plan change${reqs.plan === 1 ? '' : 's'} to answer`}
               />
             ) : null}
           </div>

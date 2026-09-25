@@ -37,14 +37,11 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200/80 bg-white shadow-[0_2px_15px_rgba(0,0,0,0.02)] lg:block z-30">
         <div className="flex h-16 items-center gap-2.5 border-b border-slate-200/80 px-5">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <span
-              aria-hidden="true"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/25 transition-transform group-hover:scale-105"
-            >
-              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-              </svg>
-            </span>
+            <img
+              src="/image.png"
+              alt="DairyDrop"
+              className="h-8 w-8 rounded-xl object-contain shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105"
+            />
             <div className="flex flex-col">
               <span className="font-heading text-base font-extrabold tracking-tight text-slate-950">
                 DairyDrop
@@ -76,14 +73,11 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
       {/* ── Mobile header ───────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 pt-safe backdrop-blur-xl lg:hidden shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-500/25"
-          >
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-            </svg>
-          </span>
+          <img
+            src="/image.png"
+            alt="DairyDrop"
+            className="h-8 w-8 shrink-0 rounded-xl object-contain shadow-sm shadow-blue-500/20"
+          />
           <span className="truncate font-heading text-base font-extrabold tracking-tight text-slate-950">
             {title ?? 'DairyDrop'}
           </span>

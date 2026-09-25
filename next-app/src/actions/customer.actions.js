@@ -200,6 +200,20 @@ const switchFromRetiredPlanAction = defineAction({
   revalidate: ['/subscriptions', '/dashboard', '/calendar'],
 });
 
+const updateCustomerProfileAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.updateCustomerProfileSchema,
+  handler: ({ actor, input }) => onboardingService.updateCustomerProfile(actor, input),
+  revalidate: ['/profile', '/dashboard'],
+});
+
+const switchMilkmanAction = defineAction({
+  authorize: requireCustomer,
+  schema: V.switchMilkmanSchema,
+  handler: ({ actor, input }) => onboardingService.switchMilkman(actor, input),
+  revalidate: ['/profile', '/dashboard', '/subscriptions', '/billing', '/pending'],
+});
+
 /**
  * Exported Server Actions.
  *
@@ -270,4 +284,12 @@ export async function cancelVacation(input) {
 
 export async function quickApproveCustomer(input) {
   return quickApproveCustomerAction(input);
+}
+
+export async function updateCustomerProfile(input) {
+  return updateCustomerProfileAction(input);
+}
+
+export async function switchMilkman(input) {
+  return switchMilkmanAction(input);
 }

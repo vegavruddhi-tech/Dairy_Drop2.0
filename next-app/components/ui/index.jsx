@@ -23,7 +23,7 @@ export function Card({ className, interactive, children, ...props }) {
   return (
     <div
       className={cn(
-        'rounded-3xl border border-slate-200/90 bg-white shadow-sm transition-all',
+        'overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-sm transition-all',
         interactive && 'hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md active:translate-y-0',
         className,
       )}
@@ -280,25 +280,25 @@ const STAT_ACCENT = {
  */
 export function Stat({ label, value, hint, icon, tone = 'brand' }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
+    <div className="flex items-center gap-2.5 sm:gap-3 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white p-2.5 sm:p-3.5 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
       {icon ? (
         <div
           className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-bold',
+            'flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl font-bold',
             STAT_ACCENT[tone] ?? STAT_ACCENT.brand,
           )}
           aria-hidden="true"
         >
-          <span className="text-base flex items-center justify-center">{icon}</span>
+          <span className="text-sm sm:text-base flex items-center justify-center [&>svg]:h-4 [&>svg]:w-4 sm:[&>svg]:h-5 sm:[&>svg]:w-5">{icon}</span>
         </div>
       ) : null}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate font-heading text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <p className="truncate font-heading text-[10px] sm:text-[11px] font-bold uppercase tracking-tight text-slate-500">
           {label}
         </p>
-        <p className="font-heading mt-0.5 text-xl font-black text-slate-900 tnum">{value}</p>
-        {hint ? <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">{hint}</p> : null}
+        <p className="font-heading mt-0.5 text-base sm:text-lg font-bold text-slate-900 tnum">{value}</p>
+        {hint ? <p className="mt-0.5 truncate text-[10px] sm:text-[11px] font-medium text-slate-400">{hint}</p> : null}
       </div>
     </div>
   );
@@ -390,8 +390,10 @@ export function Notice({ tone = 'info', title, children, action }) {
 
 export function Table({ children, className }) {
   return (
-    <div className="overflow-x-auto">
-      <table className={cn('w-full border-collapse text-sm', className)}>{children}</table>
+    <div className="w-full overflow-x-auto">
+      <table className={cn('w-full min-w-full border-collapse text-left text-xs sm:text-sm', className)}>
+        {children}
+      </table>
     </div>
   );
 }
@@ -401,8 +403,8 @@ export function Th({ children, className, numeric }) {
     <th
       scope="col"
       className={cn(
-        'border-b border-border bg-surface-muted/50 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-ink-subtle',
-        numeric ? 'text-right' : 'text-left',
+        'border-b border-slate-200/90 bg-slate-50/90 px-3.5 sm:px-5 py-3 font-heading text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500',
+        numeric ? 'text-right whitespace-nowrap' : 'text-left',
         className,
       )}
     >
@@ -415,8 +417,8 @@ export function Td({ children, className, numeric }) {
   return (
     <td
       className={cn(
-        'border-b border-border px-4 py-3 font-semibold text-ink',
-        numeric ? 'text-right tnum' : 'text-left',
+        'border-b border-slate-100 px-3.5 sm:px-5 py-3 sm:py-3.5 font-medium text-slate-800 transition-colors',
+        numeric ? 'text-right tnum whitespace-nowrap' : 'text-left',
         className,
       )}
     >

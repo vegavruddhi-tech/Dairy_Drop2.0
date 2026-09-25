@@ -164,7 +164,7 @@
 
 @layer utilities {
   /* Room for the fixed bottom bar plus the home indicator. */
-  .pb-nav { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); }
+  .pb-nav { padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px)); }
   .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
   .no-select { -webkit-user-select: none; user-select: none; }
 }

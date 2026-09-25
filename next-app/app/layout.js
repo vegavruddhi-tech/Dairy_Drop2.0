@@ -39,8 +39,10 @@ const devanagari = Noto_Sans_Devanagari({
 export const metadata = {
   title: { default: 'DairyDrop', template: '%s · DairyDrop' },
   description: 'Daily milk delivery, managed.',
-  // The manifest and icons come from app/manifest.js, app/icon.svg and
-  // app/apple-icon.svg via Next's file conventions — nothing to point at here.
+  icons: {
+    icon: '/image.png',
+    apple: '/image.png',
+  },
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'DairyDrop' },
   formatDetection: { telephone: false },
 };

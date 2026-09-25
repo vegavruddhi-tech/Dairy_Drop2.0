@@ -48,7 +48,7 @@ function getDaySummary(dayDeliveries) {
   if (skippedCount === dayDeliveries.length) {
     return {
       statusType: 'SKIPPED',
-      badgeText: 'Skipped',
+      badgeText: 'Skip',
       deliveredCount,
       pendingCount,
       totalCount: dayDeliveries.length,
@@ -59,7 +59,7 @@ function getDaySummary(dayDeliveries) {
   if (undeliveredCount === dayDeliveries.length) {
     return {
       statusType: 'UNDELIVERED',
-      badgeText: 'Missed',
+      badgeText: 'Miss',
       deliveredCount,
       pendingCount,
       totalCount: dayDeliveries.length,
@@ -69,10 +69,10 @@ function getDaySummary(dayDeliveries) {
   // All deliveries completed
   if (deliveredCount > 0 && pendingCount === 0) {
     const entries = Object.entries(deliveredByUnit);
-    const badgeText = entries.map(([unit, qty]) => `${formatQty(qty)} ${unit}`).join(', ');
+    const badgeText = entries.map(([unit, qty]) => `${formatQty(qty)}${unit}`).join(', ');
     return {
       statusType: 'DELIVERED',
-      badgeText: `✓ ${badgeText}`,
+      badgeText,
       fullTotalText: entries.map(([unit, qty]) => `${formatQty(qty)} ${unit}`).join(', '),
       deliveredCount,
       pendingCount,
@@ -83,7 +83,7 @@ function getDaySummary(dayDeliveries) {
   // Purely scheduled / pending
   if (pendingCount > 0 && deliveredCount === 0) {
     const entries = Object.entries(scheduledByUnit);
-    const badgeText = entries.map(([unit, qty]) => `${formatQty(qty)} ${unit}`).join(', ');
+    const badgeText = entries.map(([unit, qty]) => `${formatQty(qty)}${unit}`).join(', ');
     return {
       statusType: 'PENDING',
       badgeText,
@@ -101,7 +101,7 @@ function getDaySummary(dayDeliveries) {
     const sched = scheduledByUnit[primaryUnit] || 0;
     return {
       statusType: 'PARTIAL',
-      badgeText: `✓ ${formatQty(deliv)} / ${formatQty(deliv + sched)} ${primaryUnit}`,
+      badgeText: `${formatQty(deliv)}/${formatQty(deliv + sched)}${primaryUnit}`,
       fullTotalText: `${formatQty(deliv)} delivered, ${formatQty(sched)} scheduled`,
       deliveredCount,
       pendingCount,
@@ -111,7 +111,7 @@ function getDaySummary(dayDeliveries) {
 
   return {
     statusType: 'OTHER',
-    badgeText: `${dayDeliveries.length} items`,
+    badgeText: `${dayDeliveries.length}`,
     deliveredCount,
     pendingCount,
     totalCount: dayDeliveries.length,
@@ -157,9 +157,9 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
     <div className="space-y-6">
       {/* ── Calendar Grid Card ────────────────────────────────────── */}
       <Card className="rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden bg-white">
-        <CardBody className="p-4 sm:p-6">
+        <CardBody className="p-3 sm:p-6">
           {/* Day of Week Headers */}
-          <div className="mb-2 grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-xs font-bold uppercase tracking-wider text-slate-400">
+          <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold uppercase tracking-wider text-slate-400">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="py-1">
                 {d}
@@ -168,13 +168,13 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
           </div>
 
           {/* Calendar Day Grid */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2">
             {cells.map((date, index) => {
               if (!date) {
                 return (
                   <div
                     key={`blank-${index}`}
-                    className="aspect-square rounded-2xl bg-slate-50/40 border border-transparent"
+                    className="min-h-[48px] sm:min-h-[58px] aspect-[1/1.05] rounded-xl sm:rounded-2xl bg-slate-50/40 border border-transparent"
                   />
                 );
               }
@@ -188,7 +188,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               const isSelected = date === selectedDate;
               const summary = getDaySummary(dayDeliveries);
 
-              // Refined, stable styling without hover jumps
+              // Refined styling for clean, compact readability
               let cellStyle = 'bg-slate-50/40 border-slate-200/70 text-slate-400 hover:bg-slate-50 hover:border-slate-300';
               let badgeElement = null;
 
@@ -197,46 +197,46 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                   cellStyle =
                     'bg-emerald-50/90 border-emerald-300 text-emerald-950 hover:border-emerald-500 hover:bg-emerald-100/70';
                   badgeElement = (
-                    <div className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-2 py-0.5 text-[11px] sm:text-xs font-extrabold text-white shadow-2xs">
-                      <span>{summary.badgeText}</span>
-                    </div>
+                    <span className="inline-block max-w-full truncate rounded-md bg-emerald-600 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-extrabold text-white leading-none shadow-2xs">
+                      {summary.badgeText}
+                    </span>
                   );
                 } else if (summary.statusType === 'PENDING') {
                   cellStyle =
                     'bg-blue-50/80 border-blue-200 text-blue-950 hover:border-blue-400 hover:bg-blue-100/60';
                   badgeElement = (
-                    <div className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-2 py-0.5 text-[11px] sm:text-xs font-bold text-white shadow-2xs">
-                      <span>{summary.badgeText}</span>
-                    </div>
+                    <span className="inline-block max-w-full truncate rounded-md bg-blue-600 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white leading-none shadow-2xs">
+                      {summary.badgeText}
+                    </span>
                   );
                 } else if (summary.statusType === 'PARTIAL') {
                   cellStyle =
                     'bg-emerald-50/90 border-emerald-300 text-emerald-950 hover:border-emerald-500';
                   badgeElement = (
-                    <div className="inline-flex items-center justify-center rounded-lg bg-emerald-700 px-1.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold text-white shadow-2xs">
-                      <span>{summary.badgeText}</span>
-                    </div>
+                    <span className="inline-block max-w-full truncate rounded-md bg-emerald-700 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold text-white leading-none shadow-2xs">
+                      {summary.badgeText}
+                    </span>
                   );
                 } else if (summary.statusType === 'SKIPPED') {
                   cellStyle =
                     'bg-amber-50/80 border-amber-300 text-amber-900 hover:border-amber-400 hover:bg-amber-100/60';
                   badgeElement = (
-                    <span className="inline-flex rounded-lg bg-amber-200/90 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
-                      Skipped
+                    <span className="inline-block max-w-full truncate rounded-md bg-amber-200 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-900 border border-amber-300 leading-none">
+                      Skip
                     </span>
                   );
                 } else if (summary.statusType === 'UNDELIVERED') {
                   cellStyle =
                     'bg-rose-50/80 border-rose-300 text-rose-950 hover:border-rose-400 hover:bg-rose-100/60';
                   badgeElement = (
-                    <span className="inline-flex rounded-lg bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      Missed
+                    <span className="inline-block max-w-full truncate rounded-md bg-rose-600 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white leading-none">
+                      Miss
                     </span>
                   );
                 } else {
                   cellStyle = 'bg-slate-100 border-slate-200 text-slate-600';
                   badgeElement = (
-                    <span className="text-[10px] font-semibold text-slate-500">
+                    <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500">
                       {summary.badgeText}
                     </span>
                   );
@@ -245,7 +245,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
 
               // Selected state ring
               const selectedRing = isSelected
-                ? 'ring-2 ring-blue-600 ring-offset-2 z-10 border-blue-600 shadow-sm'
+                ? 'ring-2 ring-blue-600 ring-offset-1 z-10 border-blue-600 shadow-sm'
                 : '';
 
               return (
@@ -253,14 +253,14 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                   type="button"
                   key={date}
                   onClick={() => setSelectedDate(date)}
-                  className={`group relative flex aspect-square flex-col justify-between rounded-2xl border p-1.5 sm:p-2.5 transition-colors select-none text-left w-full ${cellStyle} ${selectedRing} ${
+                  className={`group relative flex min-h-[48px] sm:min-h-[58px] aspect-[1/1.05] flex-col items-center justify-between rounded-xl sm:rounded-2xl border p-1 sm:p-1.5 transition-all select-none text-center w-full overflow-hidden ${cellStyle} ${selectedRing} ${
                     hasDeliveries ? 'cursor-pointer' : 'cursor-pointer opacity-70'
                   }`}
                 >
                   {/* Date Header inside Cell */}
-                  <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center justify-between w-full px-0.5">
                     <span
-                      className={`text-xs sm:text-sm font-extrabold ${
+                      className={`text-xs sm:text-sm font-extrabold leading-none ${
                         summary?.statusType === 'SKIPPED'
                           ? 'line-through text-amber-800/80'
                           : summary?.statusType === 'DELIVERED'
@@ -275,15 +275,15 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
 
                     {/* Today indicator dot */}
                     {isToday && (
-                      <span className="flex h-2 w-2 relative" title="Today">
+                      <span className="flex h-1.5 w-1.5 relative" title="Today">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-600" />
                       </span>
                     )}
                   </div>
 
-                  {/* Clean accurate total badge (no "+X more") */}
-                  <div className="flex w-full items-center justify-center pb-0.5">
+                  {/* Clean accurate total badge without text wrap overflow */}
+                  <div className="flex w-full items-center justify-center pb-0.5 min-h-[16px]">
                     {badgeElement}
                   </div>
                 </button>

@@ -87,6 +87,26 @@ export const updateCustomerAddressSchema = z.object({
   deliveryInstructions: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
+export const updateCustomerProfileSchema = z.object({
+  name: nonEmpty(120, 'Name is required.'),
+  phone,
+  line1: nonEmpty(300, 'Enter house or flat number and street.'),
+  line2: z.string().trim().max(300).optional().or(z.literal('')),
+  area: nonEmpty(120, 'Enter sector or area name.'),
+  city: z.string().trim().max(120).optional().or(z.literal('')),
+  state: z.string().trim().max(120).optional().or(z.literal('')),
+  pincode: pincode,
+  landmark: z.string().trim().max(200).optional().or(z.literal('')),
+  deliveryInstructions: z.string().trim().max(500).optional().or(z.literal('')),
+});
+
+export const switchMilkmanSchema = z.object({
+  newMilkmanId: uuid,
+  pincode: pincode,
+  area: nonEmpty(120, 'Sector / Area is required.'),
+  planIds: z.array(z.string()).max(2, 'A customer cannot select more than 2 plans.').optional(),
+});
+
 /**
  * Applying to trade on the platform as a milkman.
  *

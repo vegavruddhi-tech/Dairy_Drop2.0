@@ -95,29 +95,29 @@ export function VacationModal({ open, onClose }) {
       onClose={onClose}
       title="Plan Vacation / Pause Deliveries"
       footer={
-        <div className="flex w-full items-center justify-between gap-3">
+        <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleResume}
             loading={pending}
-            className="text-xs text-ink-muted font-semibold hover:bg-surface-muted"
+            className="w-full sm:w-auto text-xs text-ink-muted font-semibold hover:bg-surface-muted order-2 sm:order-1"
           >
-            Resume Deliveries (Cancel Vacation)
+            Resume Deliveries
           </Button>
 
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={onClose} disabled={pending}>
+          <div className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto justify-end">
+            <Button variant="ghost" onClick={onClose} disabled={pending} className="flex-1 sm:flex-none">
               Cancel
             </Button>
             <Button
               form="vacation-range-form"
               type="submit"
-              className="font-bold"
+              className="flex-1 sm:flex-none font-bold whitespace-nowrap"
               loading={pending}
             >
-              Confirm Vacation ({daysCount} {daysCount === 1 ? 'Day' : 'Days'})
+              Confirm ({daysCount} {daysCount === 1 ? 'Day' : 'Days'})
             </Button>
           </div>
         </div>
