@@ -126,7 +126,14 @@ export function PlanEditor({ plan, trigger }) {
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button form="plan-form" type="submit" loading={pending} className="bg-brand hover:bg-brand/90 font-bold">Save Plan</Button>
+            <Button
+              form="plan-form"
+              type="submit"
+              loading={pending}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-heading font-bold shadow-md shadow-blue-500/20 px-5 py-2.5 rounded-xl transition-all"
+            >
+              Save Plan
+            </Button>
           </>
         }
       >
