@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { BellIcon, MilkDropIcon, PackageIcon, PaymentsIcon, InfoIcon } from '@/components/ui/Icons.jsx';
 import { getInboxNotifications, markNotificationsAsRead } from '@/actions/notification.actions.js';
 import { useRealtimeTable } from '@/lib/useRealtime.js';
@@ -61,8 +62,14 @@ export function NotificationBell({ className = '' }) {
   // 1. Listen for realtime notification inserts
   useRealtimeTable({
     table: 'notifications',
-    onInsert: () => {
+    onInsert: (payload) => {
       fetchNotifications();
+      if (payload?.new?.title) {
+        toast.info(payload.new.title, {
+          description: payload.new.body,
+          duration: 4500,
+        });
+      }
     },
     onUpdate: () => {
       fetchNotifications();
