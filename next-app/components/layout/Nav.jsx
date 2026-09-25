@@ -27,6 +27,7 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
     return (
       <Link
         href={href}
+        prefetch={false}
         aria-current={active ? 'page' : undefined}
         className="no-select group relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl py-1.5 transition-all"
       >
@@ -65,6 +66,7 @@ export function NavLink({ href, label, icon, count, exact, compact }) {
   return (
     <Link
       href={href}
+      prefetch={false}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 rounded-2xl px-3.5 py-3 font-heading text-xs sm:text-sm transition-all',
@@ -184,6 +186,7 @@ export function MoreMenu({ items, user, variant = 'header', label = 'More' }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setOpen(false)}
                   className="tap flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-ink hover:bg-surface-muted"
                 >

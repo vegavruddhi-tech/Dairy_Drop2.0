@@ -22,6 +22,7 @@ import { NotificationBell } from '@/components/ui/NotificationBell.jsx';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
 import { NavLink, MoreMenu } from './Nav.jsx';
 import { MilkDropIcon } from '@/components/ui/Icons.jsx';
+import { NavigationProgress } from './NavigationProgress.jsx';
 
 /**
  * @param {object} props
@@ -37,6 +38,7 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
 
   return (
     <div className="min-h-dvh bg-[#fafcff] text-slate-900 selection:bg-blue-600 selection:text-white">
+      <NavigationProgress />
       {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-slate-200/80 bg-white shadow-[0_2px_15px_rgba(0,0,0,0.02)] lg:block z-30">
         <div className="flex h-16 items-center gap-2.5 border-b border-slate-200/80 px-5">
