@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SignOutButton, Show } from '@clerk/nextjs';
+import { SignOutButton, SignedIn } from '@clerk/nextjs';
 
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
@@ -46,7 +46,7 @@ export function PublicBar({ showBrand = true }) {
           <LanguageToggle variant="compact" className="h-9" />
 
           {/* Top Header Sign Out for Authenticated Users */}
-          <Show when="signed-in">
+          <SignedIn>
             <SignOutButton redirectUrl="/">
               <button
                 type="button"
@@ -58,7 +58,7 @@ export function PublicBar({ showBrand = true }) {
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
             </SignOutButton>
-          </Show>
+          </SignedIn>
         </div>
       </div>
     </header>
