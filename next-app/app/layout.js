@@ -17,21 +17,18 @@ import { INDIC_LOCALES } from '@/i18n/config.js';
  */
 const body = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-body',
   display: 'swap',
 });
 
 const heading = Outfit({
   subsets: ['latin'],
-  weight: ['500', '600', '700', '800', '900'],
   variable: '--font-heading',
   display: 'swap',
 });
 
 const devanagari = Noto_Sans_Devanagari({
   subsets: ['devanagari'],
-  weight: ['400', '500', '600', '700'],
   variable: '--font-deva',
   display: 'swap',
 });
