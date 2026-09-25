@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 import { requireCustomer } from '@/auth/session.js';
-import { businessDate, greeting, formatDate, businessMonth } from '@/domain/dates.js';
+import { businessDate, greeting, formatDate, businessMonth, addDays, isPastDeliveryCutoff } from '@/domain/dates.js';
 import { formatPaise, formatMilli } from '@/domain/money.js';
 import { getLocale, getGreeting } from '@/i18n/server.js';
 import * as deliveryService from '@/services/delivery.service.js';
@@ -33,11 +33,13 @@ export const metadata = { title: 'Customer Dashboard' };
 export default async function CustomerDashboard() {
   const actor = await requireCustomer();
   const today = businessDate();
+  const tomorrow = addDays(today, 1);
   const locale = await getLocale();
   const isHi = locale === 'hi';
 
-  const [dayResult, billResult, productsResult, milkman, subscriptionsResult] = await Promise.all([
+  const [dayResult, tomorrowResult, billResult, productsResult, milkman, subscriptionsResult] = await Promise.all([
     deliveryService.getCustomerDay(actor, today).catch(() => ({ deliveries: [] })),
+    deliveryService.getCustomerDay(actor, tomorrow).catch(() => ({ deliveries: [] })),
     billingService.getBill(actor, { month: businessMonth() }).catch(() => ({
       deliveredDays: 0,
       deliveredMilli: 0,
@@ -50,13 +52,24 @@ export default async function CustomerDashboard() {
     subscriptionService.listMine(actor).catch(() => []),
   ]);
 
-  const deliveries = dayResult?.deliveries ?? [];
+  const todayDeliveries = dayResult?.deliveries ?? [];
+  const tomorrowDeliveries = tomorrowResult?.deliveries ?? [];
   const bill = billResult ?? { deliveredDays: 0, deliveredMilli: 0, skippedDays: 0, totalPaise: 0, balancePaise: 0 };
   const products = productsResult ?? [];
   const subscriptions = subscriptionsResult ?? [];
 
   const active = subscriptions.filter((s) => s.status === 'ACTIVE');
   const paused = subscriptions.filter((s) => s.status === 'PAUSED');
+
+  // Smart Context Switch:
+  // If today has pending actionable deliveries (e.g. today's evening delivery before 3 PM), focus on Today.
+  // If today's deliveries are finished (DELIVERED, SKIPPED, or UNDELIVERED) or past morning cutoff, focus on Tomorrow!
+  const todayPending = todayDeliveries.filter((d) => d.status === 'PENDING' && !isPastDeliveryCutoff(today, d.slot));
+  const showTomorrow = (todayPending.length === 0 || todayDeliveries.every((d) => d.status !== 'PENDING')) && tomorrowDeliveries.length > 0;
+  
+  const targetDeliveries = showTomorrow ? tomorrowDeliveries : todayDeliveries;
+  const isTomorrowTarget = showTomorrow;
+  const targetDate = isTomorrowTarget ? tomorrow : today;
 
   const greetingText = await getGreeting(new Date().getHours());
 
@@ -118,29 +131,49 @@ export default async function CustomerDashboard() {
         />
       ) : null}
 
-      {/* ── Today's Scheduled Delivery ──────────────────────────────────── */}
+      {/* Today fulfillment status notification if already delivered */}
+      {todayDeliveries.length > 0 && isTomorrowTarget && todayDeliveries.some((d) => d.status === 'DELIVERED') && (
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-xs font-bold text-emerald-900 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px]">✓</span>
+            <span>{isHi ? "आज की दूध डिलीवरी पूरी हो चुकी है।" : "Today's milk delivery was fulfilled."}</span>
+          </div>
+          <span className="text-[11px] text-emerald-700 font-semibold">{formatDate(today)}</span>
+        </div>
+      )}
+
+      {/* ── Scheduled Delivery Section (Today or Tomorrow) ──────────────── */}
       <section aria-labelledby="today-heading">
         <div className="mb-3.5 flex items-center justify-between">
           <div>
-            <h2 id="today-heading" className="font-heading text-sm font-extrabold uppercase tracking-wider text-slate-500">
-              {isHi ? 'आज की डिलीवरी' : "Today's Delivery"} · {formatDate(today)}
-            </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              {isHi ? 'दैनिक डोरस्टेप डिलीवरी समय: 6:00 AM – 7:30 AM' : 'Daily doorstep arrival window: 6:00 AM – 7:30 AM'}
+            <div className="flex items-center gap-2">
+              <h2 id="today-heading" className="font-heading text-sm font-extrabold uppercase tracking-wider text-slate-500">
+                {isTomorrowTarget ? (isHi ? 'कल की डिलीवरी' : "Tomorrow's Delivery") : (isHi ? 'आज की डिलीवरी' : "Today's Delivery")} · {formatDate(targetDate)}
+              </h2>
+              {isTomorrowTarget && (
+                <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                  {isHi ? 'आगामी डिलीवरी' : 'Upcoming Round'}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              {isTomorrowTarget
+                ? (isHi ? 'कटऑफ: आज रात 10:00 बजे तक मात्रा में बदलाव या छुट्टी (Skip) दर्ज कर सकते हैं।' : 'Cutoff: Order changes & skip allowed until 10:00 PM tonight.')
+                : (isHi ? 'दैनिक डोरस्टेप डिलीवरी समय: 6:00 AM – 7:30 AM' : 'Daily doorstep arrival window: 6:00 AM – 7:30 AM')}
             </p>
           </div>
           {active.length > 0 && <CalendarVacationButton />}
         </div>
 
-        {deliveries.length === 0 ? (
+        {targetDeliveries.length === 0 ? (
           active.length > 0 ? (
             <EmptyState
               icon={<DeliveryIcon className="h-8 w-8 text-blue-600" />}
-              title={isHi ? 'आज के लिए कुछ भी निर्धारित नहीं है' : 'Nothing scheduled for today'}
+              title={isHi ? 'कल के लिए कोई डिलीवरी निर्धारित नहीं है' : 'Nothing scheduled for this date'}
               description={
                 isHi
-                  ? 'आपका प्लान सक्रिय है। आज का राउंड डिलीवरी से ठीक पहले तैयार किया जाता है, या आज डिलीवरी का दिन नहीं है।'
-                  : "Your plan is active. Today's round is drawn up shortly before delivery, or today is not a scheduled delivery day."
+                  ? 'आपका प्लान सक्रिय है। डिलीवरी राउंड शेड्यूल के अनुसार स्वतः तैयार होगा।'
+                  : "Your plan is active. Delivery rounds are generated according to your scheduled plan."
               }
               action={
                 <Link href="/subscriptions">
@@ -168,7 +201,7 @@ export default async function CustomerDashboard() {
           ) : (
             <EmptyState
               icon={<MilkDropIcon className="h-8 w-8 text-blue-600" />}
-              title={isHi ? 'आज कोई सक्रिय दूध डिलीवरी नहीं है' : 'No active milk delivery today'}
+              title={isHi ? 'कोई सक्रिय दूध डिलीवरी नहीं है' : 'No active milk delivery'}
               description={
                 isHi
                   ? 'हर सुबह ताज़ा दूध पाने के लिए स्थानीय डेयरी प्लान सब्सक्राइब करें।'
@@ -185,8 +218,13 @@ export default async function CustomerDashboard() {
           )
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {deliveries.map((delivery) => (
-              <TodayCard key={delivery.id} delivery={delivery} />
+            {targetDeliveries.map((delivery) => (
+              <TodayCard
+                key={delivery.id}
+                delivery={delivery}
+                isTomorrow={isTomorrowTarget}
+                cutoffPassed={isPastDeliveryCutoff(targetDate, delivery.slot)}
+              />
             ))}
           </div>
         )}

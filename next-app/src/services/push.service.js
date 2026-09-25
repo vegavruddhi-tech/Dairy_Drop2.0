@@ -2,9 +2,17 @@ import 'server-only';
 import crypto from 'node:crypto';
 import * as pushRepo from '@/repositories/push.repo.js';
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@dairydrop.in';
+const DEFAULT_VAPID_PUBLIC_KEY =
+  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZfIjSPOQVZVt0Tzx5426Q1HTINWzz6F_joBp-0';
+const DEFAULT_VAPID_PRIVATE_KEY =
+  'UUxI1xsmOHOU3yTQngmg2PdLKoGXZGFZXb_Z_oY8j5I';
+
+const VAPID_PUBLIC_KEY =
+  (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').replace(/['"]/g, '').trim() || DEFAULT_VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY =
+  (process.env.VAPID_PRIVATE_KEY || '').replace(/['"]/g, '').trim() || DEFAULT_VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT =
+  (process.env.VAPID_SUBJECT || '').replace(/['"]/g, '').trim() || 'mailto:support@dairydrop.in';
 
 /**
  * URL-safe Base64 encoding helper
@@ -15,6 +23,38 @@ function base64UrlEncode(buffer) {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
+}
+
+/**
+ * Parse base64url public and private keys into a crypto KeyObject
+ */
+function getPrivateKeyObject(pubKeyB64Url, privKeyB64Url) {
+  try {
+    // 1. Try JWK import
+    const pubBuf = Buffer.from(pubKeyB64Url.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+    if (pubBuf.length === 65 && pubBuf[0] === 0x04) {
+      const x = base64UrlEncode(pubBuf.subarray(1, 33));
+      const y = base64UrlEncode(pubBuf.subarray(33, 65));
+      const d = privKeyB64Url.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+      return crypto.createPrivateKey({
+        key: { kty: 'EC', crv: 'P-256', d, x, y },
+        format: 'jwk',
+      });
+    }
+  } catch {
+    // Fallback to DER if already in PKCS#8
+  }
+
+  try {
+    return crypto.createPrivateKey({
+      key: Buffer.from(privKeyB64Url, 'base64'),
+      format: 'der',
+      type: 'pkcs8',
+    });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -31,13 +71,9 @@ function generateVapidAuthHeader(audience, publicKey, privateKey, subject) {
 
   const unsignedToken = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
 
-  // Sign with ECDSA P-256 private key
   try {
-    const keyObject = crypto.createPrivateKey({
-      key: Buffer.from(privateKey, 'base64'),
-      format: 'der',
-      type: 'pkcs8',
-    });
+    const keyObject = getPrivateKeyObject(publicKey, privateKey);
+    if (!keyObject) return null;
 
     const sign = crypto.createSign('SHA256');
     sign.update(unsignedToken);
@@ -50,7 +86,6 @@ function generateVapidAuthHeader(audience, publicKey, privateKey, subject) {
       Authorization: `vapid t=${jwt}, k=${publicKey}`,
     };
   } catch {
-    // If keys are provided in raw uncompressed format
     return null;
   }
 }

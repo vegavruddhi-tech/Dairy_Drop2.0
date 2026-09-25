@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge, Notice } from '@/components/ui/index.jsx';
@@ -19,22 +20,27 @@ import {
 import { resolveQuantityRequest, resolvePlanChangeRequest } from '@/actions/milkman.actions.js';
 
 function useResolver(action, labels) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [modal, setModal] = useState(false);
+  const [removed, setRemoved] = useState(false);
 
   function resolve(requestId, approve, note) {
     startTransition(async () => {
+      setRemoved(true);
+      setModal(false);
       const result = await action({ requestId, approve, note });
       if (result.ok) {
         toast.success(approve ? labels.approved : labels.rejected);
-        setModal(false);
+        router.refresh();
       } else {
+        setRemoved(false);
         toast.error(result.message ?? 'Could not save that.');
       }
     });
   }
 
-  return { pending, modal, setModal, resolve };
+  return { pending, modal, setModal, resolve, removed };
 }
 
 const SLOT_LABEL = { MORNING: 'Morning', EVENING: 'Evening', BOTH: 'Morning & evening' };
@@ -99,7 +105,7 @@ function Decision({ pending, disabled, onApprove, onDecline, approveLabel = 'App
 
 /** A one-day quantity change. Approving touches only that delivery. */
 export function QuantityRequest({ request }) {
-  const { pending, modal, setModal, resolve } = useResolver(resolveQuantityRequest, {
+  const { pending, modal, setModal, resolve, removed } = useResolver(resolveQuantityRequest, {
     approved: 'Approved for that day.',
     rejected: 'Declined.',
   });
@@ -109,6 +115,8 @@ export function QuantityRequest({ request }) {
   const more = to > from;
   const unit = request.unit ?? 'L';
   const delta = Number((to - from).toFixed(3));
+
+  if (removed) return null;
 
   return (
     <>
@@ -176,7 +184,7 @@ export function QuantityRequest({ request }) {
 
 /** A permanent plan change. Approving versions the subscription from tomorrow. */
 export function PlanChangeRequest({ request }) {
-  const { pending, modal, setModal, resolve } = useResolver(resolvePlanChangeRequest, {
+  const { pending, modal, setModal, resolve, removed } = useResolver(resolvePlanChangeRequest, {
     approved: 'Plan changed from tomorrow.',
     rejected: 'Declined.',
   });
@@ -185,6 +193,8 @@ export function PlanChangeRequest({ request }) {
   const nowPaise = Math.round(Number(request.currentMonthlyPrice ?? 0) * 100);
   const wantsPaise = Math.round(Number(request.requestedMonthlyPrice ?? 0) * 100);
   const SlotIcon = request.requestedSlot === 'EVENING' ? MoonIcon : SunIcon;
+
+  if (removed) return null;
 
   return (
     <>

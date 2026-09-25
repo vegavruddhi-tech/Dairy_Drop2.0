@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/index.jsx';
@@ -17,20 +18,27 @@ import { verifyPayment } from '@/actions/milkman.actions.js';
  * cannot credit the bill twice.
  */
 export function VerifyPayment({ payment }) {
+  const router = useRouter();
   const [modal, setModal] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [removed, setRemoved] = useState(false);
 
   function resolve(approve, rejectionReason) {
     startTransition(async () => {
+      setRemoved(true);
+      setModal(false);
       const result = await verifyPayment({ paymentId: payment.id, approve, rejectionReason });
       if (result.ok) {
         toast.success(approve ? 'Payment confirmed.' : 'Marked as not received.');
-        setModal(false);
+        router.refresh();
       } else {
+        setRemoved(false);
         toast.error(result.message ?? 'Could not save that.');
       }
     });
   }
+
+  if (removed) return null;
 
   return (
     <>

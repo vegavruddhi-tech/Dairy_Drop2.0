@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useOptimistic } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, StatusBadge, Badge } from '@/components/ui/index.jsx';
@@ -56,6 +57,7 @@ const STATUS_EDGE = {
 };
 
 export function RoundStop({ stop }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useOptimistic(stop.status);
   const [modal, setModal] = useState(null);
@@ -84,6 +86,7 @@ export function RoundStop({ stop }) {
         toast.error(failed.message ?? 'Could not save that.');
       } else {
         setModal(null);
+        router.refresh();
       }
     });
   }

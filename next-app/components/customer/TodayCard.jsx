@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Card, CardBody, StatusBadge, cn } from '@/components/ui/index.jsx';
@@ -11,12 +12,14 @@ import { formatWindow } from '@/domain/dates.js';
 import { useT } from '@/i18n/provider.jsx';
 
 /**
- * One plan's delivery for today.
+ * One plan's delivery for today or tomorrow.
  *
  * Dual Language Support (English / Hindi).
- * Product names and numbers remain in English.
+ * Context-aware: seamlessly switches between Today's and Tomorrow's delivery
+ * with strict 10:00 PM previous-night cutoff enforcement.
  */
-export function TodayCard({ delivery }) {
+export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false }) {
+  const router = useRouter();
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
   const { locale } = useT();
@@ -25,7 +28,7 @@ export function TodayCard({ delivery }) {
   const quantity = Number(delivery.adjustedQuantity ?? delivery.plannedQuantity);
   const planned = Number(delivery.plannedQuantity);
   const adjusted = delivery.adjustedQuantity != null && quantity !== planned;
-  const actionable = delivery.status === 'PENDING';
+  const actionable = delivery.status === 'PENDING' && !cutoffPassed;
 
   function run(action, payload, successMessage) {
     startTransition(async () => {
@@ -33,6 +36,7 @@ export function TodayCard({ delivery }) {
       if (result.ok) {
         toast.success(successMessage);
         setModal(null);
+        router.refresh();
       } else {
         toast.error(result.message ?? (isHi ? 'कुछ गड़बड़ हुई।' : 'Something went wrong.'));
       }
@@ -81,8 +85,8 @@ export function TodayCard({ delivery }) {
             {adjusted ? (
               <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">
                 {isHi
-                  ? `आज के लिए बदला गया (सामान्यतः ${planned} ${delivery.unit})`
-                  : `Changed for today (usually ${planned} ${delivery.unit})`}
+                  ? `${isTomorrow ? 'कल' : 'आज'} के लिए बदला गया (सामान्यतः ${planned} ${delivery.unit})`
+                  : `Changed for ${isTomorrow ? 'tomorrow' : 'today'} (usually ${planned} ${delivery.unit})`}
               </span>
             ) : null}
           </div>
@@ -95,6 +99,15 @@ export function TodayCard({ delivery }) {
             </p>
           ) : null}
 
+          {/* Cutoff notice if modifications are closed */}
+          {delivery.status === 'PENDING' && cutoffPassed ? (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-800">
+              {isHi
+                ? '10:00 PM का कटऑफ समय निकल चुका है। कल सुबह के लिए बदलाव बंद हैं।'
+                : '10:00 PM cutoff has passed. Modifications for tomorrow morning are locked.'}
+            </div>
+          ) : null}
+
           {actionable ? (
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
@@ -103,7 +116,7 @@ export function TodayCard({ delivery }) {
                 onClick={() => setModal('quantity')}
               >
                 <EditIcon className="h-4 w-4" />
-                <span>{isHi ? 'मात्रा बदलें' : 'Change Quantity'}</span>
+                <span>{isHi ? (isTomorrow ? 'कल की मात्रा बदलें' : 'मात्रा बदलें') : 'Change Quantity'}</span>
               </button>
               <button
                 type="button"
@@ -111,20 +124,28 @@ export function TodayCard({ delivery }) {
                 onClick={() => setModal('skip')}
               >
                 <VacationIcon className="h-4 w-4" />
-                <span>{isHi ? 'आज छोड़ें' : 'Skip Today'}</span>
+                <span>{isHi ? (isTomorrow ? 'कल छोड़ें' : 'आज छोड़ें') : (isTomorrow ? 'Skip Tomorrow' : 'Skip Today')}</span>
               </button>
             </div>
           ) : null}
 
-          {delivery.status === 'SKIPPED' ? (
+          {delivery.status === 'SKIPPED' && !cutoffPassed ? (
             <button
               type="button"
               className="tap flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-blue-50 px-4 py-3 font-heading text-xs font-bold text-blue-700 transition-all hover:bg-blue-100"
               disabled={pending}
-              onClick={() => run(resumeDay, { deliveryId: delivery.id }, isHi ? 'डिलीवरी पुनः चालू की गई।' : 'Delivery resumed.')}
+              onClick={() =>
+                run(
+                  resumeDay,
+                  { deliveryId: delivery.id },
+                  isHi
+                    ? `${isTomorrow ? 'कल' : 'आज'} की डिलीवरी पुनः चालू की गई।`
+                    : `${isTomorrow ? 'Tomorrow' : 'Today'} delivery resumed.`,
+                )
+              }
             >
               <UndoIcon className="h-4 w-4" />
-              <span>{isHi ? 'छुट्टी रद्द करें' : 'Undo Skip'}</span>
+              <span>{isHi ? 'छुट्टी रद्द करें (Resume)' : 'Undo Skip'}</span>
             </button>
           ) : null}
         </div>

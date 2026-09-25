@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
@@ -62,6 +63,7 @@ const SLOTS = [
 import { MILK_TYPES, QUANTITY_PRESETS, generatePlanDefaults } from '@/domain/planPresets.js';
 
 export function PlanEditor({ plan, trigger }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
@@ -144,6 +146,7 @@ export function PlanEditor({ plan, trigger }) {
                 toast.success('Plan saved.');
                 setOpen(false);
                 setErrors({});
+                router.refresh();
               } else {
                 setErrors(result.fieldErrors ?? {});
                 toast.error(result.message ?? 'Could not save that plan.');
@@ -388,6 +391,7 @@ const FREQUENCY_LABEL = Object.fromEntries(FREQUENCIES.map((f) => [f.value, f.la
  * before the button is pressed — that number is the whole decision.
  */
 export function PlanList({ plans, subscriberCounts = {} }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState(null); // { kind: 'retire' | 'delete', plan }
 
@@ -404,6 +408,7 @@ export function PlanList({ plans, subscriberCounts = {} }) {
             : `Plan ${verb}.`,
         );
         setConfirm(null);
+        router.refresh();
       } else {
         toast.error(result.message ?? `Could not ${kind} that plan.`);
       }

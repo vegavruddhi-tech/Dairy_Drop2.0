@@ -1,14 +1,24 @@
-'use client';
+const DEFAULT_VAPID_PUBLIC_KEY =
+  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZfIjSPOQVZVt0Tzx5426Q1HTINWzz6F_joBp-0';
 
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+  if (!base64String || typeof base64String !== 'string') {
+    return new Uint8Array(0);
   }
-  return outputArray;
+  const clean = base64String.replace(/['"]/g, '').trim();
+  const padding = '='.repeat((4 - (clean.length % 4)) % 4);
+  const base64 = (clean + padding).replace(/-/g, '+').replace(/_/g, '/');
+  try {
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  } catch (e) {
+    console.warn('[pushClient] Failed to decode VAPID public key:', e);
+    return new Uint8Array(0);
+  }
 }
 
 /** Check if Web Push is supported by the current browser */
@@ -42,10 +52,9 @@ export async function subscribeUserToPush() {
     throw new Error('Push notifications are not supported on this browser.');
   }
 
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidPublicKey) {
-    throw new Error('NEXT_PUBLIC_VAPID_PUBLIC_KEY is not configured in environment variables.');
-  }
+  const rawKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const vapidPublicKey =
+    rawKey && rawKey.trim().length > 30 ? rawKey.trim().replace(/['"]/g, '') : DEFAULT_VAPID_PUBLIC_KEY;
 
   // 1. Request permission
   const permission = await Notification.requestPermission();
@@ -64,6 +73,10 @@ export async function subscribeUserToPush() {
 
   // 3. Subscribe with push manager
   const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
+  if (!convertedKey || convertedKey.length === 0) {
+    throw new Error('Invalid VAPID public key format.');
+  }
+
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: convertedKey,
