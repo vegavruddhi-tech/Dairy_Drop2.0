@@ -24,10 +24,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 function createPool() {
+  const isProd = process.env.NODE_ENV === 'production';
   const p = new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: Number(process.env.DATABASE_POOL_MAX ?? (process.env.NODE_ENV === 'production' ? 10 : 5)),
-    idleTimeoutMillis: 10_000,
+    // In serverless production (Vercel), limit connections per lambda instance to avoid exceeding pooler limits
+    max: Number(process.env.DATABASE_POOL_MAX ?? (isProd ? 1 : 5)),
+    idleTimeoutMillis: isProd ? 1_000 : 10_000,
     connectionTimeoutMillis: 10_000,
     allowExitOnIdle: true,
     keepAlive: true,
@@ -47,7 +49,8 @@ function createPool() {
 const globalForDb = globalThis;
 
 export const pool = globalForDb.__dairydropPool ?? createPool();
-if (process.env.NODE_ENV !== 'production') globalForDb.__dairydropPool = pool;
+// Cache pool on globalThis across invocations in both dev and serverless production
+globalForDb.__dairydropPool = pool;
 
 export const db = drizzle(pool, {
   schema,

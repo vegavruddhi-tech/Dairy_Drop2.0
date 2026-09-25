@@ -44,25 +44,59 @@ export function VerificationStatusChecker({
         setCheckCount((prev) => prev + 1);
         setCountdown(AUTO_CHECK_INTERVAL_SECONDS);
 
+        // 1. Fully Approved & Ready
         if (data.ok) {
+          const isCustomer = data.role === 'CUSTOMER' || targetRedirect.includes('dashboard');
           toast.success(
             isHi
-              ? 'बधाई हो! आपकी डेयरी सत्यापित हो चुकी है। रीडायरेक्ट कर रहे हैं...'
-              : 'Congratulations! Your dairy is verified. Redirecting to your panel...',
+              ? (isCustomer
+                  ? 'बधाई हो! दूधवाले ने आपका अनुरोध स्वीकार कर लिया है। डैशबोर्ड लोड हो रहा है...'
+                  : 'बधाई हो! आपकी डेयरी सत्यापित हो चुकी है। रीडायरेक्ट कर रहे हैं...')
+              : (isCustomer
+                  ? 'Congratulations! Your milkman has approved your subscription. Loading dashboard...'
+                  : 'Congratulations! Your dairy is verified. Redirecting to your panel...'),
           );
           window.location.href = data.redirect || targetRedirect;
           return;
         }
 
-        // Milkman has been approved by admin! Now ready to start trial or choose plan
+        // 2. Customer Application Declined / Rejected by Milkman
+        const isCustomerRejected =
+          data.gate === 'CUSTOMER_REJECTED' ||
+          data.user?.approvalStatus === 'REJECTED';
+
+        if (isCustomerRejected) {
+          toast.error(
+            isHi
+              ? 'दूधवाले ने आपका अनुरोध अस्वीकार कर दिया है।'
+              : (data.message || 'Your subscription request was declined by the milkman.'),
+          );
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
+          return;
+        }
+
+        // 3. Account Disabled / Suspended
+        if (data.gate === 'DISABLED') {
+          toast.error(
+            data.message || (isHi ? 'खाता निलंबित कर दिया गया है।' : 'Account has been suspended.'),
+          );
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
+          return;
+        }
+
+        // 4. Milkman has been approved by admin (Ready to choose plan or start trial)
         const isMilkmanApproved =
           (data.isVerified === true || data.profile?.isVerified === true) &&
           initialGate === 'MILKMAN_UNVERIFIED';
 
-        // Any gate change (e.g. MILKMAN_UNVERIFIED -> SAAS_NONE or SAAS_PENDING_VERIFICATION -> OK)
+        // 5. Any other gate change
         const gateChanged = data.gate && initialGate && data.gate !== initialGate;
 
-        if (isMilkmanApproved || gateChanged) {
+        if (isMilkmanApproved) {
           toast.success(
             isHi
               ? 'बधाई हो! आपकी डेयरी को एडमिन द्वारा सत्यापित कर दिया गया है।'
@@ -71,6 +105,13 @@ export function VerificationStatusChecker({
           setTimeout(() => {
             window.location.reload();
           }, 800);
+          return;
+        }
+
+        if (gateChanged) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 600);
           return;
         }
 
