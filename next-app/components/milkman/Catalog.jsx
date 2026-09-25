@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { cn, Badge } from '@/components/ui/index.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { Button, Modal, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
-import { saveProduct, deleteProduct, addCatalogPresets, updateOrderStatus } from '@/actions/milkman.actions.js';
+import { saveProduct, deleteProduct, updateOrderStatus } from '@/actions/milkman.actions.js';
 import { TOP_CATALOG_PRODUCTS, resolveProductImage } from '@/domain/catalogPresets.js';
 import { CheckIcon, DeliveryIcon, PlusIcon, EditIcon, TrashIcon } from '@/components/ui/Icons.jsx';
 
@@ -251,7 +251,6 @@ export function ProductEditor({ product, trigger }) {
     </>
   );
 }
-
 
 export function ProductList({ products }) {
   const [deleting, setDeleting] = useState(null); // the product awaiting confirmation

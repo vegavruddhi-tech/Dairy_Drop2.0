@@ -3,7 +3,7 @@ import * as productService from '@/services/product.service.js';
 
 import { EmptyState, Stat, SectionHeading } from '@/components/ui/index.jsx';
 import { CatalogIcon, CartIcon, RequestsIcon, PlusIcon } from '@/components/ui/Icons.jsx';
-import { ProductEditor, ProductList, AddPresets } from '@/components/milkman/Catalog.jsx';
+import { ProductEditor, ProductList } from '@/components/milkman/Catalog.jsx';
 
 export const metadata = { title: 'Catalog' };
 
@@ -23,7 +23,7 @@ export default async function CatalogPage() {
 
   const subtitle =
     products.length === 0
-      ? 'Nothing listed yet — add the usual dairy items in one tap.'
+      ? 'Nothing listed yet — click Add item to list your products.'
       : [
           `${live.length} ${live.length === 1 ? 'item' : 'items'} in the shop`,
           outOfStock.length ? `${outOfStock.length} out of stock` : null,
@@ -89,9 +89,21 @@ export default async function CatalogPage() {
         <EmptyState
           icon={<CatalogIcon className="h-8 w-8 text-brand" />}
           title="Nothing in your catalog"
-          description="Add the usual dairy items in one tap, then set your prices and stock. Customers order these with their milk and you carry them on the round."
+          description="Add dairy products like Paneer, Ghee, and Curd, then set your prices and stock. Customers can order these along with their daily milk."
           tip="Stock is per day: what you enter is the most a customer can order before you top it up."
-          action={<AddPresets />}
+          action={
+            <ProductEditor
+              trigger={
+                <button
+                  type="button"
+                  className="tap inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 font-heading text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  Add your first item
+                </button>
+              }
+            />
+          }
         />
       ) : (
         <section aria-labelledby="items-heading">

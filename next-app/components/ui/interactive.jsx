@@ -296,10 +296,16 @@ export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5,
 // ── Disclosure ───────────────────────────────────────────────────────────────
 
 /**
- * A modal built on the native `<dialog>` element, so focus trapping, Escape and
- * the backdrop come from the platform rather than from a library.
+ * A modal built with portal rendering so it is always on top of all navbars,
+ * sidebars, and fixed bottom menus on both mobile and desktop.
  */
 export function Modal({ open, onClose, title, children, footer }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (open) {
       const prevOverflow = document.body.style.overflow;
@@ -315,9 +321,9 @@ export function Modal({ open, onClose, title, children, footer }) {
 
   if (!open) return null;
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -325,43 +331,36 @@ export function Modal({ open, onClose, title, children, footer }) {
         if (event.target === event.currentTarget) onClose?.();
       }}
     >
-      {/*
-        A column bounded by the viewport, with only the middle section
-        scrolling.
-
-        Without the bound the panel simply grew past the screen: a long form
-        pushed its own title off the top and its Save button off the bottom,
-        with nothing to scroll because the panel was the same height as its
-        contents. Pinning the header and footer keeps the action reachable
-        however long the form gets.
-
-        `dvh` rather than `vh` because mobile browser chrome collapses as you
-        scroll, and `vh` measures the taller state — the footer would sit just
-        below the fold.
-      */}
-      <div className="flex max-h-[100dvh] w-full max-w-md flex-col animate-fade-up rounded-t-2xl border border-border bg-surface shadow-lifted sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+      <div className="flex max-h-[88dvh] w-full max-w-lg flex-col animate-in fade-in zoom-in-95 duration-150 rounded-t-3xl border border-slate-200/90 bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-3xl overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-4">
+          <h2 className="font-heading text-base font-black text-slate-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-ink-subtle hover:bg-surface-muted hover:text-ink"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
-        {/* `overscroll-contain` stops a flick at the end of the list from
-            scrolling the page behind the sheet. */}
+        {/* Scrollable form body */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+        {/* Sticky pinned action footer */}
         {footer ? (
-          <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">
+          <div
+            className="flex shrink-0 items-center justify-end gap-2.5 border-t border-slate-100 bg-slate-50/95 px-5 py-3.5 backdrop-blur-sm sm:py-4"
+            style={{ paddingBottom: 'max(14px, calc(env(safe-area-inset-bottom, 0px) + 12px))' }}
+          >
             {footer}
           </div>
         ) : null}
       </div>
     </div>
   );
+
+  return mounted && typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }
 
 /** Segmented tabs that keep their state in the URL, so a refresh preserves it. */
