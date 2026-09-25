@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { SignOutButton, SignedIn } from '@clerk/nextjs';
+import { useAuth, SignOutButton } from '@clerk/nextjs';
 
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
 import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
@@ -12,6 +12,8 @@ import { PwaInstallButton } from '@/components/pwa/PwaInstallButton.jsx';
  * PWA Install button, and top-level Sign Out action for authenticated users.
  */
 export function PublicBar({ showBrand = true }) {
+  const { isSignedIn } = useAuth();
+
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/85 border-b border-slate-200/80 shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5 sm:px-8">
@@ -48,7 +50,7 @@ export function PublicBar({ showBrand = true }) {
           <LanguageToggle variant="compact" className="h-9" />
 
           {/* Top Header Sign Out for Authenticated Users */}
-          <SignedIn>
+          {isSignedIn ? (
             <SignOutButton redirectUrl="/">
               <button
                 type="button"
@@ -60,7 +62,7 @@ export function PublicBar({ showBrand = true }) {
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
             </SignOutButton>
-          </SignedIn>
+          ) : null}
         </div>
       </div>
     </header>
