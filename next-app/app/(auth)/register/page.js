@@ -13,7 +13,8 @@ export default async function RegisterPage() {
   const actor = await getActor();
   if (!actor) redirect('/sign-in');
   if (actor.role !== ROLES.CUSTOMER) redirect(ROLE_HOME[actor.role] ?? '/');
-  if (actor.tenantId) redirect('/pending');
+  // If already registered and pending/approved, send to pending/dashboard; allow REJECTED customers to re-apply
+  if (actor.tenantId && actor.approvalStatus !== 'REJECTED') redirect('/pending');
 
   return (
     <div className="relative min-h-dvh bg-[#fafcff] text-slate-900 pb-16 overflow-x-hidden">

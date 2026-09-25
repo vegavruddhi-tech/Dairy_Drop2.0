@@ -64,8 +64,8 @@ export async function findMilkmenForPincode(pincode) {
  * and enroll in up to 2 selected milk plans.
  */
 export async function register(actor, input) {
-  if (actor.tenantId) {
-    throw new ConflictError('Your account is already registered with a milkman.');
+  if (actor.tenantId && actor.approvalStatus !== 'REJECTED') {
+    throw new ConflictError('Your account is already registered with an active milkman.');
   }
 
   const milkman = await usersRepo.findMilkmanProfile(input.milkmanId);
