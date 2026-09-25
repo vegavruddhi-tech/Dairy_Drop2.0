@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Modal, Button, Input, Textarea } from '@/components/ui/interactive.jsx';
@@ -21,7 +20,6 @@ const FESTIVAL_PRESETS = [
  * Zero Emojis - Clean Vector SVG icons only.
  */
 export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount = 0 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const today = businessDate();
@@ -58,7 +56,6 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
         toast.success(
           `Day off declared for ${startDate}${isMultiDay ? ` to ${endDate}` : ''}! ${result.data?.skipped ?? 0} pending deliveries skipped at ₹0. Customers notified.`,
         );
-        router.refresh();
         onClose();
       } else {
         toast.error(result.message ?? 'Could not declare day off.');
@@ -77,7 +74,6 @@ export function HolidayManagerModal({ open, onClose, defaultDate, remainingCount
         toast.success(
           `Day off cancelled! ${result.data?.restored ?? 0} deliveries restored to PENDING.`,
         );
-        router.refresh();
         onClose();
       } else {
         toast.error(result.message ?? 'Could not cancel day off.');

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge, StatusBadge } from '@/components/ui/index.jsx';
@@ -72,8 +71,6 @@ export function EditAddressModal({ customer, open, onClose }) {
     }
   }, [pincode]);
 
-  const router = useRouter();
-
   if (!open) return null;
 
   function onSubmit(event) {
@@ -94,7 +91,6 @@ export function EditAddressModal({ customer, open, onClose }) {
 
       if (result.ok) {
         toast.success(`Updated address for ${customer.name}`);
-        router.refresh();
         onClose();
       } else {
         toast.error(result.message ?? 'Could not update customer address.');
@@ -244,7 +240,6 @@ export function EditAddressModal({ customer, open, onClose }) {
 
 /** A customer waiting for a decision. */
 export function ApprovalCard({ customer, summary, atLimit }) {
-  const router = useRouter();
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
   const [removed, setRemoved] = useState(false);
@@ -255,7 +250,6 @@ export function ApprovalCard({ customer, summary, atLimit }) {
       const result = await approveCustomer({ customerId: customer.id });
       if (result.ok) {
         toast.success(`${customer.name} approved.`);
-        router.refresh();
       } else {
         setRemoved(false);
         if (result.code === 'CUSTOMER_LIMIT_REACHED') {
@@ -386,7 +380,6 @@ export function ApprovalCard({ customer, summary, atLimit }) {
               const result = await rejectCustomer({ customerId: customer.id, reason });
               if (result.ok) {
                 toast.success('Declined.');
-                router.refresh();
               } else {
                 setRemoved(false);
                 toast.error(result.message ?? 'Could not decline.');

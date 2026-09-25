@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge, Notice } from '@/components/ui/index.jsx';
@@ -20,7 +19,6 @@ import {
 import { resolveQuantityRequest, resolvePlanChangeRequest } from '@/actions/milkman.actions.js';
 
 function useResolver(action, labels) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [modal, setModal] = useState(false);
   const [removed, setRemoved] = useState(false);
@@ -32,7 +30,6 @@ function useResolver(action, labels) {
       const result = await action({ requestId, approve, note });
       if (result.ok) {
         toast.success(approve ? labels.approved : labels.rejected);
-        router.refresh();
       } else {
         setRemoved(false);
         toast.error(result.message ?? 'Could not save that.');

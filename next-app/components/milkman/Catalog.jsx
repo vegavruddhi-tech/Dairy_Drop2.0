@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
@@ -86,7 +85,6 @@ export function ProductEditor({ product, trigger }) {
       if (result.ok) {
         toast.success(`Deleted ${product.name}`);
         close();
-        router.refresh();
       } else {
         toast.error(result.message ?? 'Could not delete product.');
         setConfirmDelete(false);
@@ -151,7 +149,6 @@ export function ProductEditor({ product, trigger }) {
               if (result.ok) {
                 toast.success('Saved to your catalog.', { id: toastId });
                 setErrors({});
-                router.refresh();
               } else {
                 setOpen(true);
                 setErrors(result.fieldErrors ?? {});
@@ -269,7 +266,6 @@ export function ProductList({ products }) {
       if (result.ok) {
         toast.success(`Deleted ${product.name}`);
         setDeleting(null);
-        router.refresh();
       } else {
         toast.error(result.message ?? 'Could not delete product.');
       }

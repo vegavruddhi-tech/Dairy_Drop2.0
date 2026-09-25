@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
@@ -154,7 +153,6 @@ export function PlanEditor({ plan, trigger }) {
               if (result.ok) {
                 toast.success('Plan saved successfully!', { id: toastId });
                 setErrors({});
-                router.refresh();
               } else {
                 setOpen(true);
                 setErrors(result.fieldErrors ?? {});
@@ -400,7 +398,6 @@ const FREQUENCY_LABEL = Object.fromEntries(FREQUENCIES.map((f) => [f.value, f.la
  * before the button is pressed — that number is the whole decision.
  */
 export function PlanList({ plans, subscriberCounts = {} }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState(null); // { kind: 'retire' | 'delete', plan }
 
@@ -417,7 +414,6 @@ export function PlanList({ plans, subscriberCounts = {} }) {
             : `Plan ${verb}.`,
         );
         setConfirm(null);
-        router.refresh();
       } else {
         toast.error(result.message ?? `Could not ${kind} that plan.`);
       }
