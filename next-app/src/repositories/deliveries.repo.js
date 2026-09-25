@@ -154,6 +154,7 @@ export async function listTenantMonth(actor, month) {
       deliveredQuantity: deliveries.deliveredQuantity,
       unitPrice: deliveries.unitPrice,
       amount: deliveries.amount,
+      milkType: deliveries.milkType,
     })
     .from(deliveries)
     .where(

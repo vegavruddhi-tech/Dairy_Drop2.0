@@ -329,18 +329,27 @@ export async function getSixMonthPerformance(actor) {
     const uniqueCustomers = new Set(deliveryRows.map((d) => d.customerId));
     const customerCount = uniqueCustomers.size;
 
-    const milkMilli = deliveryRows.reduce(
-      (sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000),
+    // Only DELIVERED rows carry real milk volume
+    const deliveredRows = deliveryRows.filter((d) => d.status === 'DELIVERED');
+
+    function rowQty(d) {
+      // Use deliveredQuantity if set, otherwise fall back to adjusted then planned
+      return Number(d.deliveredQuantity ?? d.adjustedQuantity ?? d.plannedQuantity ?? 0);
+    }
+
+    const milkMilli = deliveredRows.reduce(
+      (sum, d) => sum + Math.round(rowQty(d) * 1000),
       0,
     );
-    const cowMilli = deliveryRows
+    const cowMilli = deliveredRows
       .filter((d) => (d.milkType || '').toUpperCase() === 'COW')
-      .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
-    const buffaloMilli = deliveryRows
+      .reduce((sum, d) => sum + Math.round(rowQty(d) * 1000), 0);
+    const buffaloMilli = deliveredRows
       .filter((d) => (d.milkType || '').toUpperCase() === 'BUFFALO')
-      .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
+      .reduce((sum, d) => sum + Math.round(rowQty(d) * 1000), 0);
 
-    const deliveredDates = new Set(deliveryRows.map((d) => d.deliveryDate));
+    // Unique dates that had at least one actual delivery
+    const deliveredDates = new Set(deliveredRows.map((d) => d.deliveryDate));
     const dailyAvgMilli = deliveredDates.size > 0 ? Math.round(milkMilli / deliveredDates.size) : 0;
 
     const billedPaise = earnings.billedPaise;

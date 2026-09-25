@@ -62,7 +62,6 @@ const SLOTS = [
 import { MILK_TYPES, QUANTITY_PRESETS, generatePlanDefaults } from '@/domain/planPresets.js';
 
 export function PlanEditor({ plan, trigger }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
