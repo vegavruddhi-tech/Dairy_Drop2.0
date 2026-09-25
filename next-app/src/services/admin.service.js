@@ -3,7 +3,7 @@
  */
 
 import 'server-only';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, inArray } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import {
@@ -28,7 +28,7 @@ export async function getDashboard() {
   const month = businessMonth();
 
   const [counts, revenue, pending] = await Promise.all([
-    usersRepo.platformCounts(),
+    usersRepo.platformCounts().catch(() => ({ milkmen: 0, customers: 0, approvedCustomers: 0, pendingCustomers: 0 })),
     db
       .select({
         monthPaise: sql`coalesce(sum(${saasPayments.amount}) filter (
@@ -40,7 +40,8 @@ export async function getDashboard() {
         ), 0)`,
         pendingCount: sql`count(*) filter (where ${saasPayments.status} = 'SUBMITTED')::int`,
       })
-      .from(saasPayments),
+      .from(saasPayments)
+      .catch(() => [{ monthPaise: 0, allTimePaise: 0, pendingCount: 0 }]),
     db
       .select({
         active: sql`count(*) filter (where ${saasSubscriptions.status} = 'ACTIVE')::int`,
@@ -48,41 +49,63 @@ export async function getDashboard() {
         awaiting: sql`count(*) filter (where ${saasSubscriptions.status} = 'PENDING_VERIFICATION')::int`,
         expired: sql`count(*) filter (where ${saasSubscriptions.status} = 'EXPIRED')::int`,
       })
-      .from(saasSubscriptions),
+      .from(saasSubscriptions)
+      .catch(() => [{ active: 0, trial: 0, awaiting: 0, expired: 0 }]),
   ]);
 
   const [unverified] = await db
     .select({ count: sql`count(*) filter (where ${milkmanProfiles.isVerified} = false)::int` })
-    .from(milkmanProfiles);
+    .from(milkmanProfiles)
+    .catch(() => [{ count: 0 }]);
+
+  const subs = pending?.[0] ?? { active: 0, trial: 0, awaiting: 0, expired: 0 };
+  const rev = revenue?.[0] ?? { monthPaise: 0, allTimePaise: 0, pendingCount: 0 };
 
   return {
     month,
-    milkmen: counts.milkmen,
-    customers: counts.customers,
-    approvedCustomers: counts.approvedCustomers,
-    pendingCustomers: counts.pendingCustomers,
-    unverifiedMilkmen: unverified.count,
-    subscriptions: pending[0],
-    revenueMonthPaise: Math.round(Number(revenue[0].monthPaise) * 100),
-    revenueAllTimePaise: Math.round(Number(revenue[0].allTimePaise) * 100),
-    paymentsAwaiting: revenue[0].pendingCount,
+    milkmen: counts?.milkmen ?? 0,
+    customers: counts?.customers ?? 0,
+    approvedCustomers: counts?.approvedCustomers ?? 0,
+    pendingCustomers: counts?.pendingCustomers ?? 0,
+    unverifiedMilkmen: unverified?.count ?? 0,
+    subscriptions: {
+      active: subs.active ?? 0,
+      trial: subs.trial ?? 0,
+      awaiting: subs.awaiting ?? 0,
+      expired: subs.expired ?? 0,
+    },
+    revenueMonthPaise: Math.round(Number(rev.monthPaise ?? 0) * 100),
+    revenueAllTimePaise: Math.round(Number(rev.allTimePaise ?? 0) * 100),
+    paymentsAwaiting: rev.pendingCount ?? 0,
   };
 }
 
 /** Plan distribution — reads the right table, unlike the previous implementation. */
 export async function getPlanDistribution() {
-  return db
-    .select({
-      planId: saasPlans.id,
-      planName: sql`coalesce(${saasPlans.name}, 'Free trial')`.as('plan_name'),
-      count: sql`count(${saasSubscriptions.id})::int`,
-      monthlyPrice: saasPlans.monthlyPrice,
-    })
-    .from(saasSubscriptions)
-    .leftJoin(saasPlans, eq(saasPlans.id, saasSubscriptions.planId))
-    .where(sql`${saasSubscriptions.status} in ('ACTIVE','TRIAL')`)
-    .groupBy(saasPlans.id, saasPlans.name, saasPlans.monthlyPrice)
-    .orderBy(desc(sql`count(${saasSubscriptions.id})`));
+  try {
+    const rows = await db
+      .select({
+        planId: saasPlans.id,
+        planName: sql`coalesce(${saasPlans.name}, 'Free trial')`.as('plan_name'),
+        count: sql`count(${saasSubscriptions.id})::int`,
+        monthlyPrice: saasPlans.monthlyPrice,
+      })
+      .from(saasSubscriptions)
+      .leftJoin(saasPlans, eq(saasPlans.id, saasSubscriptions.planId))
+      .where(inArray(saasSubscriptions.status, ['ACTIVE', 'TRIAL']))
+      .groupBy(saasPlans.id, saasPlans.name, saasPlans.monthlyPrice)
+      .orderBy(desc(sql`count(${saasSubscriptions.id})`));
+
+    return rows.map((r) => ({
+      planId: r.planId,
+      planName: r.planName || 'Free trial',
+      count: Number(r.count || 0),
+      monthlyPrice: r.monthlyPrice ? Number(r.monthlyPrice) : null,
+    }));
+  } catch (err) {
+    console.error('[getPlanDistribution] Error:', err);
+    return [];
+  }
 }
 
 export async function listMilkmen(options) {

@@ -16,6 +16,7 @@ import { UserButton } from '@clerk/nextjs';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
 import { LanguageToggle } from '@/components/ui/LanguageToggle.jsx';
+import { NotificationBell } from '@/components/ui/NotificationBell.jsx';
 import { NavLink, MoreMenu } from './Nav.jsx';
 import { MilkDropIcon } from '@/components/ui/Icons.jsx';
 
@@ -70,6 +71,25 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
         </div>
       </aside>
 
+      {/* ── Desktop Top Navigation Bar ──────────────────────────────────── */}
+      <header className="sticky top-0 z-20 hidden lg:flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/80 px-8 ml-64 backdrop-blur-xl shadow-2xs">
+        <div className="flex items-center gap-3">
+          <span className="font-heading text-base font-extrabold text-slate-900 tracking-tight">
+            {title ?? 'DairyDrop'}
+          </span>
+          {badge ? (
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
+              {badge}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <LanguageToggle variant="compact" className="h-9" />
+          <NotificationBell />
+        </div>
+      </header>
+
       {/* ── Mobile header ───────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/90 px-4 pt-safe backdrop-blur-xl lg:hidden shadow-[0_2px_15px_rgba(0,0,0,0.02)]">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -88,7 +108,8 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2">
+          <NotificationBell />
           <LanguageToggle variant="compact" className="h-8" />
           <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8 rounded-xl' } }} />
         </div>

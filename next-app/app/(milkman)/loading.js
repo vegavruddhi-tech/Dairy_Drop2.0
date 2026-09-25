@@ -7,5 +7,11 @@ import { CowLoaderPanel } from '@/components/ui/CowLoader.jsx';
  * it only ever covers pages the visitor may see.
  */
 export default function Loading() {
-  return <CowLoaderPanel label="Milkman Portal" message="Loading your round…" />;
+  return (
+    <CowLoaderPanel
+      label="Milkman Portal"
+      message="Loading your morning round…"
+      submessage="Preparing today's delivery route, household drops & extra orders"
+    />
+  );
 }

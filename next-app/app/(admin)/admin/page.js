@@ -64,20 +64,20 @@ export default async function AdminDashboard() {
       <section className="mb-6" aria-labelledby="revenue-heading">
         <h2 id="revenue-heading" className="mb-3 text-sm font-semibold text-ink">Platform revenue</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label="This month" value={formatPaise(stats.revenueMonthPaise, { whole: true })} />
-          <Stat icon={<EarningsIcon className="h-5 w-5" />} tone="neutral" label="All time" value={formatPaise(stats.revenueAllTimePaise, { whole: true })} />
-          <Stat icon={<MembershipIcon className="h-5 w-5" />} tone="positive" label="Paying" value={stats.subscriptions.active} />
-          <Stat icon={<CalendarIcon className="h-5 w-5" />} tone="info" label="On trial" value={stats.subscriptions.trial} />
+          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label="This month" value={formatPaise(stats.revenueMonthPaise ?? 0, { whole: true })} />
+          <Stat icon={<EarningsIcon className="h-5 w-5" />} tone="neutral" label="All time" value={formatPaise(stats.revenueAllTimePaise ?? 0, { whole: true })} />
+          <Stat icon={<MembershipIcon className="h-5 w-5" />} tone="positive" label="Paying" value={stats.subscriptions?.active ?? 0} />
+          <Stat icon={<CalendarIcon className="h-5 w-5" />} tone="info" label="On trial" value={stats.subscriptions?.trial ?? 0} />
         </div>
       </section>
 
       <section className="mb-6" aria-labelledby="network-heading">
         <h2 id="network-heading" className="mb-3 text-sm font-semibold text-ink">Network</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<DeliveryIcon className="h-5 w-5" />} tone="info" label="Milkmen" value={stats.milkmen} />
-          <Stat icon={<UsersIcon className="h-5 w-5" />} tone="brand" label="Customers" value={stats.approvedCustomers} hint={`${stats.pendingCustomers} pending`} />
-          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="caution" label="Awaiting payment" value={stats.subscriptions.awaiting} />
-          <Stat icon={<CalendarIcon className="h-5 w-5" />} tone="critical" label="Lapsed" value={stats.subscriptions.expired} />
+          <Stat icon={<DeliveryIcon className="h-5 w-5" />} tone="info" label="Milkmen" value={stats.milkmen ?? 0} />
+          <Stat icon={<UsersIcon className="h-5 w-5" />} tone="brand" label="Customers" value={stats.approvedCustomers ?? 0} hint={`${stats.pendingCustomers ?? 0} pending`} />
+          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="caution" label="Awaiting payment" value={stats.subscriptions?.awaiting ?? 0} />
+          <Stat icon={<CalendarIcon className="h-5 w-5" />} tone="critical" label="Lapsed" value={stats.subscriptions?.expired ?? 0} />
         </div>
       </section>
 

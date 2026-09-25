@@ -1,22 +1,42 @@
-/**
- * The branded loader from the original DairyDrop apps.
- *
- * A milk-drop emblem inside a spinning emerald ring, sat on a frosted card with
- * two ambient glow orbs and a shimmering progress bar. It is the one piece of
- * pure personality in the product, and worth keeping.
- *
- * Server component — the animation is entirely CSS, so it ships no JavaScript.
- */
-
+import Image from 'next/image';
 import { cn } from './index.jsx';
 
 const SIZES = {
-  sm: { card: 'p-4 max-w-xs', ring: 'h-12 w-12', badge: 'h-9 w-9', icon: 'h-5 w-5', msg: 'text-xs', bar: 'w-28 h-1' },
-  md: { card: 'p-5 max-w-sm', ring: 'h-16 w-16', badge: 'h-12 w-12', icon: 'h-6 w-6', msg: 'text-sm', bar: 'w-36 h-1.5' },
-  lg: { card: 'p-6 sm:p-7 max-w-md', ring: 'h-20 w-20 sm:h-24 sm:w-24', badge: 'h-14 w-14 sm:h-16 sm:w-16', icon: 'h-8 w-8 sm:h-9 sm:w-9', msg: 'text-sm sm:text-base', bar: 'w-48 sm:w-56 h-2' },
+  sm: {
+    card: 'p-5 max-w-xs',
+    logoContainer: 'h-14 w-14',
+    logoSize: 36,
+    ring: 'h-16 w-16',
+    title: 'text-xs font-bold',
+    msg: 'text-xs',
+    bar: 'w-28 h-1',
+  },
+  md: {
+    card: 'p-6 sm:p-7 max-w-sm',
+    logoContainer: 'h-16 w-16',
+    logoSize: 42,
+    ring: 'h-20 w-20',
+    title: 'text-xs font-extrabold tracking-wider',
+    msg: 'text-sm font-bold',
+    bar: 'w-36 h-1.5',
+  },
+  lg: {
+    card: 'p-7 sm:p-9 max-w-md',
+    logoContainer: 'h-20 w-20',
+    logoSize: 52,
+    ring: 'h-24 w-24',
+    title: 'text-[11px] font-black tracking-widest',
+    msg: 'text-sm sm:text-base font-extrabold',
+    bar: 'w-48 sm:w-56 h-2',
+  },
 };
 
-export function CowLoader({ size = 'lg', message = 'Loading…', submessage, label = 'DairyDrop' }) {
+export function CowLoader({
+  size = 'lg',
+  message = 'Loading…',
+  submessage = 'Getting everything fresh and ready for you',
+  label = 'DairyDrop',
+}) {
   const s = SIZES[size] ?? SIZES.lg;
 
   return (
@@ -26,51 +46,83 @@ export function CowLoader({ size = 'lg', message = 'Loading…', submessage, lab
       aria-label={message}
       className={cn(
         'relative mx-auto flex select-none flex-col items-center justify-center rounded-3xl',
-        'border border-emerald-100/90 bg-surface/95 text-center shadow-lifted backdrop-blur-xl',
+        'border border-slate-200/80 bg-white/95 text-center shadow-xl shadow-slate-900/5 backdrop-blur-xl',
         s.card,
       )}
     >
-      {/* Ambient glow. Decorative. */}
-      <div aria-hidden="true" className="pointer-events-none absolute -left-6 -top-6 h-32 w-32 animate-pulse rounded-full bg-emerald-400/20 blur-2xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-6 -right-6 h-32 w-32 animate-pulse rounded-full bg-teal-400/20 blur-2xl" />
+      {/* Dynamic Ambient Glow Orbs */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-8 -top-8 h-36 w-36 animate-pulse rounded-full bg-blue-400/20 blur-2xl"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-8 -right-8 h-36 w-36 animate-pulse rounded-full bg-emerald-400/20 blur-2xl"
+      />
 
-      {/* Spinning ring with the emblem at rest in the middle. */}
-      <div className={cn('relative mb-4 flex items-center justify-center', s.ring)}>
+      {/* Orbit Spinner with Branded Logo Center */}
+      <div className={cn('relative mb-5 flex items-center justify-center', s.ring)}>
+        {/* Outer Ring Animation */}
         <span
           aria-hidden="true"
-          className="absolute inset-0 animate-spin rounded-full border-[3px] border-emerald-100 border-t-emerald-500"
-          style={{ animationDuration: '1.1s' }}
+          className="absolute inset-0 animate-spin rounded-full border-[3px] border-slate-100 border-t-blue-600 border-r-emerald-500"
+          style={{ animationDuration: '1.2s' }}
         />
+        
+        {/* Pulsing Backing Glow */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-1.5 animate-ping rounded-2xl bg-blue-100/60 opacity-30"
+          style={{ animationDuration: '2.5s' }}
+        />
+
+        {/* Center App Icon Badge */}
         <span
           aria-hidden="true"
           className={cn(
-            'relative flex items-center justify-center rounded-2xl',
-            'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/30',
-            s.badge,
+            'relative flex items-center justify-center rounded-2xl overflow-hidden',
+            'bg-white border border-slate-100 shadow-md shadow-slate-200',
+            s.logoContainer,
           )}
         >
-          {/* A milk drop. */}
-          <svg className={cn('-rotate-12 text-white drop-shadow', s.icon)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="currentColor" className="opacity-95" />
-            <path d="M12 7c-2 2-3 3.5-3 5.5a3 3 0 0 0 6 0c0-2-1-3.5-3-5.5z" fill="#fff" opacity="0.85" />
-            <circle cx="14" cy="11" r="1" fill="#fff" />
-          </svg>
+          <Image
+            src="/image.png"
+            alt="DairyDrop Logo"
+            width={s.logoSize}
+            height={s.logoSize}
+            priority
+            className="object-contain drop-shadow-xs transition-transform hover:scale-105"
+          />
         </span>
       </div>
 
-      <p className="text-[11px] font-black uppercase tracking-widest text-emerald-600">{label}</p>
-      <p className={cn('mt-1 font-extrabold text-ink', s.msg)}>{message}</p>
-      {submessage ? <p className="mt-0.5 text-xs font-medium text-ink-muted">{submessage}</p> : null}
+      {/* Label and Message */}
+      <p className={cn('uppercase text-blue-600 font-heading', s.title)}>
+        {label}
+      </p>
+      <p className={cn('mt-1 text-slate-900 font-heading tracking-tight', s.msg)}>
+        {message}
+      </p>
+      {submessage ? (
+        <p className="mt-1 text-xs font-semibold text-slate-500 max-w-xs leading-relaxed">
+          {submessage}
+        </p>
+      ) : null}
 
-      <div className={cn('skeleton mt-4 rounded-full bg-emerald-100', s.bar)} />
+      {/* Modern Shimmering Progress Indicator */}
+      <div className={cn('mt-5 overflow-hidden rounded-full bg-slate-100 relative', s.bar)}>
+        <div
+          className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600 animate-pulse"
+        />
+      </div>
     </div>
   );
 }
 
-/** Centred full-panel variant, for a route's loading boundary. */
+/** Centered full-panel variant for route loading boundaries */
 export function CowLoaderPanel(props) {
   return (
-    <div className="flex min-h-[55dvh] items-center justify-center px-4">
+    <div className="flex min-h-[60dvh] items-center justify-center px-4 py-8">
       <CowLoader {...props} />
     </div>
   );

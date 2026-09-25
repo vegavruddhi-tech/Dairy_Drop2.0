@@ -8,16 +8,19 @@ import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/intera
 import { MilkDropIcon, EditIcon, VacationIcon, UndoIcon } from '@/components/ui/Icons.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
 import { formatWindow } from '@/domain/dates.js';
+import { useT } from '@/i18n/provider.jsx';
 
 /**
  * One plan's delivery for today.
  *
- * The two actions — skip, and change today's quantity — are the whole customer
- * product. Both apply to this single day and never touch the subscription.
+ * Dual Language Support (English / Hindi).
+ * Product names and numbers remain in English.
  */
 export function TodayCard({ delivery }) {
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
+  const { locale } = useT();
+  const isHi = locale === 'hi';
 
   const quantity = Number(delivery.adjustedQuantity ?? delivery.plannedQuantity);
   const planned = Number(delivery.plannedQuantity);
@@ -31,7 +34,7 @@ export function TodayCard({ delivery }) {
         toast.success(successMessage);
         setModal(null);
       } else {
-        toast.error(result.message ?? 'Something went wrong.');
+        toast.error(result.message ?? (isHi ? 'कुछ गड़बड़ हुई।' : 'Something went wrong.'));
       }
     });
   }
@@ -63,11 +66,11 @@ export function TodayCard({ delivery }) {
                 </h3>
               </div>
               <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                <SlotLine delivery={delivery} />
+                <SlotLine delivery={delivery} isHi={isHi} />
               </p>
-              <EndingNote delivery={delivery} />
+              <EndingNote delivery={delivery} isHi={isHi} />
             </div>
-            <StatusBadge status={delivery.status} />
+            <StatusBadge status={delivery.status} locale={locale} />
           </div>
 
           <div className="flex items-baseline gap-2 rounded-2xl bg-slate-50/90 border border-slate-200/70 px-4 py-3">
@@ -77,14 +80,18 @@ export function TodayCard({ delivery }) {
             <span className="font-heading text-sm font-bold text-slate-600">{delivery.unit}</span>
             {adjusted ? (
               <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">
-                Changed for today (usually {planned} {delivery.unit})
+                {isHi
+                  ? `आज के लिए बदला गया (सामान्यतः ${planned} ${delivery.unit})`
+                  : `Changed for today (usually ${planned} ${delivery.unit})`}
               </span>
             ) : null}
           </div>
 
           {delivery.status === 'SKIPPED' ? (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
-              Skipped{delivery.note ? ` — ${delivery.note}` : ''}. You will not be charged.
+              {isHi
+                ? `छुट्टी${delivery.note ? ` — ${delivery.note}` : ''}। कोई शुल्क नहीं लिया जाएगा।`
+                : `Skipped${delivery.note ? ` — ${delivery.note}` : ''}. You will not be charged.`}
             </p>
           ) : null}
 
@@ -96,7 +103,7 @@ export function TodayCard({ delivery }) {
                 onClick={() => setModal('quantity')}
               >
                 <EditIcon className="h-4 w-4" />
-                <span>Change Quantity</span>
+                <span>{isHi ? 'मात्रा बदलें' : 'Change Quantity'}</span>
               </button>
               <button
                 type="button"
@@ -104,7 +111,7 @@ export function TodayCard({ delivery }) {
                 onClick={() => setModal('skip')}
               >
                 <VacationIcon className="h-4 w-4" />
-                <span>Skip Today</span>
+                <span>{isHi ? 'आज छोड़ें' : 'Skip Today'}</span>
               </button>
             </div>
           ) : null}
@@ -114,10 +121,10 @@ export function TodayCard({ delivery }) {
               type="button"
               className="tap flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-blue-50 px-4 py-3 font-heading text-xs font-bold text-blue-700 transition-all hover:bg-blue-100"
               disabled={pending}
-              onClick={() => run(resumeDay, { deliveryId: delivery.id }, 'Delivery resumed.')}
+              onClick={() => run(resumeDay, { deliveryId: delivery.id }, isHi ? 'डिलीवरी पुनः चालू की गई।' : 'Delivery resumed.')}
             >
               <UndoIcon className="h-4 w-4" />
-              <span>Undo Skip</span>
+              <span>{isHi ? 'छुट्टी रद्द करें' : 'Undo Skip'}</span>
             </button>
           ) : null}
         </div>
@@ -127,18 +134,18 @@ export function TodayCard({ delivery }) {
       <Modal
         open={modal === 'quantity'}
         onClose={() => setModal(null)}
-        title="How much today?"
+        title={isHi ? 'आज कितनी मात्रा चाहिए?' : 'How much today?'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setModal(null)}>
-              Cancel
+              {isHi ? 'रद्द करें' : 'Cancel'}
             </Button>
             <Button
               form="quantity-form"
               type="submit"
               loading={pending}
             >
-              Confirm
+              {isHi ? 'पुष्टि करें' : 'Confirm'}
             </Button>
           </>
         }
@@ -155,18 +162,25 @@ export function TodayCard({ delivery }) {
                 quantity: data.get('quantity'),
                 note: data.get('note') || undefined,
               },
-              'Quantity updated for today.',
+              isHi ? 'आज के लिए मात्रा अपडेट हो गई।' : 'Quantity updated for today.',
             );
           }}
           className="space-y-4"
         >
           <p className="text-sm text-ink-muted">
-            This changes today only. Your plan stays at {planned} {delivery.unit} a day.
+            {isHi
+              ? `यह केवल आज के लिए बदलेगा। आपका प्लान प्रतिदिन ${planned} ${delivery.unit} रहेगा।`
+              : `This changes today only. Your plan stays at ${planned} ${delivery.unit} a day.`}
           </p>
           <div className="flex justify-center py-2">
             <QuantityStepper name="quantity" defaultValue={quantity} unit={delivery.unit} />
           </div>
-          <Textarea name="note" label="Note for your milkman (optional)" maxLength={300} />
+          <Textarea
+            name="note"
+            label={isHi ? 'दूधवाले के लिए संदेश (वैकल्पिक)' : 'Note for your milkman (optional)'}
+            placeholder={isHi ? 'जैसे: मेहमान आ रहे हैं, 1 लीटर अतिरिक्त चाहिए' : 'e.g. Guests arriving today'}
+            maxLength={300}
+          />
         </form>
       </Modal>
 
@@ -174,14 +188,14 @@ export function TodayCard({ delivery }) {
       <Modal
         open={modal === 'skip'}
         onClose={() => setModal(null)}
-        title="Skip today's delivery?"
+        title={isHi ? 'आज की डिलीवरी छोड़ें?' : "Skip today's delivery?"}
         footer={
           <>
             <Button variant="ghost" onClick={() => setModal(null)}>
-              Keep it
+              {isHi ? 'चालू रखें' : 'Keep it'}
             </Button>
             <Button form="skip-form" type="submit" variant="danger" loading={pending}>
-              Skip today
+              {isHi ? 'आज छोड़ें' : 'Skip today'}
             </Button>
           </>
         }
@@ -194,16 +208,21 @@ export function TodayCard({ delivery }) {
             run(
               skipDay,
               { deliveryId: delivery.id, note: data.get('note') || undefined },
-              'Today has been skipped.',
+              isHi ? 'आज की डिलीवरी छोड़ दी गई है।' : 'Today has been skipped.',
             );
           }}
           className="space-y-4"
         >
           <p className="text-sm text-ink-muted">
-            You will not be charged for today. Your milkman will be told.
+            {isHi
+              ? 'आज के लिए कोई शुल्क नहीं लिया जाएगा। आपके दूध विक्रेता को सूचित कर दिया जाएगा।'
+              : 'You will not be charged for today. Your milkman will be told.'}
           </p>
           <div className="flex flex-wrap gap-2">
-            {['Out of town', 'Enough at home', 'Travelling'].map((reason) => (
+            {(isHi
+              ? ['शहर से बाहर हैं', 'घर में पर्याप्त है', 'यात्रा पर हैं']
+              : ['Out of town', 'Enough at home', 'Travelling']
+            ).map((reason) => (
               <label key={reason} className="cursor-pointer">
                 <input type="radio" name="note" value={reason} className="peer sr-only" />
                 <span className="inline-block rounded-full border border-border px-3 py-1.5 text-sm text-ink-muted peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:text-brand">
@@ -219,20 +238,23 @@ export function TodayCard({ delivery }) {
 }
 
 /** 'Morning 6:00 – 7:30 am', or just 'Morning' when no window is set. */
-function SlotLine({ delivery }) {
+function SlotLine({ delivery, isHi }) {
   const morning = formatWindow(delivery.morningStart, delivery.morningEnd);
   const evening = formatWindow(delivery.eveningStart, delivery.eveningEnd);
 
-  if (delivery.slot === 'MORNING') return <>Morning{morning ? ` · ${morning}` : ''}</>;
-  if (delivery.slot === 'EVENING') return <>Evening{evening ? ` · ${evening}` : ''}</>;
+  const mLabel = isHi ? 'सुबह' : 'Morning';
+  const eLabel = isHi ? 'शाम' : 'Evening';
+
+  if (delivery.slot === 'MORNING') return <>{mLabel}{morning ? ` · ${morning}` : ''}</>;
+  if (delivery.slot === 'EVENING') return <>{eLabel}{evening ? ` · ${evening}` : ''}</>;
 
   // Both slots: show each window on its own, since they are different hours.
-  if (!morning && !evening) return <>Morning &amp; evening</>;
+  if (!morning && !evening) return <>{isHi ? 'सुबह और शाम' : 'Morning & evening'}</>;
   return (
     <>
-      {morning ? `Morning · ${morning}` : 'Morning'}
+      {morning ? `${mLabel} · ${morning}` : mLabel}
       {' · '}
-      {evening ? `Evening · ${evening}` : 'Evening'}
+      {evening ? `${eLabel} · ${evening}` : eLabel}
     </>
   );
 }
@@ -240,18 +262,12 @@ function SlotLine({ delivery }) {
 /**
  * A short line explaining that these terms are ending, or that the plan behind
  * them has been withdrawn.
- *
- * Silent in the ordinary case — a note on every card would be noise.
  */
-function EndingNote({ delivery }) {
-  // The version behind this delivery has been closed: today is owed, later
-  // days come from the successor instead.
+function EndingNote({ delivery, isHi }) {
   if (delivery.termsEndOn) {
-    // Deliberately not "last delivery": the new plan may well cover this slot
-    // too, just on different terms. What ends is the plan, not the milk.
     return (
       <p className="mt-1 text-xs font-medium text-caution">
-        On your old plan — the new one starts tomorrow.
+        {isHi ? 'पुराने प्लान पर — नया कल से शुरू होगा।' : 'On your old plan — the new one starts tomorrow.'}
       </p>
     );
   }
@@ -259,7 +275,9 @@ function EndingNote({ delivery }) {
   if (delivery.planRetired) {
     return (
       <p className="mt-1 text-xs text-ink-muted">
-        Your milkman no longer offers this plan. Yours keeps running.
+        {isHi
+          ? 'दूध विक्रेता ने यह प्लान बंद कर दिया है। आपका प्लान चलता रहेगा।'
+          : 'Your milkman no longer offers this plan. Yours keeps running.'}
       </p>
     );
   }

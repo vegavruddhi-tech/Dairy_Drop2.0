@@ -7,5 +7,11 @@ import { CowLoaderPanel } from '@/components/ui/CowLoader.jsx';
  * it only ever covers pages the visitor may see.
  */
 export default function Loading() {
-  return <CowLoaderPanel label="Admin Console" message="Loading the platform…" />;
+  return (
+    <CowLoaderPanel
+      label="Admin Console"
+      message="Loading platform overview…"
+      submessage="Fetching real-time metrics, audit logs & verification queues"
+    />
+  );
 }

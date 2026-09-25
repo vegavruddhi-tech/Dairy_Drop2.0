@@ -3,7 +3,7 @@
  */
 
 import 'server-only';
-import { and, eq, desc, isNull, lt, sql, inArray } from 'drizzle-orm';
+import { and, eq, desc, isNull, lt, gte, sql, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
 import { notifications } from '@/db/schema/index.js';
@@ -21,19 +21,30 @@ export async function create(tx, values) {
  *
  * Always filtered to `userId = actor.userId` — a notification is addressed to
  * exactly one person, so there is no scope to resolve.
+ * Filtered to only the last 3 days of notifications.
  */
-export async function listInbox(actor, page = {}) {
+export async function listInbox(actor, page = {}, days = 3) {
   const { limit, offset } = paginate(page, 100);
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
   return db
     .select()
     .from(notifications)
-    .where(and(eq(notifications.userId, actor.userId), isNull(notifications.archivedAt)))
+    .where(
+      and(
+        eq(notifications.userId, actor.userId),
+        isNull(notifications.archivedAt),
+        gte(notifications.createdAt, cutoff)
+      )
+    )
     .orderBy(desc(notifications.createdAt))
     .limit(limit)
     .offset(offset);
 }
 
-export async function countUnread(actor) {
+export async function countUnread(actor, days = 3) {
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
   const [row] = await db
     .select({ count: sql`count(*)::int` })
     .from(notifications)
@@ -42,6 +53,7 @@ export async function countUnread(actor) {
         eq(notifications.userId, actor.userId),
         isNull(notifications.readAt),
         isNull(notifications.archivedAt),
+        gte(notifications.createdAt, cutoff)
       ),
     );
   return row?.count ?? 0;

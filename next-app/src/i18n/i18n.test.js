@@ -14,7 +14,6 @@ import { describe, it, expect } from 'vitest';
 
 import { en } from './locales/en.js';
 import { hi } from './locales/hi.js';
-import { gu } from './locales/gu.js';
 import {
   LOCALES,
   LOCALE_NAMES,
@@ -32,16 +31,16 @@ function paths(object, prefix = '') {
   });
 }
 
-const CATALOGS = { en, hi, gu };
+const CATALOGS = { en, hi };
 
 describe('locale catalogs', () => {
-  it('ships all three languages', () => {
-    expect(LOCALES).toEqual(['en', 'hi', 'gu']);
+  it('ships English and Hindi languages', () => {
+    expect(LOCALES).toEqual(['en', 'hi']);
   });
 
   it('every catalog has exactly the same keys', () => {
     const reference = paths(en).sort();
-    for (const locale of ['hi', 'gu']) {
+    for (const locale of ['hi']) {
       const actual = paths(CATALOGS[locale]).sort();
       const missing = reference.filter((k) => !actual.includes(k));
       const extra = actual.filter((k) => !reference.includes(k));
@@ -63,22 +62,15 @@ describe('locale catalogs', () => {
     }
   });
 
-  it('Hindi and Gujarati are actually translated, not copied English', () => {
-    // Navigation is the most visible surface; if it is still Latin the catalog
-    // was never translated.
+  it('Hindi is actually translated, not copied English', () => {
     const devanagari = /[ऀ-ॿ]/;
-    const gujarati = /[઀-૿]/;
-
     expect(hi.nav.home).toMatch(devanagari);
     expect(hi.common.save).toMatch(devanagari);
-    expect(gu.nav.home).toMatch(gujarati);
-    expect(gu.common.save).toMatch(gujarati);
   });
 
   it('names each language in its own script', () => {
     expect(LOCALE_NAMES.en).toBe('English');
     expect(LOCALE_NAMES.hi).toMatch(/[ऀ-ॿ]/);
-    expect(LOCALE_NAMES.gu).toMatch(/[઀-૿]/);
   });
 });
 
@@ -86,7 +78,6 @@ describe('translator', () => {
   it('resolves a dotted path', () => {
     expect(createTranslator('en')('nav.home')).toBe('Home');
     expect(createTranslator('hi')('nav.home')).toBe(hi.nav.home);
-    expect(createTranslator('gu')('nav.home')).toBe(gu.nav.home);
   });
 
   it('interpolates named parameters', () => {

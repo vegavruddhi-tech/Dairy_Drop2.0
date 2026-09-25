@@ -7,16 +7,19 @@ import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
 import { Button, QuantityStepper, Modal } from '@/components/ui/interactive.jsx';
 import { TruckIcon, InfoIcon } from '@/components/ui/Icons.jsx';
 import { orderProduct } from '@/actions/customer.actions.js';
-
+import { useT } from '@/i18n/provider.jsx';
 import { resolveProductImage, resolveProductDescription, formatProductName } from '@/domain/catalogPresets.js';
 
 export function OrderCard({ product }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const { locale } = useT();
+  const isHi = locale === 'hi';
 
   const stock = Number(product.availableQuantity);
   const price = Number(product.pricePerUnit);
   const img = resolveProductImage(product);
+  // Product name stays strictly in English Title Case
   const displayName = formatProductName(product.name);
   const displayDescription = resolveProductDescription(product);
 
@@ -34,12 +37,12 @@ export function OrderCard({ product }) {
             />
             <div className="absolute top-3 left-3">
               <span className="rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-0.5 text-[11px] font-bold text-slate-800 shadow-sm border border-slate-200/80">
-                Fresh Today
+                {isHi ? 'ताज़ा आज' : 'Fresh Today'}
               </span>
             </div>
             <div className="absolute top-3 right-3">
               <Badge tone={stock > 2 ? 'positive' : 'caution'}>
-                {stock} {product.unit} left
+                {stock} {product.unit} {isHi ? 'शेष' : 'left'}
               </Badge>
             </div>
           </div>
@@ -57,16 +60,18 @@ export function OrderCard({ product }) {
 
           <div className="flex items-baseline gap-1.5 pt-1">
             <span className="font-heading text-2xl font-black text-ink">₹{price}</span>
-            <span className="text-xs font-semibold text-ink-subtle">per {product.unit}</span>
+            <span className="text-xs font-semibold text-ink-subtle">
+              {isHi ? `प्रति ${product.unit}` : `per ${product.unit}`}
+            </span>
           </div>
 
           <div className="mt-auto pt-3 border-t border-border">
             <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
               <span className="flex items-center gap-1.5 text-blue-700">
                 <TruckIcon className="h-3.5 w-3.5 text-blue-600" />
-                <span>Arrives Tomorrow Morning</span>
+                <span>{isHi ? 'कल सुबह पहुंचेगा' : 'Arrives Tomorrow Morning'}</span>
               </span>
-              <span>Billed in monthly tab</span>
+              <span>{isHi ? 'मासिक बिल में जुड़ेगा' : 'Billed in monthly tab'}</span>
             </div>
             <Button
               className="w-full font-bold shadow-sm"
@@ -76,7 +81,13 @@ export function OrderCard({ product }) {
                 setOpen(true);
               }}
             >
-              {stock > 0 ? '+ Order for Tomorrow Morning' : 'Out of Stock'}
+              {stock > 0
+                ? isHi
+                  ? '+ कल सुबह के लिए ऑर्डर करें'
+                  : '+ Order for Tomorrow Morning'
+                : isHi
+                  ? 'स्टॉक समाप्त'
+                  : 'Out of Stock'}
             </Button>
           </div>
         </CardBody>
@@ -85,11 +96,15 @@ export function OrderCard({ product }) {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={`Order ${displayName}`}
+        title={isHi ? `${displayName} ऑर्डर करें` : `Order ${displayName}`}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button form="order-form" type="submit" loading={pending}>Confirm Order for Tomorrow</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              {isHi ? 'रद्द करें' : 'Cancel'}
+            </Button>
+            <Button form="order-form" type="submit" loading={pending}>
+              {isHi ? 'कल के लिए ऑर्डर कन्फर्म करें' : 'Confirm Order for Tomorrow'}
+            </Button>
           </>
         }
       >
@@ -102,29 +117,33 @@ export function OrderCard({ product }) {
             startTransition(async () => {
               const result = await orderProduct({ productId: product.id, quantity: formQuantity });
               if (result.ok) {
-                toast.success(`Ordered ${displayName}! It will be delivered tomorrow morning with your milk.`);
+                toast.success(
+                  isHi
+                    ? `${displayName} का ऑर्डर दर्ज हो गया! यह कल सुबह आपके दूध के साथ पहुंचेगा।`
+                    : `Ordered ${displayName}! It will be delivered tomorrow morning with your milk.`
+                );
                 setOpen(false);
               } else {
-                toast.error(result.message ?? 'Could not place that order.');
+                toast.error(result.message ?? (isHi ? 'ऑर्डर नहीं हो सका।' : 'Could not place that order.'));
               }
             });
           }}
         >
           <div className="rounded-2xl bg-blue-50/80 border border-blue-200/80 p-4 text-center">
             <span className="inline-block rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-extrabold text-white uppercase tracking-wider mb-1">
-              Next-Morning Delivery
+              {isHi ? 'अगली सुबह डिलीवरी' : 'Next-Morning Delivery'}
             </span>
             <p className="text-sm font-bold text-slate-900">
               {displayName}
             </p>
             <p className="text-xs text-slate-600 mt-0.5">
-              ₹{price} per {product.unit} · {stock} {product.unit} currently in stock
+              ₹{price} {isHi ? `प्रति ${product.unit}` : `per ${product.unit}`} · {stock} {product.unit} {isHi ? 'उपलब्ध' : 'currently in stock'}
             </p>
           </div>
 
           <div className="flex flex-col items-center justify-center py-2 gap-2">
             <label className="text-xs font-bold uppercase tracking-wider text-ink-subtle">
-              Select Quantity ({product.unit})
+              {isHi ? `मात्रा चुनें (${product.unit})` : `Select Quantity (${product.unit})`}
             </label>
             <QuantityStepper
               name="quantity"
@@ -138,9 +157,11 @@ export function OrderCard({ product }) {
 
           <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-950 flex items-start gap-2.5">
             <InfoIcon className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
-            <div>
-              <strong>Delivered Tomorrow Morning:</strong> Your milkman will bring this along with your regular morning milk delivery (between 5:00 AM – 8:00 AM) and add it to your monthly statement.
-            </div>
+            <p>
+              {isHi
+                ? 'यह आइटम कल सुबह की दूध डिलीवरी के साथ सीधे आपके दरवाजे पर रख दिया जाएगा और आपके मासिक बिल में जुड़ जाएगा।'
+                : 'This item will ride along on tomorrow morning’s round, placed at your doorstep and added to your monthly ledger.'}
+            </p>
           </div>
         </form>
       </Modal>

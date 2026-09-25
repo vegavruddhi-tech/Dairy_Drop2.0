@@ -1,6 +1,7 @@
 import { requireCustomer } from '@/auth/session.js';
 import { businessMonth, formatMonth, formatDate, recentMonths } from '@/domain/dates.js';
 import { formatPaise, formatMilli } from '@/domain/money.js';
+import { getLocale } from '@/i18n/server.js';
 import * as billingService from '@/services/billing.service.js';
 import * as paymentService from '@/services/payment.service.js';
 
@@ -11,15 +12,15 @@ export const metadata = { title: 'Billing' };
 
 /**
  * The invoice.
- *
- * Every figure comes from the billing engine, and the line items sum to the
- * total by construction — the customer can check the arithmetic themselves,
- * which is the point of showing it this way.
+ * Dual Language Support (English / Hindi).
+ * Product names and numbers remain in English.
  */
 export default async function BillingPage({ searchParams }) {
   const actor = await requireCustomer();
   const params = await searchParams;
   const month = typeof params?.month === 'string' ? params.month : businessMonth();
+  const locale = await getLocale();
+  const isHi = locale === 'hi';
 
   const [bill, paymentInfo, history] = await Promise.all([
     billingService.getBill(actor, { month }),
@@ -32,15 +33,14 @@ export default async function BillingPage({ searchParams }) {
   return (
     <>
       <PageHeader
-        title="Billing"
-        description={`${formatMonth(month)}${bill.frozen ? ' · closed' : ' · still open'}`}
+        title={isHi ? 'बिलिंग' : 'Billing'}
+        description={`${formatMonth(month)}${bill.frozen ? (isHi ? ' · बंद' : ' · closed') : (isHi ? ' · अभी जारी' : ' · still open')}`}
         action={
           <form>
             <select
               name="month"
               defaultValue={month}
               className="h-10 rounded-xl border border-border bg-surface px-3 text-sm"
-              // Progressive enhancement: works without JS via the submit button.
             >
               {months.map((m) => (
                 <option key={m} value={m}>
@@ -49,7 +49,7 @@ export default async function BillingPage({ searchParams }) {
               ))}
             </select>
             <noscript>
-              <button type="submit" className="ml-2 text-sm text-brand">Go</button>
+              <button type="submit" className="ml-2 text-sm text-brand">{isHi ? 'देखें' : 'Go'}</button>
             </noscript>
           </form>
         }
@@ -61,23 +61,35 @@ export default async function BillingPage({ searchParams }) {
             tone={bill.paidPaise > 0 ? 'info' : 'caution'}
             title={
               bill.paidPaise > 0
-                ? `Partially Paid · ${formatPaise(bill.balancePaise)} remaining due`
-                : `${formatPaise(bill.balancePaise)} due`
+                ? isHi
+                  ? `आंशिक भुगतान · ${formatPaise(bill.balancePaise)} बकाया शेष`
+                  : `Partially Paid · ${formatPaise(bill.balancePaise)} remaining due`
+                : `${formatPaise(bill.balancePaise)} ${isHi ? 'देय राशि' : 'due'}`
             }
           >
             {bill.paidPaise > 0
-              ? `You have paid ${formatPaise(bill.paidPaise)} so far. ${
-                  bill.frozen ? `Remaining balance due by ${formatDate(bill.dueDate)}.` : 'This month is still running.'
-                }`
+              ? isHi
+                ? `आपने अब तक ${formatPaise(bill.paidPaise)} का भुगतान किया है। ${
+                    bill.frozen ? `अंतिम तिथि ${formatDate(bill.dueDate)} है।` : 'यह महीना अभी जारी है।'
+                  }`
+                : `You have paid ${formatPaise(bill.paidPaise)} so far. ${
+                    bill.frozen ? `Remaining balance due by ${formatDate(bill.dueDate)}.` : 'This month is still running.'
+                  }`
               : bill.frozen
-              ? `Due by ${formatDate(bill.dueDate)}.`
+              ? isHi
+                ? `अंतिम तिथि ${formatDate(bill.dueDate)} है।`
+                : `Due by ${formatDate(bill.dueDate)}.`
+              : isHi
+              ? 'यह महीना अभी जारी है — जैसे-जैसे दूध डिलीवर होगा कुल राशि अपडेट होती रहेगी।'
               : 'This month is still running — the total will change as milk is delivered.'}
           </Notice>
         </div>
       ) : bill.creditPaise > 0 ? (
         <div className="mb-5">
-          <Notice tone="positive" title={`${formatPaise(bill.creditPaise)} in credit`}>
-            You have paid more than this month's bill. It will be applied to next month.
+          <Notice tone="positive" title={`${formatPaise(bill.creditPaise)} ${isHi ? 'क्रेडिट में' : 'in credit'}`}>
+            {isHi
+              ? 'आपने इस महीने के बिल से अधिक भुगतान किया है। यह अगले महीने में जुड़ जाएगा।'
+              : "You have paid more than this month's bill. It will be applied to next month."}
           </Notice>
         </div>
       ) : null}
@@ -85,22 +97,22 @@ export default async function BillingPage({ searchParams }) {
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
         {/* ── The invoice ──────────────────────────────────────────── */}
         <Card>
-          <CardHeader title="What you owe" description={formatMonth(month)} />
+          <CardHeader title={isHi ? 'आपकी देय राशि' : 'What you owe'} description={formatMonth(month)} />
           <CardBody className="space-y-6">
             {/* Milk, one line per plan */}
             {bill.milkLines?.length ? (
               <div>
                 <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-subtle">
-                  Milk
+                  {isHi ? 'दूध' : 'Milk'}
                 </h3>
                 <Table>
                   <thead>
                     <tr>
-                      <Th>Plan</Th>
-                      <Th numeric>Days</Th>
-                      <Th numeric>Delivered</Th>
-                      <Th numeric>Rate</Th>
-                      <Th numeric>Amount</Th>
+                      <Th>{isHi ? 'प्लान' : 'Plan'}</Th>
+                      <Th numeric>{isHi ? 'दिन' : 'Days'}</Th>
+                      <Th numeric>{isHi ? 'डिलीवर' : 'Delivered'}</Th>
+                      <Th numeric>{isHi ? 'दर' : 'Rate'}</Th>
+                      <Th numeric>{isHi ? 'राशि' : 'Amount'}</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -110,7 +122,9 @@ export default async function BillingPage({ searchParams }) {
                           <span className="font-bold text-slate-900">{line.productName}</span>
                           {line.skippedDays > 0 ? (
                             <span className="block text-[11px] text-ink-muted">
-                              {line.skippedDays} day{line.skippedDays === 1 ? '' : 's'} skipped — not charged
+                              {isHi
+                                ? `${line.skippedDays} दिन छुट्टी — कोई शुल्क नहीं`
+                                : `${line.skippedDays} day${line.skippedDays === 1 ? '' : 's'} skipped — not charged`}
                             </span>
                           ) : null}
                         </Td>
@@ -124,28 +138,30 @@ export default async function BillingPage({ searchParams }) {
                 </Table>
               </div>
             ) : (
-              <p className="text-sm text-ink-muted">No milk delivered this month.</p>
+              <p className="text-sm text-ink-muted">
+                {isHi ? 'इस महीने कोई दूध डिलीवर नहीं हुआ।' : 'No milk delivered this month.'}
+              </p>
             )}
 
             {/* Extras */}
             {bill.productLines?.length ? (
               <div>
                 <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-subtle">
-                  Extras
+                  {isHi ? 'अतिरिक्त उत्पाद' : 'Extras'}
                 </h3>
                 <Table>
                   <thead>
                     <tr>
-                      <Th>Item</Th>
-                      <Th numeric>Qty</Th>
-                      <Th numeric>Amount</Th>
+                      <Th>{isHi ? 'सामान' : 'Item'}</Th>
+                      <Th numeric>{isHi ? 'मात्रा' : 'Qty'}</Th>
+                      <Th numeric>{isHi ? 'राशि' : 'Amount'}</Th>
                     </tr>
                   </thead>
                   <tbody>
                     {bill.productLines.map((line) => (
                       <tr key={line.id}>
                         <Td>
-                          {line.productName}
+                          <span className="font-bold text-slate-900">{line.productName}</span>
                           <span className="block text-xs text-ink-muted">
                             {formatDate(line.orderDate)}
                           </span>
@@ -161,18 +177,18 @@ export default async function BillingPage({ searchParams }) {
 
             {/* Totals */}
             <dl className="space-y-2 border-t border-border pt-4 text-sm">
-              <Row label="Milk" value={formatPaise(bill.milkAmountPaise)} />
-              <Row label="Extras" value={formatPaise(bill.productsAmountPaise)} />
+              <Row label={isHi ? 'दूध' : 'Milk'} value={formatPaise(bill.milkAmountPaise)} />
+              <Row label={isHi ? 'अतिरिक्त उत्पाद' : 'Extras'} value={formatPaise(bill.productsAmountPaise)} />
               {bill.adjustmentPaise > 0 ? (
-                <Row label={bill.adjustmentReason ?? 'Credit'} value={`− ${formatPaise(bill.adjustmentPaise)}`} />
+                <Row label={bill.adjustmentReason ?? (isHi ? 'क्रेडिट' : 'Credit')} value={`− ${formatPaise(bill.adjustmentPaise)}`} />
               ) : null}
-              <Row label="Total" value={formatPaise(bill.totalPaise)} strong />
-              <Row label="Paid" value={formatPaise(bill.paidPaise)} />
+              <Row label={isHi ? 'कुल योग' : 'Total'} value={formatPaise(bill.totalPaise)} strong />
+              <Row label={isHi ? 'भुगतान किया' : 'Paid'} value={formatPaise(bill.paidPaise)} />
               {bill.awaitingPaise > 0 ? (
-                <Row label="Awaiting confirmation" value={formatPaise(bill.awaitingPaise)} />
+                <Row label={isHi ? 'स्वीकृति लंबित' : 'Awaiting confirmation'} value={formatPaise(bill.awaitingPaise)} />
               ) : null}
               <Row
-                label="Balance"
+                label={isHi ? 'बकाया राशि' : 'Balance'}
                 value={formatPaise(bill.balancePaise)}
                 strong
                 tone={bill.balancePaise > 0 ? 'critical' : 'positive'}
@@ -191,10 +207,12 @@ export default async function BillingPage({ searchParams }) {
           />
 
           <Card>
-            <CardHeader title="Past invoices" />
+            <CardHeader title={isHi ? 'पुराने बिल' : 'Past invoices'} />
             <CardBody className="space-y-1">
               {history.length === 0 ? (
-                <p className="text-sm text-ink-muted">No earlier invoices yet.</p>
+                <p className="text-sm text-ink-muted">
+                  {isHi ? 'अभी कोई पुराना बिल नहीं है।' : 'No earlier invoices yet.'}
+                </p>
               ) : (
                 history.map((invoice) => (
                   <a

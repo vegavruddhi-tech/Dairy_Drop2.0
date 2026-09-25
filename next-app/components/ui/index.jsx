@@ -255,10 +255,36 @@ export const STATUS_TONE = {
   OVERDUE: 'critical', OPEN: 'info', ACCEPTED: 'info',
 };
 
-export function StatusBadge({ status, children }) {
+export const STATUS_LABELS_HI = {
+  PENDING: 'लंबित',
+  DELIVERED: 'डिलीवर हुआ',
+  UNDELIVERED: 'डिलीवर नहीं हुआ',
+  SKIPPED: 'छोड़ा गया',
+  CANCELLED: 'रद्द',
+  ACTIVE: 'सक्रिय',
+  PAUSED: 'रोका गया',
+  SUPERSEDED: 'प्रतिस्थापित',
+  TRIAL: 'ट्रायल',
+  PENDING_VERIFICATION: 'सत्यापन लंबित',
+  EXPIRED: 'समाप्त',
+  APPROVED: 'स्वीकृत',
+  REJECTED: 'अस्वीकृत',
+  VERIFIED: 'सत्यापित',
+  SUBMITTED: 'जमा किया गया',
+  PAID: 'भुगतान हुआ',
+  PARTIALLY_PAID: 'आंशिक भुगतान',
+  UNPAID: 'बकाया',
+  OVERDUE: 'अतिदेय',
+  OPEN: 'खुला',
+  ACCEPTED: 'स्वीकृत',
+};
+
+export function StatusBadge({ status, children, locale }) {
+  const isHi = locale === 'hi';
+  const label = children ?? (isHi && STATUS_LABELS_HI[status] ? STATUS_LABELS_HI[status] : String(status ?? '').replace(/_/g, ' ').toLowerCase());
   return (
     <Badge tone={STATUS_TONE[status] ?? 'neutral'} dot>
-      {children ?? String(status ?? '').replace(/_/g, ' ').toLowerCase()}
+      {label}
     </Badge>
   );
 }

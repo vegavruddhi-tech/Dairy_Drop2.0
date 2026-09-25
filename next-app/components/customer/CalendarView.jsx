@@ -8,12 +8,13 @@ import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/intera
 import { InfoIcon, VacationIcon, CheckIcon, CloseIcon } from '@/components/ui/Icons.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
 import { formatDate, formatDateShort, formatWindow } from '@/domain/dates.js';
+import { useT } from '@/i18n/provider.jsx';
 
 /**
  * Compute the accurate, proper total quantity and status summary for a day.
  * Eliminates awkward "+X more" labels and sums up all delivered or scheduled amounts.
  */
-function getDaySummary(dayDeliveries) {
+function getDaySummary(dayDeliveries, isHi) {
   if (!dayDeliveries || dayDeliveries.length === 0) {
     return null;
   }
@@ -48,9 +49,11 @@ function getDaySummary(dayDeliveries) {
   if (skippedCount === dayDeliveries.length) {
     return {
       statusType: 'SKIPPED',
-      badgeText: 'Skip',
+      badgeText: isHi ? 'छुट्टी' : 'Skip',
       deliveredCount,
       pendingCount,
+      skippedCount,
+      undeliveredCount,
       totalCount: dayDeliveries.length,
     };
   }
@@ -59,9 +62,11 @@ function getDaySummary(dayDeliveries) {
   if (undeliveredCount === dayDeliveries.length) {
     return {
       statusType: 'UNDELIVERED',
-      badgeText: 'Miss',
+      badgeText: isHi ? 'मिस्ड' : 'Miss',
       deliveredCount,
       pendingCount,
+      skippedCount,
+      undeliveredCount,
       totalCount: dayDeliveries.length,
     };
   }
@@ -76,6 +81,8 @@ function getDaySummary(dayDeliveries) {
       fullTotalText: entries.map(([unit, qty]) => `${formatQty(qty)} ${unit}`).join(', '),
       deliveredCount,
       pendingCount,
+      skippedCount,
+      undeliveredCount,
       totalCount: dayDeliveries.length,
     };
   }
@@ -90,6 +97,8 @@ function getDaySummary(dayDeliveries) {
       fullTotalText: badgeText,
       deliveredCount,
       pendingCount,
+      skippedCount,
+      undeliveredCount,
       totalCount: dayDeliveries.length,
     };
   }
@@ -102,9 +111,13 @@ function getDaySummary(dayDeliveries) {
     return {
       statusType: 'PARTIAL',
       badgeText: `${formatQty(deliv)}/${formatQty(deliv + sched)}${primaryUnit}`,
-      fullTotalText: `${formatQty(deliv)} delivered, ${formatQty(sched)} scheduled`,
+      fullTotalText: isHi
+        ? `${formatQty(deliv)} डिलीवर, ${formatQty(sched)} निर्धारित`
+        : `${formatQty(deliv)} delivered, ${formatQty(sched)} scheduled`,
       deliveredCount,
       pendingCount,
+      skippedCount,
+      undeliveredCount,
       totalCount: dayDeliveries.length,
     };
   }
@@ -114,11 +127,16 @@ function getDaySummary(dayDeliveries) {
     badgeText: `${dayDeliveries.length}`,
     deliveredCount,
     pendingCount,
+    skippedCount,
+    undeliveredCount,
     totalCount: dayDeliveries.length,
   };
 }
 
 export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
+  const { locale } = useT();
+  const isHi = locale === 'hi';
+
   // Pick default selected date: today if in month/has deliveries, otherwise first date with deliveries
   const defaultSelectedDate = useMemo(() => {
     if (todayDate && deliveriesByDate[todayDate]?.length) return todayDate;
@@ -139,7 +157,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
     );
   }, [deliveriesByDate, selectedDate]);
 
-  const selectedDaySummary = useMemo(() => getDaySummary(selectedDeliveries), [selectedDeliveries]);
+  const selectedDaySummary = useMemo(() => getDaySummary(selectedDeliveries, isHi), [selectedDeliveries, isHi]);
 
   function handleAction(actionFn, payload, successMsg) {
     startTransition(async () => {
@@ -148,10 +166,14 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
         toast.success(successMsg);
         setModalAction(null);
       } else {
-        toast.error(result.message ?? 'Something went wrong.');
+        toast.error(result.message ?? (isHi ? 'कुछ गड़बड़ हुई।' : 'Something went wrong.'));
       }
     });
   }
+
+  const dayHeaders = isHi
+    ? ['रवि', 'सोम', 'मंगल', 'बुध', 'गुरु', 'शुक्र', 'शनि']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <div className="space-y-6">
@@ -160,7 +182,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
         <CardBody className="p-3 sm:p-6">
           {/* Day of Week Headers */}
           <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold uppercase tracking-wider text-slate-400">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+            {dayHeaders.map((d) => (
               <div key={d} className="py-1">
                 {d}
               </div>
@@ -186,7 +208,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               const dayNumber = Number(date.slice(8));
               const isToday = date === todayDate;
               const isSelected = date === selectedDate;
-              const summary = getDaySummary(dayDeliveries);
+              const summary = getDaySummary(dayDeliveries, isHi);
 
               // Refined styling for clean, compact readability
               let cellStyle = 'bg-slate-50/40 border-slate-200/70 text-slate-400 hover:bg-slate-50 hover:border-slate-300';
@@ -222,7 +244,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                     'bg-amber-50/80 border-amber-300 text-amber-900 hover:border-amber-400 hover:bg-amber-100/60';
                   badgeElement = (
                     <span className="inline-block max-w-full truncate rounded-md bg-amber-200 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-900 border border-amber-300 leading-none">
-                      Skip
+                      {isHi ? 'छुट्टी' : 'Skip'}
                     </span>
                   );
                 } else if (summary.statusType === 'UNDELIVERED') {
@@ -230,7 +252,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                     'bg-rose-50/80 border-rose-300 text-rose-950 hover:border-rose-400 hover:bg-rose-100/60';
                   badgeElement = (
                     <span className="inline-block max-w-full truncate rounded-md bg-rose-600 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-white leading-none">
-                      Miss
+                      {isHi ? 'मिस्ड' : 'Miss'}
                     </span>
                   );
                 } else {
@@ -296,25 +318,29 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
             <div className="flex flex-wrap items-center gap-4">
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-md bg-emerald-500 shadow-xs" />
-                <span className="text-slate-800">Delivered</span>
+                <span className="text-slate-800">{isHi ? 'डिलीवर हुआ' : 'Delivered'}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-md bg-blue-500 shadow-xs" />
-                <span className="text-slate-800">Scheduled</span>
+                <span className="text-slate-800">{isHi ? 'निर्धारित' : 'Scheduled'}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-md bg-amber-400 shadow-xs" />
-                <span className="text-slate-800">Skipped</span>
+                <span className="text-slate-800">{isHi ? 'छुट्टी' : 'Skipped'}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-3 w-3 rounded-md bg-rose-500 shadow-xs" />
-                <span className="text-slate-800">Missed</span>
+                <span className="text-slate-800">{isHi ? 'मिस्ड' : 'Missed'}</span>
               </span>
             </div>
 
             <p className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
               <InfoIcon className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-              <span>Click any date to view and manage deliveries directly below.</span>
+              <span>
+                {isHi
+                  ? 'नीचे डिलीवरी देखने व प्रबंधित करने के लिए किसी भी तारीख पर क्लिक करें।'
+                  : 'Click any date to view and manage deliveries directly below.'}
+              </span>
             </p>
           </div>
         </CardBody>
@@ -337,29 +363,33 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                   {selectedDate === todayDate && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-extrabold text-blue-700 border border-blue-200">
                       <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
-                      Today
+                      {isHi ? 'आज' : 'Today'}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
                   {(() => {
-                    if (selectedDeliveries.length === 0) return 'No deliveries on this day';
+                    if (selectedDeliveries.length === 0) return isHi ? 'इस दिन कोई डिलीवरी नहीं है' : 'No deliveries on this day';
                     const parts = [];
                     if (selectedDaySummary?.deliveredCount > 0) {
-                      parts.push(`${selectedDaySummary.deliveredCount} delivered`);
+                      parts.push(`${selectedDaySummary.deliveredCount} ${isHi ? 'डिलीवर हुआ' : 'delivered'}`);
                     }
                     if (selectedDaySummary?.pendingCount > 0) {
-                      parts.push(`${selectedDaySummary.pendingCount} scheduled`);
+                      parts.push(`${selectedDaySummary.pendingCount} ${isHi ? 'निर्धारित' : 'scheduled'}`);
                     }
                     if (selectedDaySummary?.skippedCount > 0) {
-                      parts.push(`${selectedDaySummary.skippedCount} skipped`);
+                      parts.push(`${selectedDaySummary.skippedCount} ${isHi ? 'छुट्टी' : 'skipped'}`);
                     }
                     if (selectedDaySummary?.undeliveredCount > 0) {
-                      parts.push(`${selectedDaySummary.undeliveredCount} missed`);
+                      parts.push(`${selectedDaySummary.undeliveredCount} ${isHi ? 'मिस्ड' : 'missed'}`);
                     }
                     const breakdown = parts.length > 0 ? ` · ${parts.join(', ')}` : '';
                     return `${selectedDeliveries.length} ${
-                      selectedDeliveries.length === 1 ? 'delivery' : 'deliveries'
+                      isHi
+                        ? 'डिलीवरी'
+                        : selectedDeliveries.length === 1
+                        ? 'delivery'
+                        : 'deliveries'
                     }${breakdown}`;
                   })()}
                 </p>
@@ -370,13 +400,13 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
             {selectedDeliveries.length > 0 && selectedDaySummary && (
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 rounded-xl bg-slate-100/90 px-3.5 py-1.5 text-xs font-semibold text-slate-700 border border-slate-200/60">
-                  <span className="text-slate-500 font-medium">Day Total:</span>
+                  <span className="text-slate-500 font-medium">{isHi ? 'दिन का कुल:' : 'Day Total:'}</span>
                   <span className="text-slate-900 font-extrabold text-sm">
                     {selectedDaySummary.fullTotalText || selectedDaySummary.badgeText}
                   </span>
                   {selectedDaySummary.deliveredCount > 0 && (
                     <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-200">
-                      Delivered
+                      {isHi ? 'डिलीवर हुआ' : 'Delivered'}
                     </span>
                   )}
                 </div>
@@ -398,11 +428,12 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                   </svg>
                 </div>
                 <h4 className="font-heading text-base font-bold text-slate-800">
-                  No Deliveries Scheduled
+                  {isHi ? 'कोई डिलीवरी निर्धारित नहीं है' : 'No Deliveries Scheduled'}
                 </h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  There are no scheduled deliveries for {formatDate(selectedDate)}. Deliveries will
-                  arrive based on your active subscription plan.
+                  {isHi
+                    ? `${formatDate(selectedDate)} के लिए कोई डिलीवरी नहीं है। डिलीवरी आपके सक्रिय प्लान के अनुसार पहुंचेगी।`
+                    : `There are no scheduled deliveries for ${formatDate(selectedDate)}. Deliveries will arrive based on your active subscription plan.`}
                 </p>
               </div>
             ) : (
@@ -436,21 +467,21 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                           </h4>
                           <p className="text-xs text-slate-500 font-medium mt-0.5">
                             {delivery.slot === 'MORNING'
-                              ? `Morning Delivery${morning ? ` (${morning})` : ''}`
+                              ? `${isHi ? 'सुबह की डिलीवरी' : 'Morning Delivery'}${morning ? ` (${morning})` : ''}`
                               : delivery.slot === 'EVENING'
-                              ? `Evening Delivery${evening ? ` (${evening})` : ''}`
-                              : 'Morning & Evening'}
+                              ? `${isHi ? 'शाम की डिलीवरी' : 'Evening Delivery'}${evening ? ` (${evening})` : ''}`
+                              : isHi ? 'सुबह व शाम' : 'Morning & Evening'}
                           </p>
                         </div>
 
-                        <StatusBadge status={delivery.status} />
+                        <StatusBadge status={delivery.status} locale={locale} />
                       </div>
 
                       {/* Quantity & Price Card */}
                       <div className="flex items-baseline justify-between rounded-xl bg-white p-3 border border-slate-200/70">
                         <div>
                           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            {isDelivered ? 'Delivered Quantity' : 'Scheduled Quantity'}
+                            {isDelivered ? (isHi ? 'डिलीवर हुई मात्रा' : 'Delivered Quantity') : (isHi ? 'निर्धारित मात्रा' : 'Scheduled Quantity')}
                           </p>
                           <div className="flex items-baseline gap-1.5 mt-0.5">
                             <span className="text-2xl font-black text-slate-900 tnum">
@@ -459,7 +490,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                             <span className="text-xs font-bold text-slate-500">{delivery.unit}</span>
                             {isAdjusted && (
                               <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                Changed from {planned} {delivery.unit}
+                                {isHi ? `बदला गया (${planned} ${delivery.unit} से)` : `Changed from ${planned} ${delivery.unit}`}
                               </span>
                             )}
                           </div>
@@ -467,24 +498,24 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
 
                         <div className="text-right">
                           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Rate / Item Total
+                            {isHi ? 'दर / कुल योग' : 'Rate / Item Total'}
                           </p>
                           <p className="text-sm font-bold text-slate-800 mt-0.5">
                             ₹{Number(delivery.unitPrice).toFixed(2)} / {delivery.unit}
                           </p>
                           {isDelivered && (
                             <p className="text-[11px] font-extrabold text-emerald-700">
-                              ₹{totalCost} billed
+                              ₹{totalCost} {isHi ? 'बिल हुआ' : 'billed'}
                             </p>
                           )}
                           {(isSkipped || isUndelivered) && (
                             <p className="text-[11px] font-semibold text-slate-400">
-                              ₹0.00 (not billed)
+                              ₹0.00 {isHi ? '(बिल नहीं हुआ)' : '(not billed)'}
                             </p>
                           )}
                           {isPending && (
                             <p className="text-[11px] font-semibold text-slate-500">
-                              ₹{totalCost} est.
+                              ₹{totalCost} {isHi ? 'अनुमानित' : 'est.'}
                             </p>
                           )}
                         </div>
@@ -492,7 +523,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
 
                       {delivery.note && (
                         <p className="text-xs text-slate-600 italic bg-white/70 p-2.5 rounded-lg border border-slate-200/50">
-                          Note: "{delivery.note}"
+                          {isHi ? 'नोट:' : 'Note:'} "{delivery.note}"
                         </p>
                       )}
 
@@ -500,14 +531,14 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                       {isDelivered && (
                         <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-200">
                           <span>✓</span>
-                          <span>Delivered to your doorstep by your milkman</span>
+                          <span>{isHi ? 'आपके दूधवाले द्वारा आपके दरवाजे पर डिलीवर किया गया' : 'Delivered to your doorstep by your milkman'}</span>
                         </div>
                       )}
 
                       {isUndelivered && (
                         <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50/80 px-3 py-2 rounded-xl border border-rose-200">
                           <span>✕</span>
-                          <span>Marked unfulfilled · You were not billed for this delivery</span>
+                          <span>{isHi ? 'डिलीवरी नहीं हो सकी · इसका आपसे कोई शुल्क नहीं लिया गया' : 'Marked unfulfilled · You were not billed for this delivery'}</span>
                         </div>
                       )}
 
@@ -522,7 +553,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                               setModalAction({ type: 'quantity', delivery });
                             }}
                           >
-                            Change Quantity
+                            {isHi ? 'मात्रा बदलें' : 'Change Quantity'}
                           </Button>
                           <Button
                             variant="ghost"
@@ -532,7 +563,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                               setModalAction({ type: 'skip', delivery });
                             }}
                           >
-                            Skip This Day
+                            {isHi ? 'यह दिन छोड़ें' : 'Skip This Day'}
                           </Button>
                         </div>
                       )}
@@ -545,12 +576,12 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                           delivery.note?.toLowerCase().includes('holiday') ? (
                             <div className="flex items-center gap-2 text-xs text-amber-900 bg-amber-50/90 px-3 py-2 rounded-xl border border-amber-200 font-semibold">
                               <VacationIcon className="h-4 w-4 text-amber-700 shrink-0" />
-                              <span>Dairy Holiday / Milkman Day Off (You are not billed)</span>
+                              <span>{isHi ? 'डेयरी अवकाश / दूधवाला अवकाश (कोई बिल नहीं)' : 'Dairy Holiday / Milkman Day Off (You are not billed)'}</span>
                             </div>
                           ) : selectedDate >= todayDate ? (
                             <>
                               <div className="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 font-medium">
-                                Skipped at your request (not billed).
+                                {isHi ? 'आपके अनुरोध पर छुट्टी की गई (कोई बिल नहीं)।' : 'Skipped at your request (not billed).'}
                               </div>
                               <Button
                                 size="sm"
@@ -560,16 +591,16 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                                   handleAction(
                                     resumeDay,
                                     { deliveryId: delivery.id },
-                                    `Resumed delivery for ${formatDateShort(selectedDate)}.`,
+                                    isHi ? `${formatDateShort(selectedDate)} के लिए डिलीवरी फिर चालू की गई।` : `Resumed delivery for ${formatDateShort(selectedDate)}.`,
                                   )
                                 }
                               >
-                                Resume This Delivery
+                                {isHi ? 'यह डिलीवरी पुनः चालू करें' : 'Resume This Delivery'}
                               </Button>
                             </>
                           ) : (
                             <div className="text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 font-medium">
-                              Skipped delivery (past date · not billed).
+                              {isHi ? 'छोड़ी गई डिलीवरी (बीती तारीख · कोई बिल नहीं)।' : 'Skipped delivery (past date · not billed).'}
                             </div>
                           )}
                         </div>
@@ -587,14 +618,14 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
       <Modal
         open={modalAction?.type === 'skip'}
         onClose={() => setModalAction(null)}
-        title="Skip This Delivery?"
+        title={isHi ? 'यह डिलीवरी छोड़ें?' : 'Skip This Delivery?'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setModalAction(null)}>
-              Cancel
+              {isHi ? 'रद्द करें' : 'Cancel'}
             </Button>
             <Button form="calendar-skip-form" type="submit" variant="danger" loading={pending}>
-              Confirm Skip
+              {isHi ? 'छुट्टी कन्फर्म करें' : 'Confirm Skip'}
             </Button>
           </>
         }
@@ -609,20 +640,28 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               handleAction(
                 skipDay,
                 { deliveryId: modalAction.delivery.id, reason: reason ? String(reason) : undefined },
-                'Delivery skipped for this day.',
+                isHi ? 'इस दिन के लिए डिलीवरी छोड़ दी गई।' : 'Delivery skipped for this day.',
               );
             }}
           >
             <p className="text-sm text-slate-600">
-              Your milkman will not deliver{' '}
-              <strong className="text-slate-900">{modalAction.delivery.productName}</strong> on this
-              day. You will not be billed for this skipped delivery.
+              {isHi ? (
+                <>
+                  आपका दूधवाला इस दिन <strong className="text-slate-900">{modalAction.delivery.productName}</strong> डिलीवर नहीं करेगा। इस छोड़ी गई डिलीवरी का आपसे कोई शुल्क नहीं लिया जाएगा।
+                </>
+              ) : (
+                <>
+                  Your milkman will not deliver{' '}
+                  <strong className="text-slate-900">{modalAction.delivery.productName}</strong> on this
+                  day. You will not be billed for this skipped delivery.
+                </>
+              )}
             </p>
 
             <Textarea
               name="reason"
-              label="Reason (optional)"
-              placeholder="e.g. Out of town, family function..."
+              label={isHi ? 'कारण (वैकल्पिक)' : 'Reason (optional)'}
+              placeholder={isHi ? 'जैसे: शहर से बाहर हैं, पारिवारिक कार्यक्रम...' : 'e.g. Out of town, family function...'}
               maxLength={200}
             />
           </form>
@@ -633,14 +672,14 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
       <Modal
         open={modalAction?.type === 'quantity'}
         onClose={() => setModalAction(null)}
-        title="Change Quantity for This Day"
+        title={isHi ? 'इस दिन के लिए मात्रा बदलें' : 'Change Quantity for This Day'}
         footer={
           <>
             <Button variant="ghost" onClick={() => setModalAction(null)}>
-              Cancel
+              {isHi ? 'रद्द करें' : 'Cancel'}
             </Button>
             <Button form="calendar-qty-form" type="submit" loading={pending}>
-              Save Quantity
+              {isHi ? 'मात्रा सुरक्षित करें' : 'Save Quantity'}
             </Button>
           </>
         }
@@ -655,19 +694,27 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               handleAction(
                 adjustQuantity,
                 { deliveryId: modalAction.delivery.id, quantity: Number(qty) },
-                `Quantity updated to ${qty} ${modalAction.delivery.unit}.`,
+                isHi ? `मात्रा ${qty} ${modalAction.delivery.unit} अपडेट हो गई।` : `Quantity updated to ${qty} ${modalAction.delivery.unit}.`,
               );
             }}
           >
             <p className="text-sm text-slate-600">
-              Change quantity for{' '}
-              <strong className="text-slate-900">{modalAction.delivery.productName}</strong> on this
-              date only.
+              {isHi ? (
+                <>
+                  केवल इस तारीख के लिए <strong className="text-slate-900">{modalAction.delivery.productName}</strong> की मात्रा बदलें।
+                </>
+              ) : (
+                <>
+                  Change quantity for{' '}
+                  <strong className="text-slate-900">{modalAction.delivery.productName}</strong> on this
+                  date only.
+                </>
+              )}
             </p>
 
             <div className="flex flex-col items-center justify-center py-2 gap-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Quantity ({modalAction.delivery.unit})
+                {isHi ? 'मात्रा' : 'Quantity'} ({modalAction.delivery.unit})
               </label>
               <QuantityStepper
                 name="quantity"
@@ -682,7 +729,9 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
             </div>
 
             <p className="text-center text-xs text-slate-500">
-              Your milkman's round sheet will be updated for this day.
+              {isHi
+                ? 'आपके दूधवाले की डिलीवरी शीट इस दिन के लिए अपडेट हो जाएगी।'
+                : "Your milkman's round sheet will be updated for this day."}
             </p>
           </form>
         )}

@@ -10,6 +10,7 @@ import {
 } from '@/domain/dates.js';
 import { formatMilli } from '@/domain/money.js';
 import { computeVariance } from '@/domain/billing.js';
+import { getLocale } from '@/i18n/server.js';
 import * as deliveryService from '@/services/delivery.service.js';
 
 import { PageHeader, Stat } from '@/components/ui/index.jsx';
@@ -22,6 +23,8 @@ export default async function CalendarPage({ searchParams }) {
   const actor = await requireCustomer();
   const params = await searchParams;
   const month = typeof params?.month === 'string' ? params.month : businessMonth();
+  const locale = await getLocale();
+  const isHi = locale === 'hi';
 
   const deliveries = await deliveryService.getMonth(actor, { month });
   const variance = computeVariance(deliveries);
@@ -51,7 +54,7 @@ export default async function CalendarPage({ searchParams }) {
   return (
     <>
       <PageHeader
-        title="Calendar"
+        title={isHi ? 'कैलेंडर' : 'Calendar'}
         description={formatMonth(month)}
         action={
           <div className="flex items-center gap-2">
@@ -60,12 +63,14 @@ export default async function CalendarPage({ searchParams }) {
               <a
                 href={`/calendar?month=${addMonths(month, -1)}`}
                 className="tap rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                aria-label="Previous Month"
               >
                 ←
               </a>
               <a
                 href={`/calendar?month=${addMonths(month, 1)}`}
                 className="tap rounded-lg border border-border px-3 py-1.5 text-sm font-semibold hover:bg-slate-50 transition-colors"
+                aria-label="Next Month"
               >
                 →
               </a>
@@ -75,10 +80,18 @@ export default async function CalendarPage({ searchParams }) {
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Delivered" value={`${delivered.length}`} tone="positive" />
-        <Stat label="Total milk" value={formatMilli(deliveredMilli)} />
-        <Stat label="Extra" value={formatMilli(variance.extraMilli)} hint="Above your plan" />
-        <Stat label="Less" value={formatMilli(variance.reducedMilli)} hint="Below your plan" />
+        <Stat label={isHi ? 'डिलीवर हुआ' : 'Delivered'} value={`${delivered.length}`} tone="positive" />
+        <Stat label={isHi ? 'कुल दूध' : 'Total milk'} value={formatMilli(deliveredMilli)} />
+        <Stat
+          label={isHi ? 'अतिरिक्त' : 'Extra'}
+          value={formatMilli(variance.extraMilli)}
+          hint={isHi ? 'प्लान से अधिक' : 'Above your plan'}
+        />
+        <Stat
+          label={isHi ? 'कम' : 'Less'}
+          value={formatMilli(variance.reducedMilli)}
+          hint={isHi ? 'प्लान से कम' : 'Below your plan'}
+        />
       </div>
 
       <CalendarView

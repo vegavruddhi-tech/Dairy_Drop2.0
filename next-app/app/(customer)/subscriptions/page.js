@@ -1,6 +1,7 @@
 import { requireCustomer } from '@/auth/session.js';
 import { formatPaise } from '@/domain/money.js';
 import { clashingSlots, slotLabel } from '@/domain/pricing.js';
+import { getLocale } from '@/i18n/server.js';
 import * as subscriptionService from '@/services/subscription.service.js';
 import * as requestsRepo from '@/repositories/requests.repo.js';
 
@@ -10,8 +11,15 @@ import { SubscriptionCard, PlanCard } from '@/components/customer/Plans.jsx';
 
 export const metadata = { title: 'My plans' };
 
+/**
+ * Subscriptions & Available Plans.
+ * Dual Language Support (English / Hindi).
+ * Product names and numbers remain in English.
+ */
 export default async function SubscriptionsPage() {
   const actor = await requireCustomer();
+  const locale = await getLocale();
+  const isHi = locale === 'hi';
 
   const [mine, available, pendingRequests] = await Promise.all([
     subscriptionService.listMine(actor),
@@ -25,49 +33,26 @@ export default async function SubscriptionsPage() {
 
   const subscribedPlanIds = new Set(mine.filter((s) => s.status !== 'CANCELLED').map((s) => s.planId));
 
-  // The rate each subscribed plan was actually taken at, so a plan whose price
-  // has moved since can say which one applies to this customer.
   const rateByPlan = new Map(
     mine.filter((s) => s.status !== 'CANCELLED').map((s) => [s.planId, s.unitPrice]),
   );
 
-  /*
-   * Which plans the customer cannot take, and what is in the way.
-   *
-   * A paused plan still holds its time — it is coming back, and freeing the
-   * slot would let something else take it with no way to resume. Computed with
-   * the same `clashingSlots` the service refuses on, so the picker and the
-   * server never disagree about what is available.
-   */
-  /*
-   * Plans the milkman has withdrawn since this customer signed up.
-   *
-   * Retiring a plan is a catalog action: it stops new customers taking it and
-   * leaves existing agreements alone. Correct, but from the customer's side it
-   * looked like a fault — their plan carried on working while "Change plan"
-   * quietly vanished, because there was nothing left to change to, and nothing
-   * said why.
-   */
   const onOffer = new Set(available.map((plan) => plan.id));
-
   const holding = mine.filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED');
   const maxPlansReached = holding.length >= 2;
   const blockedByPlan = new Map();
+
   for (const plan of available) {
     if (subscribedPlanIds.has(plan.id)) continue;
     const wanted = { slot: plan.slot, productName: plan.productName };
     const clashes = clashingSlots(holding, wanted);
     if (clashes.length === 0) continue;
-    /*
-     * If the only thing in the way is a plan the milkman has withdrawn, the
-     * customer may step across on their own — they did not choose to be
-     * stranded on it.
-     */
+
     const blocker = holding.find((s) => clashingSlots([s], wanted).length > 0);
     const strandedOn = blocker && !onOffer.has(blocker.planId) ? blocker.rootId : null;
 
     blockedByPlan.set(plan.id, {
-      times: clashes.map(slotLabel).join(' and '),
+      times: clashes.map(slotLabel).join(isHi ? ' और ' : ' and '),
       productName: plan.productName,
       switchFrom: strandedOn,
     });
@@ -76,18 +61,22 @@ export default async function SubscriptionsPage() {
   return (
     <>
       <PageHeader
-        title="My plans"
-        description="You are billed only for the milk that actually arrives. Maximum 2 active subscriptions per customer."
+        title={isHi ? 'मेरी सदस्यता' : 'My plans'}
+        description={
+          isHi
+            ? 'आपसे केवल उसी दूध का शुल्क लिया जाता है जो वास्तव में पहुंचता है। प्रति ग्राहक अधिकतम 2 सक्रिय प्लान।'
+            : 'You are billed only for the milk that actually arrives. Maximum 2 active subscriptions per customer.'
+        }
       />
 
       <section className="mb-10" aria-labelledby="mine-heading">
         <div className="mb-3 flex items-center justify-between">
           <h2 id="mine-heading" className="text-sm font-semibold text-ink">
-            Active Subscriptions ({holding.length}/2)
+            {isHi ? `सक्रिय सदस्यता (${holding.length}/2)` : `Active Subscriptions (${holding.length}/2)`}
           </h2>
           {maxPlansReached && (
             <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-              Maximum 2 plans limit reached
+              {isHi ? 'अधिकतम 2 प्लान की सीमा पूरी' : 'Maximum 2 plans limit reached'}
             </span>
           )}
         </div>
@@ -95,8 +84,8 @@ export default async function SubscriptionsPage() {
         {mine.length === 0 ? (
           <EmptyState
             icon={<SubscriptionsIcon className="h-6 w-6 text-blue-600" />}
-            title="No plans yet"
-            description="Choose one below to start daily deliveries."
+            title={isHi ? 'अभी कोई प्लान नहीं है' : 'No plans yet'}
+            description={isHi ? 'दैनिक डिलीवरी शुरू करने के लिए नीचे दिए गए प्लान में से चुनें।' : 'Choose one below to start daily deliveries.'}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -115,15 +104,23 @@ export default async function SubscriptionsPage() {
 
       <section aria-labelledby="available-heading">
         <h2 id="available-heading" className="mb-3 text-sm font-semibold text-ink">
-          Available from your milkman
+          {isHi ? 'आपकी डेयरी द्वारा उपलब्ध प्लान्स' : 'Available from your milkman'}
         </h2>
 
         {available.length === 0 ? (
           <EmptyState
-            title={mine.length > 0 ? 'Nothing else on offer' : 'No plans on offer yet'}
+            title={
+              mine.length > 0
+                ? isHi ? 'अन्य कोई प्लान उपलब्ध नहीं' : 'Nothing else on offer'
+                : isHi ? 'अभी कोई प्लान उपलब्ध नहीं' : 'No plans on offer yet'
+            }
             description={
               mine.length > 0
-                ? 'Your milkman is not offering any other plans right now. What you already have keeps running.'
+                ? isHi
+                  ? 'आपकी डेयरी अभी कोई अन्य प्लान नहीं दे रही है। आपका मौजूदा प्लान जारी रहेगा।'
+                  : 'Your milkman is not offering any other plans right now. What you already have keeps running.'
+                : isHi
+                ? 'आपकी डेयरी ने अभी कोई प्लान प्रकाशित नहीं किया है।'
                 : 'Your milkman has not published any plans.'
             }
           />

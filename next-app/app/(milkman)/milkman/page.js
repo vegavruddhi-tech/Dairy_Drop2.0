@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
 import { DayOffButton } from '@/components/milkman/Round.jsx';
+import { PushNotificationPrompt } from '@/components/ui/PushNotificationPrompt.jsx';
 import {
   RoutesIcon,
   UsersIcon,
@@ -75,6 +76,8 @@ export default async function MilkmanDashboard() {
         }
         action={<HeroAction href="/milkman/round">{remaining > 0 ? 'Start Round' : 'View Round'}</HeroAction>}
       />
+
+      <PushNotificationPrompt role="milkman" />
 
       {/* ── PSYCHOLOGY-DRIVEN GUIDED NEXT ACTION BANNER ─────────────────── */}
       {pendingCustomers > 0 ? (

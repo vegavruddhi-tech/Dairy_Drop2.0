@@ -9,15 +9,11 @@ import { setLocale } from '@/actions/locale.actions.js';
 import { useT } from '@/i18n/provider.jsx';
 
 /**
- * The language switcher, ported from the original apps.
+ * Pure English & Hindi Language Switcher.
  *
- * Two shapes:
- *   · `segmented` — three chips side by side, for a settings screen
- *   · `compact`   — a single chip that cycles, for the header
- *
- * Each language is labelled in its own script, so someone who cannot read the
- * current interface language can still find theirs. That detail is the whole
- * point of the control.
+ * Designed specifically for DairyDrop:
+ *   · `compact`   — sleek header/mobile pill showing current language with 1-tap switch
+ *   · `segmented` — 2-option interactive toggle [ English | हिन्दी ]
  */
 export function LanguageToggle({ variant = 'segmented', className }) {
   const router = useRouter();
@@ -28,31 +24,45 @@ export function LanguageToggle({ variant = 'segmented', className }) {
     if (next === locale || pending) return;
     startTransition(async () => {
       await setLocale(next);
-      // The server re-renders with the new cookie; this pulls the fresh tree.
       router.refresh();
     });
   }
 
   if (variant === 'compact') {
-    const nextLocale = LOCALES[(LOCALES.indexOf(locale) + 1) % LOCALES.length];
+    const nextLocale = locale === 'en' ? 'hi' : 'en';
     return (
       <button
         type="button"
         onClick={() => choose(nextLocale)}
         disabled={pending}
+        title={`Current: ${LOCALE_NAMES[locale]}. Click to switch to ${LOCALE_NAMES[nextLocale]}`}
         aria-label={`${t('settings.language', {}, 'Language')}: ${LOCALE_NAMES[locale]}. Switch to ${LOCALE_NAMES[nextLocale]}`}
         className={cn(
-          'tap inline-flex items-center gap-1 rounded-xl border border-border bg-surface px-2.5 text-xs font-extrabold text-ink-muted',
-          'transition-colors hover:bg-surface-muted hover:text-ink disabled:opacity-50',
+          'tap inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-heading font-extrabold text-slate-800 shadow-2xs',
+          'hover:border-blue-300 hover:bg-blue-50/60 hover:text-blue-700 transition-all active:scale-[0.98] disabled:opacity-50',
           className,
         )}
       >
-        <svg className="h-3.5 w-3.5 text-ink-subtle" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg
+          className="h-3.5 w-3.5 text-blue-600 shrink-0"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
           <circle cx="12" cy="12" r="10" />
           <line x1="2" y1="12" x2="22" y2="12" />
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
         </svg>
-        <span>{LOCALE_SHORT[locale]}</span>
+        <span className="tracking-wide">
+          {locale === 'en' ? 'EN / हिन्दी' : 'हिन्दी / EN'}
+        </span>
+        {pending ? (
+          <span className="h-2 w-2 rounded-full bg-blue-600 animate-ping" />
+        ) : null}
       </button>
     );
   }
@@ -61,7 +71,10 @@ export function LanguageToggle({ variant = 'segmented', className }) {
     <div
       role="radiogroup"
       aria-label={t('settings.language', {}, 'Language')}
-      className={cn('flex gap-1 rounded-xl bg-surface-muted p-1', className)}
+      className={cn(
+        'flex items-center gap-1 rounded-2xl bg-slate-100/90 p-1 border border-slate-200/80',
+        className,
+      )}
     >
       {LOCALES.map((code) => {
         const active = code === locale;
@@ -74,10 +87,10 @@ export function LanguageToggle({ variant = 'segmented', className }) {
             disabled={pending}
             onClick={() => choose(code)}
             className={cn(
-              'tap flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-bold transition-all disabled:opacity-60',
+              'tap flex-1 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-heading font-bold transition-all disabled:opacity-60',
               active
-                ? 'bg-surface text-brand shadow-card'
-                : 'text-ink-muted hover:text-ink',
+                ? 'bg-white text-blue-700 shadow-xs border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50',
             )}
           >
             {LOCALE_NAMES[code]}

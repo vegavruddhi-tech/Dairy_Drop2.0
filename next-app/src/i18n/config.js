@@ -22,25 +22,23 @@
 
 import { en } from './locales/en.js';
 import { hi } from './locales/hi.js';
-import { gu } from './locales/gu.js';
 
-export const LOCALES = Object.freeze(['en', 'hi', 'gu']);
+export const LOCALES = Object.freeze(['en', 'hi']);
 export const DEFAULT_LOCALE = 'en';
 
 /** Shown in the toggle — each language named in its own script. */
 export const LOCALE_NAMES = Object.freeze({
   en: 'English',
   hi: 'हिन्दी',
-  gu: 'ગુજરાતી',
 });
 
 /** Two-letter chip label for the compact toggle. */
-export const LOCALE_SHORT = Object.freeze({ en: 'EN', hi: 'हि', gu: 'ગુ' });
+export const LOCALE_SHORT = Object.freeze({ en: 'EN', hi: 'हि' });
 
-/** Locales that need the Devanagari/Gujarati face rather than the Latin one. */
-export const INDIC_LOCALES = Object.freeze(['hi', 'gu']);
+/** Locales that need the Devanagari face rather than the Latin one. */
+export const INDIC_LOCALES = Object.freeze(['hi']);
 
-const DICTIONARIES = Object.freeze({ en, hi, gu });
+const DICTIONARIES = Object.freeze({ en, hi });
 
 /** The cookie the locale lives in. Readable by the server on every request. */
 export const LOCALE_COOKIE = 'dairydrop_locale';
@@ -121,9 +119,9 @@ export function createTranslator(locale) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const GREETINGS = {
-  morning: { en: 'Good morning', hi: 'शुभ प्रभात', gu: 'સુપ્રભાત' },
-  afternoon: { en: 'Good afternoon', hi: 'शुभ दोपहर', gu: 'શુભ બપોર' },
-  evening: { en: 'Good evening', hi: 'शुभ संध्या', gu: 'શુભ સાંજ' },
+  morning: { en: 'Good morning', hi: 'शुभ प्रभात' },
+  afternoon: { en: 'Good afternoon', hi: 'शुभ दोपहर' },
+  evening: { en: 'Good evening', hi: 'शुभ संध्या' },
 };
 
 /** Time-of-day greeting in the active language. */
@@ -132,7 +130,7 @@ export function greetingFor(locale, hour) {
   return GREETINGS[key][normaliseLocale(locale)];
 }
 
-/** BCP-47 tag for `Intl`. All three use Indian regional conventions. */
+/** BCP-47 tag for `Intl`. Both use Indian regional conventions. */
 export function intlLocale(locale) {
-  return { en: 'en-IN', hi: 'hi-IN', gu: 'gu-IN' }[normaliseLocale(locale)];
+  return { en: 'en-IN', hi: 'hi-IN' }[normaliseLocale(locale)];
 }
