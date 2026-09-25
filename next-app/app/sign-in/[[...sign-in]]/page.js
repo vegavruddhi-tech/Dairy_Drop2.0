@@ -1,14 +1,30 @@
 import { SignIn } from '@clerk/nextjs';
+import { auth as clerkAuth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import { getActor } from '@/auth/session.js';
+import { ROLE_HOME } from '@/auth/roles.js';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 import { AuthCardSkeleton } from '@/components/ui/AuthCardSkeleton.jsx';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Sign In • DairyDrop' };
 
 export default async function SignInPage({ searchParams }) {
+  const { userId } = await clerkAuth();
   const params = await searchParams;
-  const redirectTarget = params?.next || params?.redirect_url || '/dashboard';
-  const isVendorFlow = redirectTarget.includes('become-a-milkman');
+  const redirectTarget = params?.next || params?.redirect_url;
+
+  if (userId) {
+    if (redirectTarget) {
+      redirect(redirectTarget);
+    }
+    const actor = await getActor();
+    redirect(ROLE_HOME[actor?.role] ?? '/dashboard');
+  }
+
+  const target = redirectTarget || '/dashboard';
+  const isVendorFlow = target.includes('become-a-milkman');
 
   return (
     <div className="relative min-h-dvh bg-[#fafcff] text-slate-900 overflow-x-hidden flex flex-col">

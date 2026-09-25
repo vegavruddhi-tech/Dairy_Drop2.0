@@ -6,6 +6,7 @@ import { PublicBar } from '@/components/layout/PublicBar.jsx';
 import { MilkmanApplicationForm } from '@/components/milkman/ApplicationForm.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Milkman Registration • DairyDrop' };
 
 export default async function BecomeMilkmanPage() {
