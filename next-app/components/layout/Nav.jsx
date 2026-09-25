@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cn } from '@/components/ui/index.jsx';
@@ -95,6 +95,20 @@ export function MoreMenu({ items, user, variant = 'header', label = 'More' }) {
   const [open, setOpen] = useState(false);
   const { t } = useT();
 
+  // Prevent background body scrolling when mobile menu sheet is open
+  useEffect(() => {
+    if (open) {
+      const prevOverflow = document.body.style.overflow;
+      const prevTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.touchAction = prevTouchAction;
+      };
+    }
+  }, [open]);
+
   /*
    * The sheet is portalled to <body>.
    *
@@ -111,7 +125,7 @@ export function MoreMenu({ items, user, variant = 'header', label = 'More' }) {
   const sheet = open
     ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-50 flex items-end bg-black/40 backdrop-blur-sm lg:hidden touch-none"
           onClick={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
@@ -120,8 +134,9 @@ export function MoreMenu({ items, user, variant = 'header', label = 'More' }) {
             role="dialog"
             aria-modal="true"
             aria-label={label}
-            className="w-full animate-fade-in rounded-t-3xl border-t border-border bg-surface p-4 pb-8 shadow-dropdown"
+            className="w-full max-h-[85dvh] overflow-y-auto overscroll-contain animate-fade-in rounded-t-3xl border-t border-border bg-surface p-4 pb-8 shadow-dropdown"
             style={{ paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))' }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Grab handle, matching the old sheet. */}
             <div aria-hidden="true" className="mx-auto mb-2 h-1 w-10 rounded-full bg-border" />

@@ -9,7 +9,7 @@
  */
 
 import { useFormStatus } from 'react-dom';
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { cn } from './index.jsx';
@@ -300,6 +300,19 @@ export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5,
  * the backdrop come from the platform rather than from a library.
  */
 export function Modal({ open, onClose, title, children, footer }) {
+  useEffect(() => {
+    if (open) {
+      const prevOverflow = document.body.style.overflow;
+      const prevTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.touchAction = prevTouchAction;
+      };
+    }
+  }, [open]);
+
   if (!open) return null;
 
   return (

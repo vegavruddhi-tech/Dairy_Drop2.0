@@ -90,7 +90,6 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
 
         <div className="flex items-center gap-2.5">
           <PwaInstallButton variant="compact" />
-          <LanguageToggle variant="compact" className="h-9" />
           <NotificationBell />
         </div>
       </header>
@@ -116,7 +115,6 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
         <div className="flex shrink-0 items-center gap-1.5">
           <PwaInstallButton variant="compact" />
           <NotificationBell />
-          <LanguageToggle variant="compact" className="h-8" />
           <UserButton appearance={{ elements: { avatarBox: 'h-8 w-8 rounded-xl' } }} />
         </div>
       </header>

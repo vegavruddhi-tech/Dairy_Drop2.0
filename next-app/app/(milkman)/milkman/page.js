@@ -28,6 +28,7 @@ import {
   TruckIcon,
 } from '@/components/ui/Icons.jsx';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Milkman Dashboard' };
 
 export default async function MilkmanDashboard() {

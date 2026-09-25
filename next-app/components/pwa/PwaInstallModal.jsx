@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useT } from '@/i18n/provider.jsx';
 import {
   AppleIcon,
@@ -28,6 +29,19 @@ export function PwaInstallModal({
 }) {
   const { locale } = useT();
   const isHi = locale === 'hi';
+
+  useEffect(() => {
+    if (open) {
+      const prevOverflow = document.body.style.overflow;
+      const prevTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.touchAction = prevTouchAction;
+      };
+    }
+  }, [open]);
 
   if (!open) return null;
 

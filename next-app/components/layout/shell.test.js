@@ -109,8 +109,8 @@ describe('AppShell boundary', () => {
     });
 
     const toggles = [...walk(tree)].filter((n) => n.type === LanguageToggle);
-    // One in the desktop sidebar, one in the mobile header.
-    expect(toggles.length).toBeGreaterThanOrEqual(2);
+    // In the desktop sidebar footer
+    expect(toggles.length).toBeGreaterThanOrEqual(1);
     for (const toggle of toggles) expect(functionProps(toggle.props)).toEqual([]);
   });
 
