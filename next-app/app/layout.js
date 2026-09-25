@@ -7,6 +7,7 @@ import { getLocale, getMessages } from '@/i18n/server.js';
 import { LocaleProvider } from '@/i18n/provider.jsx';
 import { INDIC_LOCALES } from '@/i18n/config.js';
 import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt.jsx';
+import { SplashScreen } from '@/components/layout/SplashScreen.jsx';
 
 /**
  * The original apps' type stack, loaded through next/font so the files are
@@ -75,6 +76,7 @@ export default async function RootLayout({ children }) {
         Latin faces have no coverage for either script.
       */}
       <body className={`min-h-dvh font-sans ${indic ? `lang-${locale}` : ''}`}>
+        <SplashScreen />
         <ClerkProvider afterSignOutUrl="/">
           <LocaleProvider locale={locale} messages={messages}>
             {children}

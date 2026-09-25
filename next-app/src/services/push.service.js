@@ -104,7 +104,13 @@ function generateVapidAuthHeader(audience, publicKey, privateKey, subject) {
 export async function sendPushNotification(userId, payload) {
   if (!userId) return;
 
-  const subscriptions = await pushRepo.listSubscriptionsForUser(userId);
+  let subscriptions;
+  try {
+    subscriptions = await pushRepo.listSubscriptionsForUser(userId);
+  } catch (err) {
+    console.warn('[push] Could not load subscriptions (table may be missing):', err?.message);
+    return;
+  }
   if (!subscriptions || subscriptions.length === 0) return;
 
   const pushPayload = JSON.stringify({
