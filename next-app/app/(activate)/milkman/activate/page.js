@@ -14,6 +14,7 @@ import { VerificationStatusChecker } from '@/components/milkman/VerificationStat
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Activate Dairy Panel • DairyDrop' };
 
 /**

@@ -12,6 +12,7 @@ import { VerificationStatusChecker } from '@/components/milkman/VerificationStat
 import { SignOutAction } from '@/components/auth/SignOutAction.jsx';
 import * as usersRepo from '@/repositories/users.repo.js';
 
+export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Awaiting Approval • DairyDrop' };
 
 export default async function PendingPage() {

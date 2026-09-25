@@ -9,6 +9,8 @@ import * as requestsRepo from '@/repositories/requests.repo.js';
 import * as usersRepo from '@/repositories/users.repo.js';
 import * as billingRepo from '@/repositories/billing.repo.js';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Milkman panel shell.
  *

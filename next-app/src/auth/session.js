@@ -81,6 +81,13 @@ export const getActor = cache(async () => {
 
     return buildActor(account);
   } catch (err) {
+    if (
+      err?.digest === 'DYNAMIC_SERVER_USAGE' ||
+      err?.digest?.startsWith('NEXT_') ||
+      err?.message?.includes('Dynamic server usage')
+    ) {
+      throw err;
+    }
     console.error('[getActor error]:', err);
     return null;
   }

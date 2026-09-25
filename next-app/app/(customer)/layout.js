@@ -5,6 +5,8 @@ import { getT } from '@/i18n/server.js';
 import { ROLES, ROLE_HOME } from '@/auth/roles.js';
 import { AppShell } from '@/components/layout/AppShell.jsx';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Customer panel shell.
  *
