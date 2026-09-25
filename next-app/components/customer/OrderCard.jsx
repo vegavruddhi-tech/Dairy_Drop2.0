@@ -27,46 +27,46 @@ export function OrderCard({ product }) {
 
   return (
     <>
-      <Card className="rounded-3xl overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-blue-200 flex flex-col bg-white">
+      <Card className="rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-blue-200 flex flex-col bg-white border border-slate-200">
         {img && (
-          <div className="relative h-44 w-full overflow-hidden bg-slate-100 border-b border-border">
+          <div className="relative aspect-[4/3] sm:h-44 w-full overflow-hidden bg-slate-100 border-b border-border">
             <img
               src={img}
               alt={displayName}
               className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
             />
-            <div className="absolute top-3 left-3">
-              <span className="rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-0.5 text-[11px] font-bold text-slate-800 shadow-sm border border-slate-200/80">
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3">
+              <span className="rounded-full bg-white/95 backdrop-blur-sm px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-slate-800 shadow-sm border border-slate-200/80">
                 {isHi ? 'ताज़ा आज' : 'Fresh Today'}
               </span>
             </div>
-            <div className="absolute top-3 right-3">
-              <Badge tone={stock > 2 ? 'positive' : 'caution'}>
+            <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+              <Badge tone={stock > 2 ? 'positive' : 'caution'} className="text-[10px] sm:text-xs py-0.5 px-1.5 sm:px-2">
                 {stock} {product.unit} {isHi ? 'शेष' : 'left'}
               </Badge>
             </div>
           </div>
         )}
 
-        <CardBody className="flex flex-1 flex-col gap-2.5 p-5">
+        <CardBody className="flex flex-1 flex-col gap-2 p-2.5 sm:p-5">
           <div>
-            <h3 className="font-heading text-base font-bold text-ink">{displayName}</h3>
+            <h3 className="font-heading text-xs sm:text-base font-bold text-ink truncate">{displayName}</h3>
             {displayDescription ? (
-              <p className="mt-1 line-clamp-2 text-xs text-ink-muted leading-relaxed">
+              <p className="mt-0.5 line-clamp-1 sm:line-clamp-2 text-[10.5px] sm:text-xs text-ink-muted leading-relaxed">
                 {displayDescription}
               </p>
             ) : null}
           </div>
 
-          <div className="flex items-baseline gap-1.5 pt-1">
-            <span className="font-heading text-2xl font-black text-ink">₹{price}</span>
-            <span className="text-xs font-semibold text-ink-subtle">
-              {isHi ? `प्रति ${product.unit}` : `per ${product.unit}`}
+          <div className="flex items-baseline gap-1 pt-0.5">
+            <span className="font-heading text-base sm:text-2xl font-black text-ink">₹{price}</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-ink-subtle">
+              {isHi ? `/${product.unit}` : `per ${product.unit}`}
             </span>
           </div>
 
-          <div className="mt-auto pt-3 border-t border-border">
-            <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-slate-500">
+          <div className="mt-auto pt-2 sm:pt-3 border-t border-border">
+            <div className="mb-1.5 hidden sm:flex items-center justify-between text-[11px] font-semibold text-slate-500">
               <span className="flex items-center gap-1.5 text-blue-700">
                 <TruckIcon className="h-3.5 w-3.5 text-blue-600" />
                 <span>{isHi ? 'कल सुबह पहुंचेगा' : 'Arrives Tomorrow Morning'}</span>
@@ -74,7 +74,7 @@ export function OrderCard({ product }) {
               <span>{isHi ? 'मासिक बिल में जुड़ेगा' : 'Billed in monthly tab'}</span>
             </div>
             <Button
-              className="w-full font-bold shadow-sm"
+              className="w-full text-xs font-bold shadow-sm py-1.5 sm:py-2.5"
               disabled={stock <= 0}
               onClick={() => {
                 setQuantity(product.unit === 'pcs' ? 1 : 0.5);
@@ -83,8 +83,8 @@ export function OrderCard({ product }) {
             >
               {stock > 0
                 ? isHi
-                  ? '+ कल सुबह के लिए ऑर्डर करें'
-                  : '+ Order for Tomorrow Morning'
+                  ? '+ ऑर्डर करें'
+                  : '+ Order'
                 : isHi
                   ? 'स्टॉक समाप्त'
                   : 'Out of Stock'}

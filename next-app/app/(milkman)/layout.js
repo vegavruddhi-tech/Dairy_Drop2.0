@@ -62,13 +62,13 @@ export default async function MilkmanLayout({ children }) {
   ];
 
   const more = [
-    { href: '/milkman/routes', label: 'Delivery Routes', icon: <RoutesIcon /> },
-    { href: '/milkman/orders', label: 'Orders', icon: <OrdersIcon /> },
-    { href: '/milkman/catalog', label: 'Catalog', icon: <CatalogIcon /> },
-    { href: '/milkman/plans', label: 'Milk plans', icon: <PlansIcon /> },
-    { href: '/milkman/payments', label: 'Payments', icon: <PaymentsIcon />, count: pendingPayments },
-    { href: '/milkman/earnings', label: 'Earnings', icon: <EarningsIcon /> },
-    { href: '/milkman/membership', label: 'Membership', icon: <MembershipIcon /> },
+    { href: '/milkman/routes', label: t('nav.deliveryRoute', {}, 'Delivery Routes'), icon: <RoutesIcon /> },
+    { href: '/milkman/orders', label: t('nav.orders', {}, 'Orders'), icon: <OrdersIcon /> },
+    { href: '/milkman/catalog', label: t('nav.shop', {}, 'Catalog'), icon: <CatalogIcon /> },
+    { href: '/milkman/plans', label: t('nav.subscriptionPlans', {}, 'Milk plans'), icon: <PlansIcon /> },
+    { href: '/milkman/payments', label: t('nav.billingAndPayments', {}, 'Payments'), icon: <PaymentsIcon />, count: pendingPayments },
+    { href: '/milkman/earnings', label: t('nav.earnings', {}, 'Earnings'), icon: <EarningsIcon /> },
+    { href: '/milkman/membership', label: t('nav.plansAndMembership', {}, 'Membership'), icon: <MembershipIcon /> },
   ];
 
   return (

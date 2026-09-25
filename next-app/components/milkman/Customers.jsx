@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useT } from '@/i18n/provider.jsx';
 
 import { cn, Badge, StatusBadge } from '@/components/ui/index.jsx';
 import { formatPaise } from '@/domain/money.js';
@@ -14,6 +15,7 @@ import { approveCustomer, rejectCustomer, updateCustomerAddress } from '@/action
  * Features automated 6-digit PIN code location detection (City, State, Sector/Area).
  */
 export function EditAddressModal({ customer, open, onClose }) {
+  const { t } = useT();
   const [pending, startTransition] = useTransition();
 
   const [line1, setLine1] = useState(customer.addressLine1 ?? '');
@@ -50,7 +52,6 @@ export function EditAddressModal({ customer, open, onClose }) {
               }
             }
             setLocationResolved(true);
-            toast.success(`Location detected: ${data.city}, ${data.state}`);
           } else {
             setLocationResolved(false);
           }
@@ -93,7 +94,7 @@ export function EditAddressModal({ customer, open, onClose }) {
         toast.success(`Updated address for ${customer.name}`);
         onClose();
       } else {
-        toast.error(result.message ?? 'Could not update customer address.');
+        toast.error(result.message ?? t('common.tryAgain', {}, 'Could not update customer address.'));
       }
     });
   }
@@ -102,11 +103,11 @@ export function EditAddressModal({ customer, open, onClose }) {
     <Modal
       open={open}
       onClose={onClose}
-      title={`Edit Delivery Address · ${customer.name}`}
+      title={`${t('common.edit', {}, 'Edit')} ${t('auth.deliveryAddress', {}, 'Delivery Address')} · ${customer.name}`}
       footer={
         <div className="flex w-full items-center justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
-            Cancel
+            {t('common.cancel', {}, 'Cancel')}
           </Button>
           <Button
             form="edit-customer-address-form"
@@ -114,7 +115,7 @@ export function EditAddressModal({ customer, open, onClose }) {
             className="bg-brand hover:bg-brand/90 text-white font-bold"
             loading={pending}
           >
-            Save Address Changes
+            {t('common.save', {}, 'Save Address Changes')}
           </Button>
         </div>
       }
@@ -122,7 +123,7 @@ export function EditAddressModal({ customer, open, onClose }) {
       <form id="edit-customer-address-form" onSubmit={onSubmit} className="space-y-3.5">
         <Input
           name="line1"
-          label="House / Flat No. & Street"
+          label={t('profile.houseNumber', {}, 'House / Flat No. & Street')}
           value={line1}
           onChange={(e) => setLine1(e.target.value)}
           placeholder="e.g. Flat 402, Tower B, Palm Heights"
@@ -133,7 +134,7 @@ export function EditAddressModal({ customer, open, onClose }) {
           <div className="space-y-1">
             <Input
               name="area"
-              label="Sector / Area"
+              label={t('profile.streetArea', {}, 'Sector / Area')}
               value={area}
               onChange={(e) => setArea(e.target.value)}
               list="customer-area-suggestions"
@@ -152,7 +153,7 @@ export function EditAddressModal({ customer, open, onClose }) {
           <div className="space-y-1">
             <Input
               name="pincode"
-              label="Pincode"
+              label={t('auth.pincode', {}, 'Pincode')}
               inputMode="numeric"
               maxLength={6}
               value={pincode}
@@ -163,7 +164,7 @@ export function EditAddressModal({ customer, open, onClose }) {
             {isFetchingLocation && (
               <p className="text-[11px] text-brand font-medium flex items-center gap-1 animate-pulse">
                 <span className="inline-block h-2 w-2 rounded-full bg-brand animate-ping" />
-                Detecting location...
+                {t('common.loading', {}, 'Detecting location...')}
               </p>
             )}
             {locationResolved && !isFetchingLocation && (
@@ -218,7 +219,7 @@ export function EditAddressModal({ customer, open, onClose }) {
 
         <Input
           name="landmark"
-          label="Landmark (Optional)"
+          label={`${t('auth.landmark', {}, 'Landmark')} (${t('common.optional', {}, 'Optional')})`}
           value={landmark}
           onChange={(e) => setLandmark(e.target.value)}
           placeholder="e.g. Near Mother Dairy booth"
@@ -226,7 +227,7 @@ export function EditAddressModal({ customer, open, onClose }) {
 
         <Textarea
           name="deliveryInstructions"
-          label="Delivery Instructions (Optional)"
+          label={`${t('dashboard.dropInstructions', {}, 'Delivery Instructions')} (${t('common.optional', {}, 'Optional')})`}
           value={deliveryInstructions}
           onChange={(e) => setDeliveryInstructions(e.target.value)}
           placeholder="e.g. Ring bell twice, leave bag on door handle"
@@ -240,6 +241,7 @@ export function EditAddressModal({ customer, open, onClose }) {
 
 /** A customer waiting for a decision. */
 export function ApprovalCard({ customer, summary, atLimit }) {
+  const { t } = useT();
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
   const [removed, setRemoved] = useState(false);
@@ -249,16 +251,16 @@ export function ApprovalCard({ customer, summary, atLimit }) {
       setRemoved(true);
       const result = await approveCustomer({ customerId: customer.id });
       if (result.ok) {
-        toast.success(`${customer.name} approved.`);
+        toast.success(`${customer.name} ${t('common.approved', {}, 'approved')}.`);
       } else {
         setRemoved(false);
         if (result.code === 'CUSTOMER_LIMIT_REACHED') {
           toast.error(
             `You are at ${result.limit} customers on ${result.planName}. Upgrade to add more.`,
-            { action: { label: 'Upgrade', onClick: () => (window.location.href = '/milkman/membership') } },
+            { action: { label: t('plans.upgradePlan', {}, 'Upgrade'), onClick: () => (window.location.href = '/milkman/membership') } },
           );
         } else {
-          toast.error(result.message ?? 'Could not approve.');
+          toast.error(result.message ?? t('common.tryAgain', {}, 'Could not approve.'));
         }
       }
     });
@@ -282,7 +284,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
             </div>
             {summary?.productNames ? (
               <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-xs font-bold text-blue-700">
-                <span className="font-medium opacity-70">Wants:</span>
+                <span className="font-medium opacity-70">{t('common.details', {}, 'Wants')}:</span>
                 {summary.productNames}
               </p>
             ) : null}
@@ -290,9 +292,9 @@ export function ApprovalCard({ customer, summary, atLimit }) {
               <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <span>
                 {[customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ') ||
-                  'No address provided'}
+                  t('common.noData', {}, 'No address provided')}
                 {customer.addressLandmark ? (
-                  <span className="block text-xs font-semibold text-blue-600">Near {customer.addressLandmark}</span>
+                  <span className="block text-xs font-semibold text-blue-600">{t('auth.landmark', {}, 'Near')} {customer.addressLandmark}</span>
                 ) : null}
               </span>
             </p>
@@ -308,7 +310,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
             type="button"
             onClick={() => setModal('editAddress')}
             aria-label="Edit delivery address"
-            title="Edit delivery address"
+            title={t('common.edit', {}, 'Edit delivery address')}
             className="tap flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 shadow-xs transition-colors hover:bg-blue-50 hover:text-blue-600"
           >
             <EditIcon className="h-4 w-4" />
@@ -332,7 +334,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
               onClick={() => setModal('reject')}
               className="tap flex h-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
             >
-              Decline
+              {t('common.reject', {}, 'Decline')}
             </button>
             <button
               type="button"
@@ -341,7 +343,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
               className="tap flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-5 font-heading text-xs font-black text-white shadow-md shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50"
             >
               {pending ? null : <CheckIcon className="h-4 w-4 stroke-[2.5]" />}
-              <span>{atLimit ? 'Limit Reached' : 'Approve & Start'}</span>
+              <span>{atLimit ? t('auth.trialExpired', {}, 'Limit Reached') : t('customers.approveCustomer', {}, 'Approve & Start')}</span>
             </button>
           </div>
         </div>
@@ -358,12 +360,12 @@ export function ApprovalCard({ customer, summary, atLimit }) {
       <Modal
         open={modal === 'reject'}
         onClose={() => setModal(null)}
-        title={`Decline ${customer.name}?`}
+        title={`${t('common.reject', {}, 'Decline')} ${customer.name}?`}
         footer={
           <div className="flex w-full justify-end gap-2">
-            <Button variant="ghost" onClick={() => setModal(null)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setModal(null)}>{t('common.cancel', {}, 'Cancel')}</Button>
             <Button form="reject-form" type="submit" variant="danger" loading={pending}>
-              Confirm Decline
+              {t('customers.rejectCustomer', {}, 'Confirm Decline')}
             </Button>
           </div>
         }
@@ -379,18 +381,18 @@ export function ApprovalCard({ customer, summary, atLimit }) {
               setModal(null);
               const result = await rejectCustomer({ customerId: customer.id, reason });
               if (result.ok) {
-                toast.success('Declined.');
+                toast.success(t('common.rejected', {}, 'Declined.'));
               } else {
                 setRemoved(false);
-                toast.error(result.message ?? 'Could not decline.');
+                toast.error(result.message ?? t('common.tryAgain', {}, 'Could not decline.'));
               }
             });
           }}
         >
-          <p className="text-xs text-slate-500">The customer will receive this message explaining why you cannot accept them right now.</p>
+          <p className="text-xs text-slate-500">{t('customers.subtitle', {}, 'The customer will receive this message explaining why you cannot accept them right now.')}</p>
           <Textarea
             name="reason"
-            label="Reason for Declining"
+            label={t('planRequests.reason', {}, 'Reason for Declining')}
             required
             maxLength={500}
             placeholder="e.g. Sorry, I do not deliver to your sector yet."
@@ -403,6 +405,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
 
 /** A row/card in the active customer book with instant address editing and direct call shortcut. */
 export function CustomerRow({ customer, summary }) {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const address =
     [customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ');
@@ -423,7 +426,7 @@ export function CustomerRow({ customer, summary }) {
             <p className="mt-1 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
               <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <span className="min-w-0">
-                {address || 'No address saved'}
+                {address || t('common.noData', {}, 'No address saved')}
                 {customer.deliveryInstructions ? (
                   <span className="block text-xs font-semibold text-slate-500">“{customer.deliveryInstructions}”</span>
                 ) : null}
@@ -437,7 +440,7 @@ export function CustomerRow({ customer, summary }) {
               type="button"
               onClick={() => setEditing(true)}
               aria-label={`Edit address for ${customer.name}`}
-              title="Edit delivery address"
+              title={t('common.edit', {}, 'Edit delivery address')}
               className="tap flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-xs transition-colors hover:bg-blue-50 hover:text-blue-600 active:scale-95"
             >
               <EditIcon className="h-4 w-4" />
@@ -461,26 +464,26 @@ export function CustomerRow({ customer, summary }) {
             <>
               <div className="min-w-0">
                 <p className="truncate font-heading text-xs sm:text-sm font-bold text-slate-900">
-                  {summary.count === 1 ? summary.productNames : `${summary.count} plans`}
+                  {summary.count === 1 ? summary.productNames : `${summary.count} ${t('nav.plans', {}, 'plans')}`}
                 </p>
                 <p className="text-[11px] font-medium text-slate-500">
-                  {summary.count === 1 ? 'Daily active delivery' : summary.productNames}
+                  {summary.count === 1 ? t('subscriptions.activeSchedule', {}, 'Daily active delivery') : summary.productNames}
                 </p>
               </div>
               <div className="shrink-0 text-right">
                 <p className="font-heading text-lg font-black leading-none text-blue-600">
                   {Number(summary.totalQuantity)}
-                  <span className="font-sans text-xs font-bold text-slate-500 ml-0.5">L/day</span>
+                  <span className="font-sans text-xs font-bold text-slate-500 ml-0.5">L/{t('subscriptions.daily', {}, 'day')}</span>
                 </p>
                 {monthlyPaise > 0 ? (
                   <p className="font-heading tnum mt-0.5 text-[11px] font-bold text-slate-400">
-                    ~{formatPaise(monthlyPaise, { whole: true })}/mo
+                    ~{formatPaise(monthlyPaise, { whole: true })}/{t('subscriptions.perMonth', {}, 'mo')}
                   </p>
                 ) : null}
               </div>
             </>
           ) : (
-            <p className="text-xs font-semibold text-slate-400">No active plan</p>
+            <p className="text-xs font-semibold text-slate-400">{t('common.noData', {}, 'No active plan')}</p>
           )}
         </div>
       </li>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useOptimistic } from 'react';
 import { toast } from 'sonner';
+import { useT } from '@/i18n/provider.jsx';
 
 import { cn, StatusBadge, Badge } from '@/components/ui/index.jsx';
 import { formatPaise } from '@/domain/money.js';
@@ -39,9 +40,6 @@ import { HolidayManagerModal } from './HolidayManagerModal.jsx';
  * into separate deliveries; it is labelled plainly rather than hidden, because
  * one of those rows covers a whole day on its own.
  */
-const SLOT_LABEL = { MORNING: 'Morning', EVENING: 'Evening', BOTH: 'All day' };
-
-/** The slot's glyph and tint: amber sun for the morning, blue moon for the evening. */
 const SLOT_STYLE = {
   MORNING: { Icon: SunIcon, tile: 'bg-caution-soft text-caution', tone: 'caution' },
   EVENING: { Icon: MoonIcon, tile: 'bg-info-soft text-info', tone: 'info' },
@@ -56,9 +54,17 @@ const STATUS_EDGE = {
 };
 
 export function RoundStop({ stop }) {
+  const { t } = useT();
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useOptimistic(stop.status);
   const [modal, setModal] = useState(null);
+
+  // Slot labels translated
+  const SLOT_LABEL = {
+    MORNING: t('common.morning', {}, 'Morning'),
+    EVENING: t('common.evening', {}, 'Evening'),
+    BOTH: t('common.slot', {}, 'All day'),
+  };
 
   const items = stop.items ?? [];
   const settled = status !== 'PENDING';
@@ -81,7 +87,7 @@ export function RoundStop({ stop }) {
       const failed = results.find((result) => !result.ok);
       if (failed) {
         setStatus(stop.status);
-        toast.error(failed.message ?? 'Could not save that.');
+        toast.error(failed.message ?? t('common.tryAgain', {}, 'Could not save that.'));
       } else {
         setModal(null);
       }
@@ -92,43 +98,135 @@ export function RoundStop({ stop }) {
   const dueWindow = stopWindow(stop);
   const address = [stop.addressLine1, stop.addressArea].filter(Boolean).join(', ');
 
+  // ── HIGH-DENSITY COMPACT CARD FOR SETTLED / DONE DELIVERIES ────────────────
+  if (settled) {
+    const isDelivered = status === 'DELIVERED';
+    const isUndelivered = status === 'UNDELIVERED';
+
+    return (
+      <article
+        className={cn(
+          'group relative overflow-hidden rounded-2xl border transition-all px-3 py-2.5 sm:px-4 sm:py-3 shadow-2xs',
+          isDelivered
+            ? 'border-emerald-200/90 bg-linear-to-r from-emerald-50/50 to-white hover:border-emerald-300'
+            : isUndelivered
+              ? 'border-rose-200/90 bg-linear-to-r from-rose-50/50 to-white hover:border-rose-300'
+              : 'border-slate-200/90 bg-slate-50/70 hover:border-slate-300',
+        )}
+        aria-label={`${stop.customerName}, ${status}`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          {/* Status Icon + Customer details */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <span
+              className={cn(
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl font-bold text-xs',
+                isDelivered
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : isUndelivered
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-slate-300 text-slate-700',
+              )}
+            >
+              {isDelivered ? (
+                <CheckIcon className="h-4 w-4 stroke-[3]" />
+              ) : isUndelivered ? (
+                <CloseIcon className="h-4 w-4 stroke-[3]" />
+              ) : (
+                <span className="text-[9px] font-black uppercase">PAUSE</span>
+              )}
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h4 className="font-heading text-sm font-black text-slate-900 truncate">
+                  {stop.customerName}
+                </h4>
+                {SLOT_LABEL[stop.slot] ? (
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60">
+                    {SLOT_LABEL[stop.slot]}
+                  </span>
+                ) : null}
+                <span className={cn(
+                  'text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded',
+                  isDelivered ? 'bg-emerald-100 text-emerald-800' : isUndelivered ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-slate-700'
+                )}>
+                  {isDelivered ? t('deliveries.deliveredOnly', {}, 'Delivered') : isUndelivered ? t('deliveries.markMissed', {}, 'Not Delivered') : t('common.paused', {}, 'Paused')}
+                </span>
+              </div>
+
+              {/* Items summary */}
+              <p className="text-xs font-semibold text-slate-600 truncate mt-0.5 flex items-center gap-1.5 flex-wrap">
+                {items.map((it) => (
+                  <span key={it.id} className="inline-flex items-center gap-1">
+                    <span className="text-slate-950 font-black">
+                      {Number(it.deliveredQuantity ?? it.adjustedQuantity ?? it.plannedQuantity)} {it.unit}
+                    </span>
+                    <span className="text-slate-600">{it.productName}</span>
+                  </span>
+                ))}
+                {extras.length > 0 ? (
+                  <span className="text-amber-900 font-bold bg-amber-100/90 px-1.5 py-0.2 rounded text-[10px] border border-amber-200">
+                    +{extras.map(e => `${Number(e.quantity)} ${e.unit} ${e.productName}`).join(', ')}
+                  </span>
+                ) : null}
+                {stop.addressArea ? (
+                  <span className="text-slate-400 font-normal truncate">· {stop.addressArea}</span>
+                ) : null}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {stop.customerPhone ? (
+              <a
+                href={`tel:${stop.customerPhone}`}
+                aria-label={`Call ${stop.customerName}`}
+                className="tap flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-blue-600 hover:border-blue-200 shadow-2xs active:scale-95"
+              >
+                <PhoneIcon className="h-3.5 w-3.5" />
+              </a>
+            ) : null}
+
+            <button
+              type="button"
+              className="tap flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 font-heading text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all active:scale-95 shadow-2xs"
+              disabled={pending}
+              onClick={() => mark('PENDING')}
+              title={t('common.back', {}, 'Undo')}
+            >
+              <UndoIcon className="h-3.5 w-3.5" />
+              <span>{t('common.back', {}, 'Undo')}</span>
+            </button>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  // ── STREAMLINED ACTIVE PENDING DELIVERY CARD ──────────────────────────────
   return (
     <>
       <article
-        className={cn(
-          'group relative overflow-hidden rounded-3xl border-2 bg-white shadow-sm transition-all',
-          settled
-            ? STATUS_EDGE[status] ?? 'border-slate-200'
-            : 'border-slate-200 hover:border-blue-400 hover:shadow-md',
-        )}
+        className="group relative overflow-hidden rounded-2xl border-2 border-slate-200/90 bg-white shadow-xs transition-all hover:border-blue-400 hover:shadow-sm"
         aria-label={`${stop.customerName}, ${SLOT_LABEL[stop.slot] ?? ''}`}
       >
         {/* Top status indicator line */}
-        <div
-          className={cn(
-            'h-1.5 w-full',
-            status === 'DELIVERED'
-              ? 'bg-emerald-500'
-              : status === 'UNDELIVERED'
-                ? 'bg-rose-500'
-                : status === 'SKIPPED'
-                  ? 'bg-slate-300'
-                  : 'bg-blue-600',
-          )}
-        />
+        <div className="h-1.5 w-full bg-blue-600" />
 
-        {/* ── Who and where ─────────────────────────────────────────── */}
-        <div className="flex items-start gap-3.5 p-4 sm:p-5">
+        {/* ── Header: Who & Where ────────────────────────────────────── */}
+        <div className="flex items-start gap-3 p-3.5 sm:p-4">
           <span
             aria-hidden="true"
-            className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-xs', slot.tile)}
+            className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-2xs', slot.tile)}
           >
-            <slot.Icon className="h-6 w-6" />
+            <slot.Icon className="h-5 w-5" />
           </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h3 className="font-heading text-lg font-black tracking-tight text-slate-950">
+              <h3 className="font-heading text-base sm:text-lg font-black tracking-tight text-slate-950">
                 {stop.customerName}
               </h3>
               {SLOT_LABEL[stop.slot] ? (
@@ -137,43 +235,42 @@ export function RoundStop({ stop }) {
             </div>
 
             {address ? (
-              <p className="mt-1 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
-                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                <span>
+              <p className="mt-0.5 flex items-start gap-1 text-xs font-medium text-slate-600">
+                <MapPinIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" />
+                <span className="truncate">
                   <strong className="text-slate-900">{stop.addressLine1}</strong>
                   {stop.addressArea ? `, ${stop.addressArea}` : ''}
                   {stop.addressLandmark ? (
-                    <span className="block text-[11px] font-medium text-slate-400">Near {stop.addressLandmark}</span>
+                    <span className="ml-1 text-[11px] font-medium text-slate-400">({stop.addressLandmark})</span>
                   ) : null}
                 </span>
               </p>
             ) : null}
 
             {dueWindow ? (
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                <ClockIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <p className="mt-0.5 flex items-center gap-1 text-xs font-bold text-slate-500">
+                <ClockIcon className="h-3 w-3 shrink-0 text-slate-400" />
                 {dueWindow}
               </p>
             ) : null}
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <StatusBadge status={status} />
+          <div className="flex shrink-0 items-center gap-1.5">
             {stop.customerPhone ? (
               <a
                 href={`tel:${stop.customerPhone}`}
                 aria-label={`Call ${stop.customerName}`}
-                className="tap flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 text-blue-600 shadow-xs transition-colors hover:bg-blue-600 hover:text-white active:scale-95"
+                className="tap flex h-9 w-9 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600 shadow-2xs transition-colors hover:bg-blue-600 hover:text-white active:scale-95"
               >
-                <PhoneIcon className="h-5 w-5" />
+                <PhoneIcon className="h-4 w-4" />
               </a>
             ) : null}
           </div>
         </div>
 
         {stop.deliveryInstructions ? (
-          <div className="mx-4 mb-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-3.5 py-2.5 text-xs font-bold text-amber-900 sm:mx-5 flex items-center gap-2">
-            <NoteIcon className="h-4 w-4 shrink-0 text-amber-800" />
+          <div className="mx-3.5 mb-2.5 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-1.5 text-xs font-bold text-amber-900 sm:mx-4 flex items-center gap-1.5">
+            <NoteIcon className="h-3.5 w-3.5 shrink-0 text-amber-800" />
             <span>{stop.deliveryInstructions}</span>
           </div>
         ) : null}
@@ -189,114 +286,79 @@ export function RoundStop({ stop }) {
 
         {/* ── Extras to carry ───────────────────────────────────────── */}
         {extras.length > 0 ? (
-          <div className="border-t-2 border-dashed border-amber-300 bg-linear-to-r from-amber-50 via-orange-50/60 to-amber-50 px-4 py-3.5 sm:px-5">
-            <div className="mb-2.5 flex items-center justify-between">
+          <div className="border-t-2 border-dashed border-amber-300 bg-linear-to-r from-amber-50 via-orange-50/60 to-amber-50 px-3.5 py-2.5 sm:px-4">
+            <div className="mb-1.5 flex items-center justify-between">
               <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-900">
-                <PackageIcon className="h-4 w-4 text-amber-800" />
-                <span>Deliver Extra Products Today</span>
+                <PackageIcon className="h-3.5 w-3.5 text-amber-800" />
+                <span>{t('deliveries.productOrders', {}, 'Deliver Extra Products Today')}</span>
               </p>
               <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black text-amber-900">
-                {extras.length} {extras.length === 1 ? 'item' : 'items'}
+                {extras.length} {extras.length === 1 ? t('common.unit', {}, 'item') : t('common.units', {}, 'items')}
               </span>
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {extras.map((extra) => (
-                <li key={extra.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/90 border border-amber-200/80 px-3 py-2 shadow-2xs">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
-                      <PackageIcon className="h-3.5 w-3.5" />
+                <li key={extra.id} className="flex items-center justify-between gap-3 rounded-xl bg-white/90 border border-amber-200/80 px-2.5 py-1.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-800">
+                      <PackageIcon className="h-3 w-3" />
                     </span>
-                    <span className="text-slate-900">
-                      <span className="tnum font-black text-base text-slate-950">{Number(extra.quantity)}</span>
-                      <span className="text-slate-500 text-xs font-semibold"> {extra.unit} </span>
-                      <strong className="font-heading text-sm font-bold text-slate-900">{extra.productName}</strong>
+                    <span className="text-slate-900 text-xs">
+                      <span className="tnum font-black text-sm text-slate-950">{Number(extra.quantity)}</span>
+                      <span className="text-slate-500 font-semibold"> {extra.unit} </span>
+                      <strong className="font-heading font-bold text-slate-900">{extra.productName}</strong>
                     </span>
                   </div>
-                  <span className="tnum font-extrabold text-sm text-amber-950">
+                  <span className="tnum font-extrabold text-xs text-amber-950">
                     {formatPaise(Math.round(Number(extra.amount ?? 0) * 100))}
                   </span>
                 </li>
               ))}
             </ul>
-            {carryOnly ? (
-              <p className="mt-2 text-xs font-medium text-amber-800">
-                No milk subscription scheduled for today — this stop is exclusively for delivering these ordered extras.
-              </p>
-            ) : null}
           </div>
         ) : null}
 
-        {/* ── Big Tactile Actions ───────────────────────────────────── */}
-        <div className="border-t border-slate-200/80 p-3.5 sm:px-5 sm:py-4 bg-white">
+        {/* ── Big Ergonomic Quick Actions ───────────────────────────── */}
+        <div className="border-t border-slate-200/80 p-3 sm:px-4 bg-white space-y-2">
           {carryOnly ? (
             <a
               href="/milkman/orders"
-              className="tap flex h-12 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white font-heading text-xs font-bold text-slate-800 shadow-xs transition-colors hover:bg-slate-50"
+              className="tap flex h-11 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white font-heading text-xs font-bold text-slate-800 shadow-xs transition-colors hover:bg-slate-50"
             >
-              Open Orders
+              {t('nav.orders', {}, 'Open Orders')}
             </a>
-          ) : !settled ? (
-            <div className="space-y-2">
+          ) : (
+            <>
               <button
                 type="button"
-                className="tap flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 font-heading text-sm font-black text-white shadow-md shadow-emerald-500/25 transition-all hover:bg-emerald-700 active:scale-[0.98]"
+                className="tap flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 font-heading text-sm font-black text-white shadow-md shadow-emerald-500/20 transition-all hover:bg-emerald-700 active:scale-[0.98]"
                 disabled={pending}
                 onClick={() => mark('DELIVERED')}
               >
                 {pending ? null : <CheckIcon className="h-5 w-5 stroke-[2.5]" />}
                 <span>
                   {extras.length > 0
-                    ? `MARK DELIVERED (Milk + ${extras.map(e => e.productName).join(', ')})`
-                    : 'MARK DELIVERED'}
+                    ? `${t('deliveries.markDelivered', {}, 'MARK DELIVERED')} (+${extras.length} items)`
+                    : t('deliveries.markDelivered', {}, 'MARK DELIVERED')}
                 </span>
               </button>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  className="tap flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 font-heading text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all active:scale-[0.98]"
+                  className="tap flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 font-heading text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all active:scale-[0.98]"
                   onClick={() => setModal('partial')}
                 >
-                  Different Qty
+                  {t('deliveries.pendingOnly', {}, 'Different Qty')}
                 </button>
                 <button
                   type="button"
-                  className="tap flex h-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
+                  className="tap flex h-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
                   onClick={() => setModal('not')}
                 >
-                  Not Delivered
+                  {t('deliveries.markMissed', {}, 'Not Delivered')}
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-3 py-1">
-              <p className="font-heading text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                {status === 'DELIVERED' ? (
-                  <>
-                    <CheckIcon className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-                    <span>Marked Delivered</span>
-                  </>
-                ) : status === 'UNDELIVERED' ? (
-                  <>
-                    <CloseIcon className="h-4 w-4 text-rose-600 stroke-[2.5]" />
-                    <span>Not Delivered (Not charged)</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-slate-400 text-xs uppercase tracking-wider font-bold">PAUSED</span>
-                    <span>Skipped (Not charged)</span>
-                  </>
-                )}
-              </p>
-              <button
-                type="button"
-                className="tap flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 font-heading text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
-                disabled={pending}
-                onClick={() => mark('PENDING')}
-              >
-                <UndoIcon className="h-3.5 w-3.5" />
-                <span>Undo</span>
-              </button>
-            </div>
+            </>
           )}
         </div>
       </article>
@@ -305,11 +367,11 @@ export function RoundStop({ stop }) {
       <Modal
         open={!carryOnly && modal === 'partial'}
         onClose={() => setModal(null)}
-        title={`How much for ${stop.customerName}?`}
+        title={`${t('common.quantity', {}, 'How much')} — ${stop.customerName}?`}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModal(null)}>Cancel</Button>
-            <Button form="qty-form" type="submit" loading={pending}>Mark delivered</Button>
+            <Button variant="ghost" onClick={() => setModal(null)}>{t('common.cancel', {}, 'Cancel')}</Button>
+            <Button form="qty-form" type="submit" loading={pending}>{t('deliveries.markDelivered', {}, 'Mark delivered')}</Button>
           </>
         }
       >
@@ -319,8 +381,6 @@ export function RoundStop({ stop }) {
           onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
-            // One stepper per product: a visit carrying cow and buffalo milk
-            // may differ on one of them and not the other.
             const quantities = Object.fromEntries(
               items.map((item) => [item.id, data.get(`qty:${item.id}`)]),
             );
@@ -328,7 +388,7 @@ export function RoundStop({ stop }) {
           }}
         >
           <p className="text-sm text-ink-muted">
-            The bill follows what you actually leave.
+            {t('common.note', {}, 'The bill follows what you actually leave.')}
           </p>
           {items.map((item) => (
             <div key={item.id} className="rounded-xl border border-border p-3">
@@ -354,11 +414,11 @@ export function RoundStop({ stop }) {
       <Modal
         open={!carryOnly && modal === 'not'}
         onClose={() => setModal(null)}
-        title="Why was it not delivered?"
+        title={t('deliveries.markMissed', {}, 'Why was it not delivered?')}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModal(null)}>Cancel</Button>
-            <Button form="not-form" type="submit" variant="danger" loading={pending}>Save</Button>
+            <Button variant="ghost" onClick={() => setModal(null)}>{t('common.cancel', {}, 'Cancel')}</Button>
+            <Button form="not-form" type="submit" variant="danger" loading={pending}>{t('common.save', {}, 'Save')}</Button>
           </>
         }
       >
@@ -375,18 +435,18 @@ export function RoundStop({ stop }) {
             });
           }}
         >
-          <p className="text-sm text-ink-muted">The customer is not charged either way.</p>
+          <p className="text-sm text-ink-muted">{t('common.note', {}, 'The customer is not charged either way.')}</p>
           <Select
             name="skipReason"
-            label="Reason"
+            label={t('planRequests.reason', {}, 'Reason')}
             options={[
-              { value: 'CUSTOMER_ABSENT', label: 'Nobody home' },
-              { value: 'CUSTOMER_REQUEST', label: 'Customer asked to skip' },
-              { value: 'OUT_OF_STOCK', label: 'I ran out' },
-              { value: 'OTHER', label: 'Something else' },
+              { value: 'CUSTOMER_ABSENT', label: t('common.missed', {}, 'Nobody home') },
+              { value: 'CUSTOMER_REQUEST', label: t('common.skipped', {}, 'Customer asked to skip') },
+              { value: 'OUT_OF_STOCK', label: t('common.inactive', {}, 'I ran out') },
+              { value: 'OTHER', label: t('common.note', {}, 'Something else') },
             ]}
           />
-          <Textarea name="note" label="Note (optional)" maxLength={300} />
+          <Textarea name="note" label={`${t('common.note', {}, 'Note')} (${t('common.optional', {}, 'optional')})`} maxLength={300} />
         </form>
       </Modal>
     </>
@@ -396,6 +456,7 @@ export function RoundStop({ stop }) {
 /** Declare a day off — every remaining stop is skipped at no charge. */
 /** Declare a route day off or holiday — only remaining pending stops are skipped at ₹0. */
 export function DayOffButton({ date, count }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -407,7 +468,7 @@ export function DayOffButton({ date, count }) {
         className="text-xs text-ink-muted hover:border-critical/40 hover:bg-critical-soft hover:text-critical"
       >
         <CalendarIcon className="h-4 w-4" />
-        Day off / holiday
+        {t('common.calendar', {}, 'Day off / holiday')}
       </Button>
 
       <HolidayManagerModal
@@ -448,6 +509,7 @@ function plannedFor(item) {
  * is the plan or a change to it.
  */
 function ItemLine({ item, status }) {
+  const { t } = useT();
   const planned = plannedFor(item);
   const delivered = status === 'DELIVERED' && item.deliveredQuantity != null;
   // Only a genuine difference is a change; confirming the dialog without
@@ -462,27 +524,74 @@ function ItemLine({ item, status }) {
     : Math.round(planned * Number(item.unitPrice ?? 0) * 100);
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3 sm:px-5">
+    <li className="flex items-center gap-3 px-3.5 py-2.5 sm:px-4">
       <div className="flex min-w-0 flex-1 items-baseline gap-x-2 gap-y-0.5 flex-wrap">
-        <span className={cn('stat-number text-2xl leading-none', delivered ? 'text-positive' : 'text-ink')}>
+        <span className={cn('stat-number text-xl font-black leading-none', delivered ? 'text-emerald-600' : 'text-slate-950')}>
           {shownQuantity}
-          <span className="ml-1 font-sans text-sm font-semibold text-ink-muted">{item.unit}</span>
+          <span className="ml-1 font-sans text-xs font-bold text-slate-500">{item.unit}</span>
         </span>
-        <span className="text-sm font-semibold text-ink">{item.productName}</span>
+        <span className="text-sm font-bold text-slate-900">{item.productName}</span>
         {delivered && Number(item.deliveredQuantity) !== planned ? (
-          <span className="text-xs font-medium text-ink-subtle">asked {planned} {item.unit}</span>
+          <span className="text-xs font-medium text-slate-400">{t('planRequests.requestedQty', {}, 'asked')} {planned} {item.unit}</span>
         ) : null}
         {!delivered && adjusted ? (
-          <span className="text-xs font-medium text-ink-subtle">usually {Number(item.plannedQuantity)} {item.unit}</span>
+          <span className="text-xs font-medium text-slate-400">{t('subscriptions.dailyQty', {}, 'usually')} {Number(item.plannedQuantity)} {item.unit}</span>
         ) : null}
-        {adjusted ? <Badge tone="caution">changed today</Badge> : null}
+        {adjusted ? <Badge tone="caution">{t('dashboard.todayModNotice', {}, 'changed today')}</Badge> : null}
       </div>
       {item.unitPrice ? (
         <div className="shrink-0 text-right">
-          <p className="tnum text-sm font-extrabold text-ink">{formatPaise(shownPaise)}</p>
-          <p className="tnum text-[11px] font-medium text-ink-subtle">₹{Number(item.unitPrice)}/{item.unit}</p>
+          <p className="tnum text-sm font-black text-slate-950">{formatPaise(shownPaise)}</p>
+          <p className="tnum text-[11px] font-semibold text-slate-400">₹{Number(item.unitPrice)}/{item.unit}</p>
         </div>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * Collapsible section for completed/settled deliveries.
+ * Keeps daily round clean and lets the milkman focus on remaining stops.
+ */
+export function DoneDeliveriesSection({ doneStops, count }) {
+  const { t } = useT();
+  const [collapsed, setCollapsed] = useState(false);
+
+  if (!doneStops || doneStops.length === 0) return null;
+
+  return (
+    <section aria-labelledby="done-heading" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-black">
+            ✓
+          </span>
+          <h3 id="done-heading" className="font-heading text-sm font-black uppercase tracking-wider text-slate-700">
+            {t('common.delivered', {}, 'Done')}
+          </h3>
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-800">
+            {count ?? doneStops.length}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="tap font-heading text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-xl transition-all"
+        >
+          {collapsed
+            ? `${t('common.viewAll', {}, 'Show')} (${doneStops.length}) ↓`
+            : `${t('common.close', {}, 'Hide')} ↑`}
+        </button>
+      </div>
+
+      {!collapsed && (
+        <div className="space-y-2">
+          {doneStops.map((stop) => (
+            <RoundStop key={stop.id} stop={stop} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

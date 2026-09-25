@@ -1,7 +1,8 @@
 import Link from 'next/link';
 
 import { requireMilkman } from '@/auth/session.js';
-import { businessDate, businessMonth, greeting, formatDate } from '@/domain/dates.js';
+import { businessDate, businessMonth, formatDate } from '@/domain/dates.js';
+import { getT, getGreeting } from '@/i18n/server.js';
 import { formatPaise, formatMilli } from '@/domain/money.js';
 import { daysRemaining } from '@/auth/policy.js';
 import * as deliveryService from '@/services/delivery.service.js';
@@ -34,6 +35,8 @@ export const metadata = { title: 'Milkman Dashboard' };
 export default async function MilkmanDashboard() {
   const actor = await requireMilkman();
   const today = businessDate();
+  const t = await getT();
+  const greet = await getGreeting();
 
   const [round, earnings, requests, pendingCustomers, customerCount, todayExtras, pendingOrdersCount] = await Promise.all([
     deliveryService.getRound(actor, today),
@@ -84,15 +87,15 @@ export default async function MilkmanDashboard() {
   return (
     <div className="space-y-7">
       <HeroBanner
-        eyebrow={`Today · ${formatDate(today)}`}
-        greeting={greeting()}
+        eyebrow={`${t('common.today', {}, 'Today')} · ${formatDate(today)}`}
+        greeting={greet}
         name={actor.name?.split(' ')[0] ?? 'there'}
         subtitle={
           remaining > 0
-            ? `${remaining} stops pending delivery on today's round${extras.length > 0 ? ` · ${extras.length} extra product order${extras.length === 1 ? '' : 's'} (Paneer, Ghee, etc.)` : ''}`
-            : `All ${summary.total} stops completed for today.`
+            ? `${remaining} ${t('dashboard.pendingDeliveries', {}, 'stops pending delivery on today\'s round')}${extras.length > 0 ? ` · ${extras.length} ${t('dashboard.addFarmProducts', {}, 'extra product orders')}` : ''}`
+            : t('dashboard.todaysOverview', {}, 'All stops completed for today.')
         }
-        action={<HeroAction href="/milkman/round">{remaining > 0 ? 'Start Round' : 'View Round'}</HeroAction>}
+        action={<HeroAction href="/milkman/round">{remaining > 0 ? t('dashboard.markAllDelivered', {}, 'Start Round') : t('deliveries.title', {}, 'View Round')}</HeroAction>}
       />
 
       <PushNotificationPrompt role="milkman" />
@@ -102,36 +105,36 @@ export default async function MilkmanDashboard() {
         <NextActionCard
           stepNumber="!"
           tone="amber"
-          title={`${pendingCustomers} New Customer Approval${pendingCustomers === 1 ? '' : 's'} Waiting`}
-          description="New households have requested to subscribe to your dairy. Review and accept them to start delivery tomorrow."
-          actionText="Review Customers"
+          title={`${pendingCustomers} ${t('customers.pendingApprovals', {}, 'New Customer Approvals Waiting')}`}
+          description={t('customers.subtitle', {}, 'New households have requested to subscribe to your dairy. Review and accept them to start delivery tomorrow.')}
+          actionText={t('customers.pendingApprovals', {}, 'Review Customers')}
           actionHref="/milkman/customers?status=PENDING"
         />
       ) : pendingOrdersCount > 0 ? (
         <NextActionCard
           icon={<PackageIcon className="h-5 w-5 text-blue-600" />}
           tone="blue"
-          title={`${pendingOrdersCount} New Extra Item Order${pendingOrdersCount === 1 ? '' : 's'} to Review`}
-          description="Customers ordered paneer, curd, or ghee for delivery. Accept them so they ride along on the round."
-          actionText="View Orders"
+          title={`${pendingOrdersCount} ${t('shop.myOrders', {}, 'New Extra Item Orders to Review')}`}
+          description={t('shop.subtitle', {}, 'Customers ordered paneer, curd, or ghee for delivery. Accept them so they ride along on the round.')}
+          actionText={t('nav.orders', {}, 'View Orders')}
           actionHref="/milkman/orders"
         />
       ) : reqs.total > 0 ? (
         <NextActionCard
           stepNumber="!"
           tone="blue"
-          title={`${reqs.total} Customer Request${reqs.total === 1 ? '' : 's'} to Resolve`}
-          description="Customers have submitted quantity or plan change requests for upcoming deliveries."
-          actionText="View Requests"
+          title={`${reqs.total} ${t('planRequests.title', {}, 'Customer Requests to Resolve')}`}
+          description={t('planRequests.subtitle', {}, 'Customers have submitted quantity or plan change requests for upcoming deliveries.')}
+          actionText={t('nav.requests', {}, 'View Requests')}
           actionHref="/milkman/requests"
         />
       ) : remaining > 0 ? (
         <NextActionCard
           icon={<SunIcon className="h-5 w-5 text-emerald-600" />}
           tone="emerald"
-          title="Morning Delivery Round in Progress"
-          description={`${summary.delivered} delivered out of ${summary.total} stops (${progressPercent}% completed).`}
-          actionText="Open Delivery Sheet"
+          title={t('dashboard.dailyDeliveriesProgress', {}, 'Morning Delivery Round in Progress')}
+          description={`${summary.delivered} ${t('common.delivered', {}, 'delivered')} / ${summary.total} ${t('deliveries.allDeliveries', {}, 'stops')} (${progressPercent}%).`}
+          actionText={t('deliveries.deliveryList', {}, 'Open Delivery Sheet')}
           actionHref="/milkman/round"
         />
       ) : null}
@@ -147,14 +150,14 @@ export default async function MilkmanDashboard() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-heading text-base sm:text-lg font-black text-amber-950">
-                    Vehicle Packing & Products Load List
+                    {t('deliveries.productOrders', {}, 'Vehicle Packing & Products Load List')}
                   </h3>
                   <span className="rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-black text-amber-900">
-                    {extras.length} order{extras.length === 1 ? '' : 's'}
+                    {extras.length} {t('nav.orders', {}, 'orders')}
                   </span>
                 </div>
                 <p className="text-xs font-semibold text-amber-900/80 mt-0.5">
-                  Pack these items in your carry bag before heading out for the round:
+                  {t('dashboard.addFarmProducts', {}, 'Pack these items in your carry bag before heading out for the round')}:
                 </p>
               </div>
             </div>
@@ -163,7 +166,7 @@ export default async function MilkmanDashboard() {
                 href="/milkman/orders"
                 className="tap font-heading text-xs font-bold text-amber-900 bg-white border border-amber-300 px-3.5 py-2 rounded-xl hover:bg-amber-100 transition-all shadow-2xs"
               >
-                All Orders →
+                {t('common.viewAll', {}, 'All Orders')} →
               </Link>
             </div>
           </div>
@@ -172,7 +175,7 @@ export default async function MilkmanDashboard() {
           {aggregatedExtras.length > 0 ? (
             <div className="mb-4 flex flex-wrap gap-2 rounded-2xl bg-amber-100/70 p-3 border border-amber-200">
               <span className="text-xs font-black uppercase tracking-wider text-amber-900 self-center mr-1">
-                Total to pack:
+                {t('common.total', {}, 'Total to pack')}:
               </span>
               {aggregatedExtras.map((agg) => (
                 <span
@@ -206,12 +209,12 @@ export default async function MilkmanDashboard() {
                         aria-label={`Call ${item.customerName}`}
                         className="text-[11px] font-bold text-blue-600 hover:text-blue-800"
                       >
-                        Call
+                        {t('common.call', {}, 'Call')}
                       </a>
                     ) : null}
                   </div>
                   <p className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">
-                    {item.deliveryAddress || 'Doorstep drop'}
+                    {item.deliveryAddress || t('subscriptions.doorstepScheduled', {}, 'Doorstep drop')}
                   </p>
                   <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-black text-amber-900 border border-amber-200/60">
                     <span>{Number(item.quantity)} {item.unit}</span>
@@ -227,28 +230,28 @@ export default async function MilkmanDashboard() {
       {left <= 3 ? (
         <Notice
           tone={left <= 1 ? 'critical' : 'caution'}
-          title={`${left} day${left === 1 ? '' : 's'} left on your ${actor.saas?.status === 'TRIAL' ? 'trial' : 'plan'}`}
+          title={`${left} ${t('common.date', {}, 'days')} ${t('auth.trialExpired', {}, 'left on your plan')}`}
           action={
             <Link href="/milkman/membership">
-              <Button size="sm">Renew Membership</Button>
+              <Button size="sm">{t('plans.upgradePlan', {}, 'Renew Membership')}</Button>
             </Link>
           }
         >
-          Your panel closes when it ends. Your customers and history are kept safely.
+          {t('auth.securityDesc', {}, 'Your panel closes when it ends. Your customers and history are kept safely.')}
         </Notice>
       ) : null}
 
       {nearLimit ? (
         <Notice
           tone="caution"
-          title={`${customerCount} of ${limit} customer capacity used`}
+          title={`${customerCount} / ${limit} ${t('customers.totalCustomers', {}, 'capacity used')}`}
           action={
             <Link href="/milkman/membership">
-              <Button size="sm" variant="outline">Upgrade Plan</Button>
+              <Button size="sm" variant="outline">{t('plans.upgradePlan', {}, 'Upgrade Plan')}</Button>
             </Link>
           }
         >
-          You are close to your subscription capacity. Upgrade to add more households.
+          {t('subscriptions.maxPlansNotice', {}, 'You are close to your subscription capacity. Upgrade to add more households.')}
         </Notice>
       ) : null}
 
@@ -261,14 +264,16 @@ export default async function MilkmanDashboard() {
                 <TruckIcon className="h-4 w-4" />
               </span>
               <h2 className="font-heading text-lg font-black tracking-tight text-slate-900">
-                Today's Delivery Round
+                {t('dashboard.todayDelivery', {}, "Today's Delivery Round")}
               </h2>
               <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-extrabold text-blue-700 border border-blue-200">
                 {formatDate(today)}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-1">
-              {remaining > 0 ? `${remaining} stops left to deliver` : 'Morning round 100% completed'}
+              {remaining > 0
+                ? `${remaining} ${t('dashboard.pendingDeliveries', {}, 'stops left to deliver')}`
+                : t('dashboard.todaysOverview', {}, 'Morning round 100% completed')}
             </p>
           </div>
 
@@ -279,7 +284,7 @@ export default async function MilkmanDashboard() {
                 type="button"
                 className="tap inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 font-heading text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
               >
-                <span>{remaining > 0 ? 'Open Round' : 'View Sheet'}</span>
+                <span>{remaining > 0 ? t('deliveries.title', {}, 'Open Round') : t('common.details', {}, 'View Sheet')}</span>
                 <span>→</span>
               </button>
             </Link>
@@ -290,8 +295,8 @@ export default async function MilkmanDashboard() {
         {summary.total > 0 ? (
           <div className="mb-6 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-              <span>Delivery Progress</span>
-              <span className="text-blue-600">{progressPercent}% Completed</span>
+              <span>{t('dashboard.dailyDeliveriesProgress', {}, 'Delivery Progress')}</span>
+              <span className="text-blue-600">{progressPercent}% {t('common.delivered', {}, 'Completed')}</span>
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100 p-0.5">
               <div
@@ -303,7 +308,7 @@ export default async function MilkmanDashboard() {
         ) : null}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<RoutesIcon className="h-5 w-5" />} tone="info" label="Total Stops" value={summary.total} />
+          <Stat icon={<RoutesIcon className="h-5 w-5" />} tone="info" label={t('deliveries.allDeliveries', {}, 'Total Stops')} value={summary.total} />
           <Stat
             icon={
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -311,7 +316,7 @@ export default async function MilkmanDashboard() {
               </svg>
             }
             tone="positive"
-            label="Delivered"
+            label={t('common.delivered', {}, 'Delivered')}
             value={summary.delivered}
           />
           <Stat
@@ -321,15 +326,15 @@ export default async function MilkmanDashboard() {
               </svg>
             }
             tone={remaining > 0 ? 'caution' : 'neutral'}
-            label="Remaining"
+            label={t('deliveries.pendingOnly', {}, 'Remaining')}
             value={remaining}
           />
           <Stat
             icon={<MilkDropIcon className="h-5 w-5" />}
             tone="brand"
-            label="Milk Out"
+            label={t('dashboard.totalMilkRequired', {}, 'Milk Out')}
             value={formatMilli(Math.round(Number(summary.litres) * 1000))}
-            hint={extras.length > 0 ? `+ ${extras.length} extra product${extras.length === 1 ? '' : 's'} (Paneer, etc.)` : undefined}
+            hint={extras.length > 0 ? `+ ${extras.length} ${t('shop.dairyCategory', {}, 'extras')}` : undefined}
           />
         </div>
       </div>
@@ -338,15 +343,15 @@ export default async function MilkmanDashboard() {
       <section aria-labelledby="money-heading">
         <div className="mb-3.5 flex items-center justify-between">
           <h2 id="money-heading" className="font-heading text-sm font-extrabold uppercase tracking-wider text-slate-500">
-            This Month's Financials
+            {t('earnings.title', {}, "This Month's Financials")}
           </h2>
           <Link href="/milkman/earnings" className="font-heading text-xs font-bold text-blue-600 hover:text-blue-700">
-            View Ledger →
+            {t('earnings.customerStatements', {}, 'View Ledger')} →
           </Link>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label="Total Billed" value={formatPaise(billedPaise, { whole: true })} />
+          <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="brand" label={t('earnings.monthlyRevenue', {}, 'Total Billed')} value={formatPaise(billedPaise, { whole: true })} />
           <Stat
             icon={
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -354,7 +359,7 @@ export default async function MilkmanDashboard() {
               </svg>
             }
             tone="positive"
-            label="Collected"
+            label={t('earnings.cashCollected', {}, 'Collected')}
             value={formatPaise(collectedPaise, { whole: true })}
           />
           <Stat
@@ -364,13 +369,13 @@ export default async function MilkmanDashboard() {
               </svg>
             }
             tone="caution"
-            label="Pending Due"
+            label={t('earnings.pendingDues', {}, 'Pending Due')}
             value={formatPaise(pendingDuePaise, { whole: true })}
           />
           <Stat
             icon={<UsersIcon className="h-5 w-5" />}
             tone={nearLimit ? 'caution' : 'info'}
-            label="Active Customers"
+            label={t('customers.totalCustomers', {}, 'Active Customers')}
             value={limit ? `${customerCount} / ${limit}` : customerCount}
           />
         </div>
@@ -380,28 +385,28 @@ export default async function MilkmanDashboard() {
       {reqs.total > 0 || pendingCustomers > 0 ? (
         <div className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-3">
           <h3 className="font-heading text-base font-black text-slate-900">
-            Requires Your Attention
+            {t('dashboard.quickDeliveryActions', {}, 'Requires Your Attention')}
           </h3>
           <div className="space-y-2">
             {pendingCustomers > 0 ? (
               <ActionRow
                 href="/milkman/customers?status=PENDING"
-                badge={`${pendingCustomers} new`}
-                label={`${pendingCustomers} customer${pendingCustomers === 1 ? '' : 's'} waiting for approval`}
+                badge={`${pendingCustomers} ${t('common.pending', {}, 'new')}`}
+                label={`${pendingCustomers} ${t('customers.pendingApprovals', {}, 'customers waiting for approval')}`}
               />
             ) : null}
             {reqs.quantity > 0 ? (
               <ActionRow
                 href="/milkman/requests"
-                badge={`${reqs.quantity} requests`}
-                label={`${reqs.quantity} quantity change${reqs.quantity === 1 ? '' : 's'} to answer`}
+                badge={`${reqs.quantity} ${t('nav.requests', {}, 'requests')}`}
+                label={`${reqs.quantity} ${t('planRequests.requestedQty', {}, 'quantity changes to answer')}`}
               />
             ) : null}
             {reqs.plan > 0 ? (
               <ActionRow
                 href="/milkman/requests"
-                badge={`${reqs.plan} requests`}
-                label={`${reqs.plan} plan change${reqs.plan === 1 ? '' : 's'} to answer`}
+                badge={`${reqs.plan} ${t('nav.requests', {}, 'requests')}`}
+                label={`${reqs.plan} ${t('planRequests.title', {}, 'plan changes to answer')}`}
               />
             ) : null}
           </div>

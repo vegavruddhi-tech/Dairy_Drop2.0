@@ -255,6 +255,7 @@ export function ProductEditor({ product, trigger }) {
 }
 
 export function ProductList({ products }) {
+  const { t } = useT();
   const [deleting, setDeleting] = useState(null); // the product awaiting confirmation
   const [pending, startTransition] = useTransition();
 
@@ -267,14 +268,14 @@ export function ProductList({ products }) {
         toast.success(`Deleted ${product.name}`);
         setDeleting(null);
       } else {
-        toast.error(result.message ?? 'Could not delete product.');
+        toast.error(result.message ?? t('common.tryAgain', {}, 'Could not delete product.'));
       }
     });
   }
 
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
           <ProductCard key={product.id} product={product} onDelete={() => setDeleting(product)} />
         ))}
@@ -283,20 +284,19 @@ export function ProductList({ products }) {
       <Modal
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
-        title={deleting ? `Delete ${deleting.name}?` : ''}
+        title={deleting ? `${t('common.delete', {}, 'Delete')} ${deleting.name}?` : ''}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setDeleting(null)}>Keep it</Button>
+            <Button variant="ghost" onClick={() => setDeleting(null)}>{t('common.cancel', {}, 'Keep it')}</Button>
             <Button variant="danger" loading={pending} onClick={confirmDelete}>
               <TrashIcon className="h-4 w-4" />
-              Delete
+              {t('common.delete', {}, 'Delete')}
             </Button>
           </>
         }
       >
         <p className="text-sm text-ink-muted">
-          It disappears from the shop straight away. Orders already placed for it are not affected.
-          If you only want to pause it, edit the item and untick “Visible to customers” instead.
+          {t('shop.subtitle', {}, 'It disappears from the shop straight away. Orders already placed for it are not affected.')}
         </p>
       </Modal>
     </>
@@ -312,11 +312,18 @@ export function ProductList({ products }) {
  * complete item — there is no stock-only endpoint to drift from it.
  */
 function ProductCard({ product, onDelete }) {
+  const { t } = useT();
   const [stock, setStock] = useState(Number(product.availableQuantity));
   const [pending, startTransition] = useTransition();
   const img = resolveProductImage(product);
   const tone = stockTone(stock, product.unit);
   const step = STOCK_STEP[product.unit] ?? 1;
+
+  const STOCK_LABEL_MAP = {
+    critical: t('shop.outOfStock', {}, 'Out of stock'),
+    caution: t('common.warning', {}, 'Running low'),
+    positive: t('common.active', {}, 'In stock'),
+  };
 
   function adjust(delta) {
     const next = Math.max(0, Number((stock + delta).toFixed(3)));
@@ -336,7 +343,7 @@ function ProductCard({ product, onDelete }) {
       });
       if (!result.ok) {
         setStock(previous);
-        toast.error(result.message ?? 'Could not update stock.');
+        toast.error(result.message ?? t('common.tryAgain', {}, 'Could not update stock.'));
       }
     });
   }
@@ -344,8 +351,8 @@ function ProductCard({ product, onDelete }) {
   return (
     <article
       className={cn(
-        'card-surface flex flex-col overflow-hidden transition-shadow hover:shadow-card-hover',
-        product.isActive ? '' : 'opacity-70',
+        'card-surface flex flex-col overflow-hidden transition-all hover:shadow-card-hover rounded-2xl border border-slate-200/90',
+        product.isActive ? 'bg-white' : 'opacity-70 bg-slate-50',
       )}
     >
       {/* ── Photo ─────────────────────────────────────────────────────── */}
@@ -354,59 +361,59 @@ function ProductCard({ product, onDelete }) {
           <img src={img} alt={product.name} className="h-full w-full object-cover" />
         ) : null}
         {/* A soft fade at the foot so the chips read on any photo. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/45 to-transparent" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
 
-        <div className="absolute left-3 top-3 flex items-center gap-1.5">
+        <div className="absolute left-2 top-2 sm:left-3 sm:top-3 flex items-center gap-1">
           {product.isActive ? (
-            <Badge tone={tone} dot className="bg-surface/90 shadow-sm backdrop-blur-sm">
-              {STOCK_LABEL[tone]}
+            <Badge tone={tone} dot className="bg-surface/90 text-[10px] sm:text-xs py-0.5 px-1.5 sm:px-2 shadow-sm backdrop-blur-sm">
+              {STOCK_LABEL_MAP[tone]}
             </Badge>
           ) : (
-            <Badge tone="neutral" className="bg-surface/90 shadow-sm backdrop-blur-sm">Hidden from shop</Badge>
+            <Badge tone="neutral" className="bg-surface/90 text-[10px] sm:text-xs py-0.5 px-1.5 shadow-sm backdrop-blur-sm">{t('common.inactive', {}, 'Hidden')}</Badge>
           )}
         </div>
 
-        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-2 text-white">
-          <h3 className="font-heading text-lg font-extrabold leading-tight tracking-tight drop-shadow-sm">
+        <div className="absolute bottom-2 left-2.5 right-2.5 sm:bottom-3 sm:left-3 sm:right-3 flex items-end justify-between gap-1 text-white">
+          <h3 className="font-heading text-xs sm:text-base font-black leading-tight tracking-tight drop-shadow-sm truncate">
             {product.name}
           </h3>
-          <p className="shrink-0 text-right">
-            <span className="stat-number text-xl leading-none drop-shadow-sm">
+          <p className="shrink-0 text-right leading-none">
+            <span className="stat-number text-xs sm:text-base font-black leading-none drop-shadow-sm">
               {formatPaise(rupeesToPaise(product.pricePerUnit), { whole: true })}
             </span>
-            <span className="ml-1 text-[11px] font-bold text-white/85">/{product.unit}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-white/90">/{product.unit}</span>
           </p>
         </div>
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-2 p-2.5 sm:p-3.5">
         {product.description ? (
-          <p className="line-clamp-2 text-xs font-medium leading-relaxed text-ink-muted">{product.description}</p>
+          <p className="line-clamp-1 text-[10.5px] sm:text-xs font-medium leading-tight text-slate-500">{product.description}</p>
         ) : null}
 
         {/* ── Stock ─────────────────────────────────────────────────── */}
         <div
           className={cn(
-            'flex items-center justify-between gap-3 rounded-2xl border px-3 py-2.5',
+            'flex items-center justify-between gap-1.5 rounded-xl border px-2 py-1.5 sm:px-2.5 sm:py-2',
             tone === 'critical'
-              ? 'border-critical/25 bg-critical-soft/50'
+              ? 'border-rose-200 bg-rose-50/60'
               : tone === 'caution'
-                ? 'border-caution/25 bg-caution-soft/60'
-                : 'border-border bg-surface-muted/70',
+                ? 'border-amber-200 bg-amber-50/70'
+                : 'border-slate-200/80 bg-slate-50/80',
           )}
         >
           <div className="min-w-0">
-            <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-subtle">Stock today</p>
+            <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">{t('common.quantity', {}, 'Stock')}</p>
             <p
               className={cn(
-                'stat-number text-2xl leading-none',
-                tone === 'critical' ? 'text-critical' : tone === 'caution' ? 'text-caution' : 'text-ink',
+                'stat-number text-base sm:text-xl font-black leading-none',
+                tone === 'critical' ? 'text-rose-600' : tone === 'caution' ? 'text-amber-600' : 'text-slate-900',
               )}
               aria-live="polite"
             >
               {stock}
-              <span className="ml-1 font-sans text-xs font-bold text-ink-muted">{product.unit}</span>
+              <span className="ml-0.5 font-sans text-[10px] sm:text-xs font-bold text-slate-500">{product.unit}</span>
             </p>
           </div>
 
@@ -416,7 +423,7 @@ function ProductCard({ product, onDelete }) {
               onClick={() => adjust(-step)}
               disabled={pending || stock <= 0}
               aria-label={`Less by ${step} ${product.unit}`}
-              className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-surface text-lg font-black text-ink shadow-xs transition-colors hover:bg-surface-muted disabled:opacity-40"
+              className="tap flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-base font-black text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 disabled:opacity-30 active:scale-95"
             >
               −
             </button>
@@ -425,7 +432,7 @@ function ProductCard({ product, onDelete }) {
               onClick={() => adjust(step)}
               disabled={pending}
               aria-label={`More by ${step} ${product.unit}`}
-              className="tap flex h-10 w-10 items-center justify-center rounded-xl border border-brand/30 bg-brand-soft text-lg font-black text-brand shadow-xs transition-colors hover:bg-brand/10 disabled:opacity-40"
+              className="tap flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-base font-black text-blue-700 shadow-2xs transition-colors hover:bg-blue-100 disabled:opacity-30 active:scale-95"
             >
               +
             </button>
@@ -433,14 +440,17 @@ function ProductCard({ product, onDelete }) {
         </div>
 
         {/* ── Actions ───────────────────────────────────────────────── */}
-        <div className="mt-auto grid grid-cols-[1fr_auto] gap-2 pt-1">
+        <div className="mt-auto grid grid-cols-[1fr_auto] gap-1.5 pt-1">
           <ProductEditor
             product={product}
             trigger={
-              <Button variant="outline" className="w-full">
-                <EditIcon className="h-4 w-4" />
-                Edit item
-              </Button>
+              <button
+                type="button"
+                className="tap flex h-8 sm:h-9 w-full items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white font-heading text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 active:scale-95 transition-all"
+              >
+                <EditIcon className="h-3.5 w-3.5" />
+                <span className="truncate">{t('common.edit', {}, 'Edit')}</span>
+              </button>
             }
           />
           <button
@@ -448,9 +458,9 @@ function ProductCard({ product, onDelete }) {
             onClick={onDelete}
             aria-label={`Delete ${product.name}`}
             title="Delete item"
-            className="tap flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-surface text-ink-subtle shadow-xs transition-colors hover:border-critical/40 hover:bg-critical-soft hover:text-critical"
+            className="tap flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-2xs transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 active:scale-95"
           >
-            <TrashIcon className="h-4 w-4" />
+            <TrashIcon className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

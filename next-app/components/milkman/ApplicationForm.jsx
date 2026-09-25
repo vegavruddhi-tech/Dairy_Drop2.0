@@ -101,7 +101,6 @@ export function MilkmanApplicationForm({ defaultName }) {
               state: nextState,
               areaName: nextArea,
             });
-            toast.success(`Location detected: ${data.city}, ${data.state}`);
           } else {
             setLocationResolved(false);
           }
