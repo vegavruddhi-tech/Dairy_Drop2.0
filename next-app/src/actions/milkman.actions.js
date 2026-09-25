@@ -22,7 +22,7 @@ import * as requestService from '@/services/request.service.js';
 import * as saasService from '@/services/saas.service.js';
 import * as subscriptionService from '@/services/subscription.service.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
-import { transaction } from '@/db/index.js';
+import { db, transaction } from '@/db/index.js';
 import { resolveUnitPrice } from '@/domain/pricing.js';
 import { businessMonth } from '@/domain/dates.js';
 
