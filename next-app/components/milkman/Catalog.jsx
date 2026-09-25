@@ -252,28 +252,6 @@ export function ProductEditor({ product, trigger }) {
   );
 }
 
-export function AddPresets() {
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <Button
-      loading={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await addCatalogPresets();
-          if (result.ok) {
-            toast.success(`Added ${result.data.added} items. Set your stock and prices.`);
-          } else {
-            toast.error(result.message ?? 'Could not add those.');
-          }
-        })
-      }
-    >
-      {pending ? null : <PlusIcon className="h-4 w-4" />}
-      Add the usual dairy items
-    </Button>
-  );
-}
 
 export function ProductList({ products }) {
   const [deleting, setDeleting] = useState(null); // the product awaiting confirmation
