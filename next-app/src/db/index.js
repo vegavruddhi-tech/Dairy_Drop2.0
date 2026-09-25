@@ -28,9 +28,9 @@ function createPool() {
   const p = new Pool({
     connectionString: process.env.DATABASE_URL,
     // In serverless production (Vercel), limit connections per lambda instance to avoid exceeding pooler limits
-    max: Number(process.env.DATABASE_POOL_MAX ?? (isProd ? 1 : 5)),
-    idleTimeoutMillis: isProd ? 1_000 : 10_000,
-    connectionTimeoutMillis: 10_000,
+    max: Number(process.env.DATABASE_POOL_MAX ?? (isProd ? 3 : 5)),
+    idleTimeoutMillis: isProd ? 2_000 : 10_000,
+    connectionTimeoutMillis: 20_000,
     allowExitOnIdle: true,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,

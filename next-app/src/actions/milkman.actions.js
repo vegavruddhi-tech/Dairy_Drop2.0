@@ -35,21 +35,21 @@ const markDeliveryAction = defineAction({
   authorize: paid,
   schema: V.markDeliverySchema,
   handler: ({ actor, input }) => deliveryService.markDelivery(actor, input),
-  revalidate: ['/milkman/round', '/milkman'],
+  revalidate: ['/milkman/round'],
 });
 
 const declareDayOffAction = defineAction({
   authorize: paid,
   schema: V.dayOffSchema,
   handler: ({ actor, input }) => deliveryService.declareDayOff(actor, input),
-  revalidate: ['/milkman/round', '/milkman'],
+  revalidate: ['/milkman/round'],
 });
 
 const cancelDayOffAction = defineAction({
   authorize: paid,
   schema: V.cancelHolidaySchema,
   handler: ({ actor, input }) => deliveryService.cancelDayOff(actor, input),
-  revalidate: ['/milkman/round', '/milkman'],
+  revalidate: ['/milkman/round'],
 });
 
 // ── Customers ────────────────────────────────────────────────────────────────
@@ -58,21 +58,21 @@ const approveCustomerAction = defineAction({
   authorize: paid,
   schema: V.approveCustomerSchema,
   handler: ({ actor, input }) => onboardingService.approveCustomer(actor, input),
-  revalidate: ['/milkman/customers', '/milkman'],
+  revalidate: ['/milkman/customers'],
 });
 
 const rejectCustomerAction = defineAction({
   authorize: paid,
   schema: V.rejectCustomerSchema,
   handler: ({ actor, input }) => onboardingService.rejectCustomer(actor, input),
-  revalidate: ['/milkman/customers', '/milkman'],
+  revalidate: ['/milkman/customers'],
 });
 
 const updateCustomerAddressAction = defineAction({
   authorize: paid,
   schema: V.updateCustomerAddressSchema,
   handler: ({ actor, input }) => onboardingService.updateCustomerAddress(actor, input),
-  revalidate: ['/milkman/customers', '/milkman', '/milkman/round'],
+  revalidate: ['/milkman/customers'],
 });
 
 // ── Plans ────────────────────────────────────────────────────────────────────
@@ -86,11 +86,9 @@ const saveMilkPlanAction = defineAction({
     // Fail here, at the boundary, rather than when a customer first subscribes.
     resolveUnitPrice(values, month);
 
-    return transaction(async (tx) =>
-      id
-        ? subscriptionsRepo.updatePlan(tx, actor, { id, patch: values })
-        : subscriptionsRepo.createPlan(tx, { milkmanId: actor.userId, ...values }),
-    );
+    return id
+      ? subscriptionsRepo.updatePlan(db, actor, { id, patch: values })
+      : subscriptionsRepo.createPlan(db, { milkmanId: actor.userId, ...values });
   },
   revalidate: ['/milkman/plans'],
 });
@@ -99,15 +97,14 @@ const retireMilkPlanAction = defineAction({
   authorize: paid,
   schema: V.idSchema,
   handler: ({ actor, input }) => subscriptionService.retirePlan(actor, { planId: input.id }),
-  // Ending subscriptions changes the round and the customer list too.
-  revalidate: ['/milkman/plans', '/milkman/customers', '/milkman/round', '/milkman'],
+  revalidate: ['/milkman/plans'],
 });
 
 const deleteMilkPlanAction = defineAction({
   authorize: paid,
   schema: V.idSchema,
   handler: ({ actor, input }) => subscriptionService.deletePlan(actor, { planId: input.id }),
-  revalidate: ['/milkman/plans', '/milkman/customers', '/milkman/round', '/milkman'],
+  revalidate: ['/milkman/plans'],
 });
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
@@ -156,7 +153,7 @@ const addServiceAreaAction = defineAction({
       }),
     );
   },
-  revalidate: ['/milkman/routes', '/milkman/round', '/milkman'],
+  revalidate: ['/milkman/routes'],
 });
 
 const deleteServiceAreaAction = defineAction({
@@ -166,7 +163,7 @@ const deleteServiceAreaAction = defineAction({
     const { deleteServiceArea } = await import('@/repositories/users.repo.js');
     return transaction(async (tx) => deleteServiceArea(tx, actor, input.id));
   },
-  revalidate: ['/milkman/routes', '/milkman/round', '/milkman'],
+  revalidate: ['/milkman/routes'],
 });
 
 const updateOrderStatusAction = defineAction({
@@ -182,14 +179,14 @@ const resolveQuantityRequestAction = defineAction({
   authorize: paid,
   schema: V.resolveRequestSchema,
   handler: ({ actor, input }) => requestService.resolveQuantityRequest(actor, input),
-  revalidate: ['/milkman/requests', '/milkman/round'],
+  revalidate: ['/milkman/requests'],
 });
 
 const resolvePlanChangeRequestAction = defineAction({
   authorize: paid,
   schema: V.resolveRequestSchema,
   handler: ({ actor, input }) => requestService.resolvePlanChangeRequest(actor, input),
-  revalidate: ['/milkman/requests', '/milkman/customers'],
+  revalidate: ['/milkman/requests'],
 });
 
 // ── Payments ─────────────────────────────────────────────────────────────────
@@ -198,7 +195,7 @@ const verifyPaymentAction = defineAction({
   authorize: paid,
   schema: V.verifyPaymentSchema,
   handler: ({ actor, input }) => paymentService.verify(actor, input),
-  revalidate: ['/milkman/payments', '/milkman/earnings'],
+  revalidate: ['/milkman/payments'],
 });
 
 // ── Membership (reachable while paywalled) ───────────────────────────────────

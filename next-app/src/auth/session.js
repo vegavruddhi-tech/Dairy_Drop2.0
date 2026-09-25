@@ -25,13 +25,16 @@ import { redirect } from 'next/navigation';
 import { auth as clerkAuth, currentUser } from '@clerk/nextjs/server';
 
 import { ROLES, ROLE_HOME, SCOPES, roleHas, scopeFor } from './roles.js';
-import { evaluateGates, evaluateSaasAccess, GATE } from './policy.js';
+import { evaluateGates, evaluateSaasAccess, GATE, GATE_MESSAGE } from './policy.js';
 import { findAccountByClerkId, upsertFromClerk } from './provision.js';
+import { findCurrentSaasSubscription } from '@/repositories/saas.repo.js';
 import {
   UnauthenticatedError,
   ForbiddenError,
   SubscriptionRequiredError,
 } from '@/domain/errors.js';
+
+const getCachedSaasSubscription = cache((userId) => findCurrentSaasSubscription(userId));
 
 /**
  * @typedef {object} ActorContext
@@ -303,14 +306,12 @@ export async function requireMilkman(options = {}) {
     );
   }
 
-  const { findCurrentSaasSubscription } = await import('@/repositories/saas.repo.js');
-  const saas = await findCurrentSaasSubscription(actor.userId);
+  const saas = await getCachedSaasSubscription(actor.userId);
 
   if (!options.allowUnpaid) {
     const verdict = evaluateSaasAccess(saas);
     if (!verdict.ok) {
       if (mode === RENDER) redirect('/milkman/activate');
-      const { GATE_MESSAGE } = await import('./policy.js');
       throw new SubscriptionRequiredError(verdict.gate, GATE_MESSAGE[verdict.gate]);
     }
   }
@@ -342,8 +343,7 @@ export async function gateStatus() {
   if (!actor) return { ok: false, gate: 'UNAUTHENTICATED', redirect: '/sign-in' };
 
   if (actor.role === ROLES.MILKMAN) {
-    const { findCurrentSaasSubscription } = await import('@/repositories/saas.repo.js');
-    const saas = await findCurrentSaasSubscription(actor.userId);
+    const saas = await getCachedSaasSubscription(actor.userId);
     return evaluateGates({
       role: actor.role,
       isActive: actor.isActive,

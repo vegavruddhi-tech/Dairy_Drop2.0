@@ -303,66 +303,68 @@ function toBillView(row) {
 export async function getSixMonthPerformance(actor) {
   const monthList = recentMonths(businessMonth(), 6).reverse(); // oldest to newest
 
-  const monthResults = await Promise.all(
-    monthList.map(async (m) => {
-      const [deliveryRows, purchaseRows, paymentRows] = await Promise.all([
-        deliveriesRepo.listTenantMonth(actor, m),
-        productsRepo.listTenantMonth(actor, m),
-        billingRepo.listPaymentsForMonth(actor, m),
-      ]);
+  // Run months sequentially to avoid exhausting the DB connection pool.
+  // Each month already fires 3 queries in parallel internally; running all 6
+  // months concurrently would open 18 connections at once and hit the timeout.
+  const monthResults = [];
+  for (const m of monthList) {
+    const [deliveryRows, purchaseRows, paymentRows] = await Promise.all([
+      deliveriesRepo.listTenantMonth(actor, m),
+      productsRepo.listTenantMonth(actor, m),
+      billingRepo.listPaymentsForMonth(actor, m),
+    ]);
 
-      const earnings = computeEarnings({
-        deliveries: deliveryRows,
-        purchases: purchaseRows,
-        payments: [],
-      });
+    const earnings = computeEarnings({
+      deliveries: deliveryRows,
+      purchases: purchaseRows,
+      payments: [],
+    });
 
-      const collected = paymentRows.filter((row) => row.status === 'VERIFIED');
-      const collectedPaise = collected.reduce(
-        (total, row) => total + toPaise(row.amount),
-        0,
-      );
+    const collected = paymentRows.filter((row) => row.status === 'VERIFIED');
+    const collectedPaise = collected.reduce(
+      (total, row) => total + toPaise(row.amount),
+      0,
+    );
 
-      const uniqueCustomers = new Set(deliveryRows.map((d) => d.customerId));
-      const customerCount = uniqueCustomers.size;
+    const uniqueCustomers = new Set(deliveryRows.map((d) => d.customerId));
+    const customerCount = uniqueCustomers.size;
 
-      const milkMilli = deliveryRows.reduce(
-        (sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000),
-        0,
-      );
-      const cowMilli = deliveryRows
-        .filter((d) => (d.milkType || '').toUpperCase() === 'COW')
-        .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
-      const buffaloMilli = deliveryRows
-        .filter((d) => (d.milkType || '').toUpperCase() === 'BUFFALO')
-        .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
+    const milkMilli = deliveryRows.reduce(
+      (sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000),
+      0,
+    );
+    const cowMilli = deliveryRows
+      .filter((d) => (d.milkType || '').toUpperCase() === 'COW')
+      .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
+    const buffaloMilli = deliveryRows
+      .filter((d) => (d.milkType || '').toUpperCase() === 'BUFFALO')
+      .reduce((sum, d) => sum + Math.round(Number(d.quantity ?? 0) * 1000), 0);
 
-      const deliveredDates = new Set(deliveryRows.map((d) => d.deliveryDate));
-      const dailyAvgMilli = deliveredDates.size > 0 ? Math.round(milkMilli / deliveredDates.size) : 0;
+    const deliveredDates = new Set(deliveryRows.map((d) => d.deliveryDate));
+    const dailyAvgMilli = deliveredDates.size > 0 ? Math.round(milkMilli / deliveredDates.size) : 0;
 
-      const billedPaise = earnings.billedPaise;
-      const outstandingPaise = Math.max(0, billedPaise - collectedPaise);
-      const collectionRate = billedPaise > 0 ? Math.min(100, Math.round((collectedPaise / billedPaise) * 100)) : 0;
+    const billedPaise = earnings.billedPaise;
+    const outstandingPaise = Math.max(0, billedPaise - collectedPaise);
+    const collectionRate = billedPaise > 0 ? Math.min(100, Math.round((collectedPaise / billedPaise) * 100)) : 0;
 
-      return {
-        month: m,
-        monthLabel: formatMonth(m),
-        customerCount,
-        milkMilli,
-        cowMilli,
-        buffaloMilli,
-        dailyAvgMilli,
-        billedPaise,
-        milkPaise: earnings.milkPaise,
-        productsPaise: earnings.productsPaise,
-        collectedPaise,
-        outstandingPaise,
-        collectionRate,
-        deliveryCount: deliveryRows.length,
-        purchaseCount: purchaseRows.filter((p) => p.status !== 'CANCELLED').length,
-      };
-    }),
-  );
+    monthResults.push({
+      month: m,
+      monthLabel: formatMonth(m),
+      customerCount,
+      milkMilli,
+      cowMilli,
+      buffaloMilli,
+      dailyAvgMilli,
+      billedPaise,
+      milkPaise: earnings.milkPaise,
+      productsPaise: earnings.productsPaise,
+      collectedPaise,
+      outstandingPaise,
+      collectionRate,
+      deliveryCount: deliveryRows.length,
+      purchaseCount: purchaseRows.filter((p) => p.status !== 'CANCELLED').length,
+    });
+  }
 
   // Compute Month-over-Month (MoM) Customer Increment
   const series = monthResults.map((current, idx) => {

@@ -1,6 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DairyDrop">
-  <rect width="64" height="64" rx="14" fill="#059669"/>
-  <path d="M26 12h12v5l4 8v23a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V25l4-8v-5z"
-        fill="#fff" fill-opacity=".95"/>
-  <path d="M22 34h20v14a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V34z" fill="#a7f3d0"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="DairyDrop">
+  <defs>
+    <linearGradient id="appleBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="42" fill="url(#appleBg)" />
+  <!-- Milk droplet -->
+  <path
+    d="M90 38 C90 38, 50 87, 50 115 C50 137.091, 67.909 155, 90 155 C112.091 155, 130 137.091, 130 115 C130 87, 90 38, 90 38 Z"
+    fill="#ffffff"
+  />
+  <path
+    d="M90 48 C90 48, 56 92, 56 115 C56 133.778, 71.222 149, 90 149 C103 149, 113 143, 120 135 C107 141, 87 138, 76 122 C65 106, 76 82, 90 48 Z"
+    fill="#dbeafe"
+    fill-opacity="0.6"
+  />
+  <ellipse cx="73" cy="106" rx="7" ry="15" transform="rotate(-30 73 106)" fill="#ffffff" />
 </svg>

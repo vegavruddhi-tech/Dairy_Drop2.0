@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="50%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="dropGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#dbeafe" />
+    </linearGradient>
+    <linearGradient id="innerDrop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0.1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#1e3a8a" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Rounded App Tile -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)" />
+
+  <!-- Background decorative rings -->
+  <circle cx="256" cy="270" r="160" stroke="#ffffff" stroke-opacity="0.1" stroke-width="2" />
+  <circle cx="256" cy="270" r="210" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1.5" />
+
+  <!-- Main Milk Droplet -->
+  <g filter="url(#shadow)">
+    <!-- Droplet Body -->
+    <path
+      d="M256 100 C256 100, 140 250, 140 330 C140 396.274, 191.726 448, 256 448 C320.274 448, 372 396.274, 372 330 C372 250, 256 100, 256 100 Z"
+      fill="url(#dropGlow)"
+    />
+    <!-- Droplet Inner Refraction Glass -->
+    <path
+      d="M256 130 C256 130, 160 265, 160 330 C160 384.128, 202.872 426, 256 426 C290 426, 316 410, 334 388 C300 405, 240 395, 210 350 C180 305, 210 240, 256 130 Z"
+      fill="url(#innerDrop)"
+    />
+    <!-- Droplet Light Reflection Highlight -->
+    <ellipse cx="205" cy="300" rx="24" ry="48" transform="rotate(-30 205 300)" fill="#ffffff" fill-opacity="0.85" />
+    <circle cx="225" cy="245" r="10" fill="#ffffff" fill-opacity="0.9" />
+  </g>
+
+  <!-- Small floating sparkle -->
+  <path
+    d="M360 170 Q375 170 375 155 Q375 170 390 170 Q375 170 375 185 Q375 170 360 170 Z"
+    fill="#ffffff"
+    fill-opacity="0.95"
+  />
+</svg>

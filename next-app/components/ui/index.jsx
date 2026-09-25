@@ -109,6 +109,18 @@ export function HeroBanner({ eyebrow, greeting, name, subtitle, action, children
         className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-sky-300/20 blur-2xl"
       />
 
+      {/* Floating Animated DairyDrop Brand Watermark Emblem */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-4 -bottom-6 opacity-15 sm:opacity-20 transition-transform duration-700"
+      >
+        <img
+          src="/icon.svg"
+          alt=""
+          className="h-32 w-32 sm:h-44 sm:w-44 object-contain filter drop-shadow-2xl animate-in fade-in zoom-in-75 duration-700"
+        />
+      </div>
+
       <div className="relative z-10 space-y-3.5">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {eyebrow ? (
@@ -126,7 +138,7 @@ export function HeroBanner({ eyebrow, greeting, name, subtitle, action, children
             {name}
           </h1>
           {subtitle ? (
-            <p className="mt-1 text-xs sm:text-sm font-medium text-blue-100 leading-relaxed">{subtitle}</p>
+            <p className="mt-1 text-xs sm:text-sm font-medium text-blue-100 leading-relaxed max-w-2xl">{subtitle}</p>
           ) : null}
         </div>
 

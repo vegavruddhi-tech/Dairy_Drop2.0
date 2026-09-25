@@ -1,6 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DairyDrop">
-  <rect width="64" height="64" rx="14" fill="#059669"/>
-  <path d="M26 12h12v5l4 8v23a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V25l4-8v-5z"
-        fill="#fff" fill-opacity=".95"/>
-  <path d="M22 34h20v14a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4V34z" fill="#a7f3d0"/>
+  <defs>
+    <linearGradient id="dropIconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#dropIconBg)" />
+  <!-- Milk droplet -->
+  <path
+    d="M32 14 C32 14, 18 31, 18 41 C18 48.732, 24.268 55, 32 55 C39.732 55, 46 48.732, 46 41 C46 31, 32 14, 32 14 Z"
+    fill="#ffffff"
+  />
+  <!-- Inner shadow / glass highlight -->
+  <path
+    d="M32 18 C32 18, 20 33, 20 41 C20 47.627, 25.373 53, 32 53 C36.5 53, 40 51, 42.5 48 C38 50, 31 49, 27 43 C23 37, 27 29, 32 18 Z"
+    fill="#dbeafe"
+    fill-opacity="0.6"
+  />
+  <ellipse cx="26" cy="38" rx="2.5" ry="5.5" transform="rotate(-30 26 38)" fill="#ffffff" />
 </svg>

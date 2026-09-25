@@ -143,6 +143,8 @@ export function PlanEditor({ plan, trigger }) {
           onSubmit={(event) => {
             event.preventDefault();
             const data = Object.fromEntries(new FormData(event.currentTarget));
+            setOpen(false);
+            const toastId = toast.loading(plan?.id ? 'Updating plan…' : 'Creating plan…');
             startTransition(async () => {
               const result = await saveMilkPlan({
                 ...data,
@@ -150,13 +152,13 @@ export function PlanEditor({ plan, trigger }) {
                 isActive: true,
               });
               if (result.ok) {
-                toast.success('Plan saved.');
-                setOpen(false);
+                toast.success('Plan saved successfully!', { id: toastId });
                 setErrors({});
                 router.refresh();
               } else {
+                setOpen(true);
                 setErrors(result.fieldErrors ?? {});
-                toast.error(result.message ?? 'Could not save that plan.');
+                toast.error(result.message ?? 'Could not save that plan.', { id: toastId });
               }
             });
           }}

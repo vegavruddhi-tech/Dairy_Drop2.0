@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
@@ -85,6 +86,7 @@ export function ProductEditor({ product, trigger }) {
       if (result.ok) {
         toast.success(`Deleted ${product.name}`);
         close();
+        router.refresh();
       } else {
         toast.error(result.message ?? 'Could not delete product.');
         setConfirmDelete(false);
@@ -137,6 +139,8 @@ export function ProductEditor({ product, trigger }) {
           onSubmit={(event) => {
             event.preventDefault();
             const data = Object.fromEntries(new FormData(event.currentTarget));
+            close();
+            const toastId = toast.loading(product?.id ? 'Updating item…' : 'Adding item to catalog…');
             startTransition(async () => {
               const result = await saveProduct({
                 ...data,
@@ -145,12 +149,13 @@ export function ProductEditor({ product, trigger }) {
                 isActive: data.isActive === 'on' || data.isActive === true,
               });
               if (result.ok) {
-                toast.success('Saved to your catalog.');
-                close();
+                toast.success('Saved to your catalog.', { id: toastId });
                 setErrors({});
+                router.refresh();
               } else {
+                setOpen(true);
                 setErrors(result.fieldErrors ?? {});
-                toast.error(result.message ?? 'Could not save product.');
+                toast.error(result.message ?? 'Could not save product.', { id: toastId });
               }
             });
           }}
@@ -264,6 +269,7 @@ export function ProductList({ products }) {
       if (result.ok) {
         toast.success(`Deleted ${product.name}`);
         setDeleting(null);
+        router.refresh();
       } else {
         toast.error(result.message ?? 'Could not delete product.');
       }
