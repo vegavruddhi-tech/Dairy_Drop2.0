@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { SignedIn, SignedOut, SignUpButton } from '@clerk/nextjs';
 
 import { getActor } from '@/auth/session.js';
 import { ROLE_HOME } from '@/auth/roles.js';
@@ -66,15 +65,6 @@ export default async function LandingPage() {
           <div className="flex items-center gap-2.5">
             <PwaInstallButton variant="compact" />
             <LanguageToggle variant="compact" className="h-9" />
-
-            <SignedIn>
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-all"
-              >
-                {isHi ? 'डैशबोर्ड खोलें →' : 'Go to Dashboard →'}
-              </Link>
-            </SignedIn>
           </div>
         </div>
       </header>
@@ -216,25 +206,15 @@ export default async function LandingPage() {
 
             {/* CTA Button */}
             <div className="mt-8 pt-2">
-              <SignedOut>
-                <SignUpButton mode="modal" fallbackRedirectUrl="/register" forceRedirectUrl="/register">
-                  <button className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 font-heading text-sm font-bold text-white shadow-md shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-lg active:scale-[0.99]">
-                    <span>{isHi ? 'ग्राहक के रूप में जुड़ें (Google)' : 'Get Started as Customer (Google)'}</span>
-                    <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </SignUpButton>
-              </SignedOut>
-              <SignedIn>
-                <Link
-                  href="/dashboard"
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 font-heading text-sm font-bold text-white shadow-md hover:bg-blue-700 transition-all"
-                >
-                  <span>{isHi ? 'ग्राहक डैशबोर्ड खोलें' : 'Open Customer Dashboard'}</span>
-                  <span>→</span>
-                </Link>
-              </SignedIn>
+              <Link
+                href="/register"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 font-heading text-sm font-bold text-white shadow-md shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-lg active:scale-[0.99]"
+              >
+                <span>{isHi ? 'ग्राहक के रूप में जुड़ें' : 'Get Started as Customer'}</span>
+                <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </Link>
             </div>
           </div>
 
@@ -452,14 +432,13 @@ export default async function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <SignedOut>
-                <SignUpButton mode="modal" fallbackRedirectUrl="/register" forceRedirectUrl="/register">
-                  <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-7 py-4 font-heading text-sm font-bold text-blue-700 shadow-lg hover:bg-blue-50 transition-all active:scale-[0.98]">
-                    <span>{isHi ? 'ग्राहक के रूप में जुड़ें (Google)' : 'Start as Customer (Google)'}</span>
-                    <span>→</span>
-                  </button>
-                </SignUpButton>
-              </SignedOut>
+              <Link
+                href="/register"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-7 py-4 font-heading text-sm font-bold text-blue-700 shadow-lg hover:bg-blue-50 transition-all active:scale-[0.98]"
+              >
+                <span>{isHi ? 'ग्राहक के रूप में जुड़ें' : 'Start as Customer'}</span>
+                <span>→</span>
+              </Link>
 
               <Link
                 href="/become-a-milkman"

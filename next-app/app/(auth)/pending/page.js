@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { SignOutButton } from '@clerk/nextjs';
 
 import { getActor, gateStatus } from '@/auth/session.js';
 import { ROLES, ROLE_HOME } from '@/auth/roles.js';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/interactive.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 import { BackgroundParticles } from '@/components/ui/BackgroundParticles.jsx';
 import { VerificationStatusChecker } from '@/components/milkman/VerificationStatusChecker.jsx';
+import { SignOutAction } from '@/components/auth/SignOutAction.jsx';
 import * as usersRepo from '@/repositories/users.repo.js';
 
 export const metadata = { title: 'Awaiting Approval • DairyDrop' };
@@ -129,14 +129,7 @@ export default async function PendingPage() {
               )}
 
             <div className="border-t border-slate-100 pt-3">
-              <SignOutButton redirectUrl="/">
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-slate-500 underline hover:text-slate-800 transition-colors"
-                >
-                  Sign out of account
-                </button>
-              </SignOutButton>
+              <SignOutAction redirectUrl="/" />
             </div>
           </CardBody>
         </Card>

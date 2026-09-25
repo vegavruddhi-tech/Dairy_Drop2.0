@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * The shared application shell, ported from the original apps' layout.
  *
