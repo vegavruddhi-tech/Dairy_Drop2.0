@@ -337,8 +337,7 @@ export function PlanEditor({ plan, trigger }) {
             onChange={(event) => setBasis(event.target.value)}
             options={[
               { value: 'MONTHLY', label: 'A monthly price' },
-              { value: 'PER_UNIT', label: `A price per ${UNIT_NOUN[unit] ?? 'unit'}` },
-              { value: 'PER_DELIVERY', label: 'A price per delivery' },
+              { value: 'PER_UNIT', label: `A price per ${UNIT_NOUN[unit] ?? 'unit'}` }
             ]}
           />
 

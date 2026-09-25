@@ -30,6 +30,7 @@ import * as usersRepo from '@/repositories/users.repo.js';
 import * as saasRepo from '@/repositories/saas.repo.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
+import * as auditService from './audit.service.js';
 
 /** Milkmen serving a pincode. Public — used before anyone signs in. */
 export async function findMilkmenForPincode(pincode) {
@@ -512,11 +513,11 @@ export async function switchMilkman(actor, input) {
   const oldMilkmanId = actor.tenantId;
 
   return transaction(async (tx) => {
-    // 3. Update customer's milkman (tenantId) and set approval status to PENDING
+    // 3. Update customer's milkman (milkmanId) and set approval status to PENDING
     await tx
       .update(users)
       .set({
-        tenantId: input.newMilkmanId,
+        milkmanId: input.newMilkmanId,
         approvalStatus: 'PENDING',
         deliveryArea: input.area,
         updatedAt: new Date(),

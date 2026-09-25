@@ -10,7 +10,7 @@ import 'server-only';
 import { and, eq, gt, gte, lte, lt, isNull, or, desc, asc, sql, inArray } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
-import { milkPlans, milkSubscriptions, users } from '@/db/schema/index.js';
+import { milkPlans, milkSubscriptions, users, milkmanProfiles } from '@/db/schema/index.js';
 import { PERMISSIONS } from '@/auth/roles.js';
 import { scoped } from './base.js';
 import { monthStart, nextMonthStart } from '@/domain/dates.js';
@@ -244,6 +244,7 @@ export async function listGenerable(tx, date) {
     })
     .from(milkSubscriptions)
     .innerJoin(users, eq(users.id, milkSubscriptions.customerId))
+    .innerJoin(milkmanProfiles, eq(milkmanProfiles.milkmanId, milkSubscriptions.milkmanId))
     .where(
       and(
         eq(milkSubscriptions.status, 'ACTIVE'),
@@ -252,6 +253,9 @@ export async function listGenerable(tx, date) {
         // Only approved, active customers receive milk.
         eq(users.approvalStatus, 'APPROVED'),
         eq(users.isActive, true),
+        // Only verified and non-suspended dairy vendors generate deliveries
+        eq(milkmanProfiles.isVerified, true),
+        isNull(milkmanProfiles.suspendedAt),
       ),
     );
 }

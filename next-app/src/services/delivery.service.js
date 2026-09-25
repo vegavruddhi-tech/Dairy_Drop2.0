@@ -6,7 +6,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 
 import { db, transaction } from '@/db/index.js';
-import { businessDate, addDays, datesBetween, nextMonthStart, monthStart } from '@/domain/dates.js';
+import { businessDate, addDays, datesBetween, nextMonthStart, monthStart, isPastDeliveryCutoff } from '@/domain/dates.js';
 import { isDeliveryDay, deliveriesPerDay } from '@/domain/pricing.js';
 import { milliToDecimal, toMilli } from '@/domain/money.js';
 import { NotFoundError, ValidationError, ConflictError } from '@/domain/errors.js';
@@ -374,6 +374,20 @@ export async function markDelivery(actor, { deliveryId, status, quantity, note, 
         subjectType: 'delivery',
         subjectId: updated.id,
       });
+
+      // Dispatch real-time web push notification to customer devices
+      try {
+        const { sendPushNotification } = await import('@/services/push.service.js');
+        sendPushNotification(updated.customerId, {
+          title: 'Milk Delivered',
+          body: `${updated.productName} (${Number(updated.deliveredQuantity)} ${updated.unit}) has arrived at your doorstep!`,
+          href: '/calendar',
+          tag: 'delivery-delivered',
+          data: { deliveryId: updated.id },
+        }).catch((err) => console.warn('[push error]:', err?.message));
+      } catch (err) {
+        // Non-blocking
+      }
     }
 
     return updated;
@@ -513,6 +527,13 @@ export async function adjustQuantity(actor, { deliveryId, quantity, note }) {
     );
   }
 
+  // Enforce 10:00 PM cutoff rule for morning deliveries / 3:00 PM for evening
+  if (isPastDeliveryCutoff(delivery.deliveryDate, delivery.slot)) {
+    throw new ConflictError(
+      `Modifications for ${delivery.deliveryDate} (${delivery.slot.toLowerCase()} round) are closed after cutoff time (10:00 PM). Please contact your milkman directly.`,
+    );
+  }
+
   const milli = toMilli(quantity);
   if (milli <= 0) throw new ValidationError('Enter a quantity greater than zero.');
   if (milli > 100_000) throw new ValidationError('That quantity is too large.');
@@ -567,6 +588,13 @@ export async function skipDay(actor, { deliveryId, note }) {
     throw new ConflictError('That delivery can no longer be changed.');
   }
 
+  // Enforce 10:00 PM cutoff rule for morning deliveries / 3:00 PM for evening
+  if (isPastDeliveryCutoff(delivery.deliveryDate, delivery.slot)) {
+    throw new ConflictError(
+      `Delivery for ${delivery.deliveryDate} is locked after cutoff time (10:00 PM). Please contact your milkman directly.`,
+    );
+  }
+
   return transaction(async (tx) => {
     const updated = await deliveriesRepo.updateStatus(tx, actor, {
       id: deliveryId,
@@ -604,8 +632,12 @@ export async function resumeDay(actor, { deliveryId }) {
   if (delivery.skipReason === 'MILKMAN_DAY_OFF') {
     throw new ConflictError('This delivery was paused due to a dairy holiday and cannot be resumed by customer.');
   }
-  if (delivery.deliveryDate < businessDate()) {
-    throw new ConflictError('That day has already passed.');
+
+  // Enforce 10:00 PM cutoff rule
+  if (isPastDeliveryCutoff(delivery.deliveryDate, delivery.slot)) {
+    throw new ConflictError(
+      `Delivery for ${delivery.deliveryDate} cannot be resumed after cutoff time (10:00 PM). Please contact your milkman directly.`,
+    );
   }
 
   return transaction(async (tx) =>

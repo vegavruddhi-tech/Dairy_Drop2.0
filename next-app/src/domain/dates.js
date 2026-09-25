@@ -266,6 +266,42 @@ export function formatWindow(start, end) {
   return fromSuffix === toSuffix ? `${fromTime} – ${to}` : `${from} – ${to}`;
 }
 
+/**
+ * Strict Cutoff Enforcement for Customer Delivery Modifications.
+ * Morning deliveries cutoff: 10:00 PM (22:00 IST) the previous night.
+ * Evening deliveries cutoff: 03:00 PM (15:00 IST) on delivery day.
+ */
+export function isPastDeliveryCutoff(deliveryDate, slot = 'MORNING', now = new Date()) {
+  const today = businessDate(now);
+  const currentHour = Number(formatInTimeZone(now, TIMEZONE, 'H')); // 0-23
+
+  // Past dates are always locked
+  if (deliveryDate < today) return true;
+
+  if (deliveryDate === today) {
+    if (slot === 'MORNING' || slot === 'BOTH') {
+      // Today's morning round is already underway or past 10:00 PM cutoff last night
+      return true;
+    }
+    if (slot === 'EVENING') {
+      // Evening round closes at 3:00 PM (15:00) today
+      return currentHour >= 15;
+    }
+    return true;
+  }
+
+  // Tomorrow's delivery cutoff
+  const tomorrow = addDays(today, 1);
+  if (deliveryDate === tomorrow) {
+    if (slot === 'MORNING' || slot === 'BOTH') {
+      // Locks at 10:00 PM (22:00 IST) tonight
+      return currentHour >= 22;
+    }
+  }
+
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function assertDate(value) {
@@ -281,3 +317,4 @@ function assertMonth(value) {
 }
 
 export { assertDate, assertMonth };
+

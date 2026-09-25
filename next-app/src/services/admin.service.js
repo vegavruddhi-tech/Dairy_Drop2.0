@@ -3,7 +3,7 @@
  */
 
 import 'server-only';
-import { eq, sql, desc, inArray } from 'drizzle-orm';
+import { eq, and, gte, sql, desc, inArray } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import {
@@ -14,8 +14,9 @@ import {
   platformSettings,
   auditLog,
   users,
+  deliveries,
 } from '@/db/schema/index.js';
-import { businessMonth, monthStart } from '@/domain/dates.js';
+import { businessDate, businessMonth, monthStart } from '@/domain/dates.js';
 import { NotFoundError, ValidationError } from '@/domain/errors.js';
 
 import * as usersRepo from '@/repositories/users.repo.js';
@@ -188,6 +189,25 @@ export async function suspendMilkman(actor, { milkmanId, reason }) {
 
     if (!row) throw new NotFoundError('That milkman');
 
+    // 1. Cancel all future pending deliveries for this milkman
+    const today = businessDate();
+    await tx
+      .update(deliveries)
+      .set({
+        status: 'CANCELLED',
+        skipReason: 'MILKMAN_SUSPENDED',
+        note: `Dairy operations suspended by platform: ${reason}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(deliveries.milkmanId, milkmanId),
+          gte(deliveries.deliveryDate, today),
+          eq(deliveries.status, 'PENDING'),
+        ),
+      );
+
+    // 2. Notify the milkman
     await notificationsRepo.create(tx, {
       userId: milkmanId,
       type: 'APPROVAL',
@@ -196,11 +216,28 @@ export async function suspendMilkman(actor, { milkmanId, reason }) {
       href: '/milkman/activate',
     });
 
+    // 3. Notify all active customers of this milkman
+    const activeCustomers = await tx
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(and(eq(users.milkmanId, milkmanId), eq(users.role, 'CUSTOMER')));
+
+    for (const cust of activeCustomers) {
+      await notificationsRepo.create(tx, {
+        userId: cust.id,
+        type: 'DELIVERY',
+        title: 'Dairy Provider Service Paused',
+        body: 'Your dairy provider service is temporarily suspended. Deliveries are paused. You can switch to another milkman from your profile.',
+        href: '/profile',
+      });
+    }
+
+    // 4. Audit Log
     await auditService.record(tx, actor, {
       action: 'MILKMAN_SUSPENDED',
       subjectType: 'milkman_profile',
       subjectId: milkmanId,
-      metadata: { reason },
+      metadata: { reason, impactedCustomers: activeCustomers.length },
     });
 
     return row;
