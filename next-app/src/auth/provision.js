@@ -113,37 +113,33 @@ export async function upsertFromClerk({ clerkId, email, name, imageUrl, phone })
     if (name && name !== existing.name) changes.name = name;
     if (imageUrl && imageUrl !== existing.avatarUrl) changes.avatarUrl = imageUrl;
     if (phone && phone !== existing.phone) changes.phone = phone;
+    if (!existing.isActive) changes.isActive = true;
 
     if (Object.keys(changes).length > 0) {
       await db
         .update(users)
         .set({ ...changes, updatedAt: new Date() })
         .where(eq(users.id, existing.id));
-      return { ...existing, ...changes };
+      return { ...existing, ...changes, isActive: true };
     }
     return existing;
   }
 
-  // A row may already exist for this email — seeded, or created by an admin
-  // before the person ever signed in. Claim it rather than creating a duplicate.
+  // A row may already exist for this email — seeded, created by an admin,
+  // or re-created after an account was reset in Clerk dashboard.
   const [byEmail] = await db
-    .select({ id: users.id, clerkId: users.clerkId })
+    .select({ id: users.id, clerkId: users.clerkId, isActive: users.isActive })
     .from(users)
     .where(eq(users.email, cleanEmail))
     .limit(1);
 
   if (byEmail) {
-    if (byEmail.clerkId && byEmail.clerkId !== clerkId) {
-      // Two Clerk identities claiming one application account. Refuse rather
-      // than silently rebinding — this needs a human.
-      throw new Error(
-        `Account ${cleanEmail} is already linked to a different Clerk user.`,
-      );
-    }
+    // Rebind to the newly verified Clerk identity and ensure the account is active.
     await db
       .update(users)
       .set({
         clerkId,
+        isActive: true,
         name: name || undefined,
         avatarUrl: imageUrl || undefined,
         phone: phone || undefined,

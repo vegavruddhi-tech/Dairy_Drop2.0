@@ -46,12 +46,14 @@ function roleHint(sessionClaims) {
 export default clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl;
 
-  // The marketing root is not useful once you are signed in.
+  // The marketing root is not useful once you are signed in with a recognized role.
   if (pathname === '/') {
     const { userId, sessionClaims } = await auth();
     if (userId) {
-      const home = ROLE_HOME[roleHint(sessionClaims)] ?? '/dashboard';
-      return NextResponse.redirect(new URL(home, request.nextUrl.origin));
+      const hint = roleHint(sessionClaims);
+      if (hint && ROLE_HOME[hint]) {
+        return NextResponse.redirect(new URL(ROLE_HOME[hint], request.nextUrl.origin));
+      }
     }
   }
 

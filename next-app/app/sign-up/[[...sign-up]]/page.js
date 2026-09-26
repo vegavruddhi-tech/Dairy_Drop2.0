@@ -16,11 +16,13 @@ export default async function SignUpPage({ searchParams }) {
   const redirectTarget = params?.next || params?.redirect_url;
 
   if (userId) {
-    if (redirectTarget) {
-      redirect(redirectTarget);
-    }
     const actor = await getActor();
-    redirect(ROLE_HOME[actor?.role] ?? '/dashboard');
+    if (actor && actor.isActive) {
+      if (redirectTarget) {
+        redirect(redirectTarget);
+      }
+      redirect(ROLE_HOME[actor.role] ?? '/dashboard');
+    }
   }
 
   const target = redirectTarget || '/dashboard';

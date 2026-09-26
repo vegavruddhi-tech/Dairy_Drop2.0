@@ -16,11 +16,13 @@ export default async function SignInPage({ searchParams }) {
   const redirectTarget = params?.next || params?.redirect_url;
 
   if (userId) {
-    if (redirectTarget) {
-      redirect(redirectTarget);
-    }
     const actor = await getActor();
-    redirect(ROLE_HOME[actor?.role] ?? '/dashboard');
+    if (actor && actor.isActive) {
+      if (redirectTarget) {
+        redirect(redirectTarget);
+      }
+      redirect(ROLE_HOME[actor.role] ?? '/dashboard');
+    }
   }
 
   const target = redirectTarget || '/dashboard';
@@ -28,7 +30,7 @@ export default async function SignInPage({ searchParams }) {
 
   return (
     <div className="relative min-h-dvh bg-[#fafcff] text-slate-900 overflow-x-hidden flex flex-col">
-      <BackgroundParticles count={24} />
+      <BackgroundParticles count={20} />
       
       <PublicBar showBrand={true} />
 
