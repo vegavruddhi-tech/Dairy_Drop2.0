@@ -179,14 +179,14 @@ const resolveQuantityRequestAction = defineAction({
   authorize: paid,
   schema: V.resolveRequestSchema,
   handler: ({ actor, input }) => requestService.resolveQuantityRequest(actor, input),
-  revalidate: ['/milkman/requests'],
+  revalidate: ['/milkman/requests', '/milkman/round', '/dashboard', '/calendar'],
 });
 
 const resolvePlanChangeRequestAction = defineAction({
   authorize: paid,
   schema: V.resolveRequestSchema,
   handler: ({ actor, input }) => requestService.resolvePlanChangeRequest(actor, input),
-  revalidate: ['/milkman/requests'],
+  revalidate: ['/milkman/requests', '/milkman/round', '/dashboard', '/calendar', '/subscriptions'],
 });
 
 // ── Payments ─────────────────────────────────────────────────────────────────

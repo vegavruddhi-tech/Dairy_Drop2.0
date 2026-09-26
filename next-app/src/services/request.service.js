@@ -9,7 +9,7 @@
 import 'server-only';
 
 import { db, transaction } from '@/db/index.js';
-import { businessDate, businessMonth, formatDate } from '@/domain/dates.js';
+import { businessDate, businessMonth, formatDate, isPastDeliveryCutoff } from '@/domain/dates.js';
 import { toMilli, milliToDecimal } from '@/domain/money.js';
 import { quotedMonthlyPaise } from '@/domain/pricing.js';
 import { paiseToDecimal } from '@/domain/money.js';
@@ -33,26 +33,69 @@ export async function requestQuantityChange(actor, { deliveryId, quantity, note 
     throw new ConflictError('That day can no longer be changed.');
   }
 
+  // Enforce cutoff time
+  if (isPastDeliveryCutoff(delivery.deliveryDate, delivery.slot)) {
+    throw new ConflictError(
+      `Modifications for ${delivery.deliveryDate} (${delivery.slot.toLowerCase()} round) are closed after cutoff time (10:00 PM). Please contact your milkman directly.`,
+    );
+  }
+
   const milli = toMilli(quantity);
   if (milli <= 0) throw new ValidationError('Enter a quantity greater than zero.');
+  if (milli > 100_000) throw new ValidationError('That quantity is too large.');
+
+  const plannedMilli = toMilli(delivery.plannedQuantity);
 
   return transaction(async (tx) => {
-    const request = await requestsRepo.createQuantityRequest(tx, {
-      customerId: actor.userId,
-      milkmanId: delivery.milkmanId,
-      deliveryId,
-      deliveryDate: delivery.deliveryDate,
-      currentQuantity: delivery.adjustedQuantity ?? delivery.plannedQuantity,
-      requestedQuantity: milliToDecimal(milli),
-      customerNote: note ?? null,
-      status: 'PENDING',
-    });
+    // If setting back to standard plan
+    if (milli === plannedMilli) {
+      await requestsRepo.cancelPendingQuantityRequestsForDelivery(tx, actor, deliveryId);
+      const updated = await deliveriesRepo.setAdjustedQuantity(tx, actor, {
+        id: deliveryId,
+        quantity: null,
+        note: null,
+      });
+
+      await notificationsRepo.create(tx, {
+        userId: delivery.milkmanId,
+        type: 'QUANTITY_CHANGE',
+        title: 'Back to the usual amount',
+        body: `${actor.name} is back to ${Number(delivery.plannedQuantity)} ${delivery.unit} for ${delivery.deliveryDate}.`,
+        href: '/milkman/requests',
+        subjectType: 'delivery',
+        subjectId: delivery.id,
+      });
+
+      return { ...updated, status: 'RESET' };
+    }
+
+    // Check if there is already a pending request for this delivery
+    const existing = await requestsRepo.findPendingForDelivery(tx, actor, deliveryId);
+    let request;
+    if (existing) {
+      request = await requestsRepo.updatePendingQuantityRequest(tx, actor, {
+        id: existing.id,
+        requestedQuantity: milliToDecimal(milli),
+        customerNote: note ?? null,
+      });
+    } else {
+      request = await requestsRepo.createQuantityRequest(tx, {
+        customerId: actor.userId,
+        milkmanId: delivery.milkmanId,
+        deliveryId,
+        deliveryDate: delivery.deliveryDate,
+        currentQuantity: delivery.adjustedQuantity ?? delivery.plannedQuantity,
+        requestedQuantity: milliToDecimal(milli),
+        customerNote: note ?? null,
+        status: 'PENDING',
+      });
+    }
 
     await notificationsRepo.create(tx, {
       userId: delivery.milkmanId,
       type: 'QUANTITY_CHANGE',
       title: 'Quantity change requested',
-      body: `${actor.name} would like ${Number(quantity)} ${delivery.unit} on ${formatDate(delivery.deliveryDate)}.`,
+      body: `${actor.name} requested ${Number(quantity)} ${delivery.unit} on ${formatDate(delivery.deliveryDate)} (usually ${Number(delivery.plannedQuantity)}).`,
       href: '/milkman/requests',
       subjectType: 'quantity_change_request',
       subjectId: request.id,

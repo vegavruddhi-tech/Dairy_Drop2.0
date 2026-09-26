@@ -67,14 +67,13 @@ const resumeDayAction = defineAction({
 /**
  * Change one day's quantity.
  *
- * Applies immediately and writes only that delivery row — a one-day change is a
- * one-day change. The milkman is told, not asked.
+ * Sends a request to the milkman's inbox for approval (or resets back to usual plan).
  */
 const adjustQuantityAction = defineAction({
   authorize: requireCustomer,
   schema: V.adjustQuantitySchema,
-  handler: ({ actor, input }) => deliveryService.adjustQuantity(actor, input),
-  revalidate: ['/dashboard', '/calendar'],
+  handler: ({ actor, input }) => requestService.requestQuantityChange(actor, input),
+  revalidate: ['/dashboard', '/calendar', '/milkman/requests', '/milkman/round'],
 });
 
 const setVacationAction = defineAction({

@@ -183,7 +183,9 @@ export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false }
                 quantity: data.get('quantity'),
                 note: data.get('note') || undefined,
               },
-              isHi ? 'आज के लिए मात्रा अपडेट हो गई।' : 'Quantity updated for today.',
+              isHi
+                ? 'मात्रा बदलाव का अनुरोध आपके दूधवाले को भेज दिया गया है।'
+                : 'Quantity change request sent to your milkman for approval.',
             );
           }}
           className="space-y-4"

@@ -82,6 +82,57 @@ export async function findQuantityRequest(actor, id) {
   return row ?? null;
 }
 
+export async function findPendingForDelivery(txOrDb, actor, deliveryId) {
+  const runner = txOrDb ?? db;
+  const [row] = await runner
+    .select()
+    .from(quantityChangeRequests)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_ADJUST_QUANTITY, columns: qcrScope },
+        eq(quantityChangeRequests.deliveryId, deliveryId),
+        eq(quantityChangeRequests.status, 'PENDING'),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+export async function updatePendingQuantityRequest(tx, actor, { id, requestedQuantity, customerNote }) {
+  const [row] = await tx
+    .update(quantityChangeRequests)
+    .set({
+      requestedQuantity,
+      customerNote: customerNote ?? null,
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_ADJUST_QUANTITY, columns: qcrScope },
+        eq(quantityChangeRequests.id, id),
+        eq(quantityChangeRequests.status, 'PENDING'),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+export async function cancelPendingQuantityRequestsForDelivery(tx, actor, deliveryId) {
+  return tx
+    .update(quantityChangeRequests)
+    .set({
+      status: 'CANCELLED',
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.DELIVERY_ADJUST_QUANTITY, columns: qcrScope },
+        eq(quantityChangeRequests.deliveryId, deliveryId),
+        eq(quantityChangeRequests.status, 'PENDING'),
+      ),
+    );
+}
+
 export async function resolveQuantityRequest(tx, actor, { id, status, milkmanNote }) {
   const [row] = await tx
     .update(quantityChangeRequests)

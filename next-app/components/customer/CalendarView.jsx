@@ -716,7 +716,9 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               handleAction(
                 adjustQuantity,
                 { deliveryId: modalAction.delivery.id, quantity: Number(qty) },
-                isHi ? `मात्रा ${qty} ${modalAction.delivery.unit} अपडेट हो गई।` : `Quantity updated to ${qty} ${modalAction.delivery.unit}.`,
+                isHi
+                  ? `मात्रा बदलाव (${qty} ${modalAction.delivery.unit}) का अनुरोध दूधवाले को भेजा गया।`
+                  : `Quantity change request (${qty} ${modalAction.delivery.unit}) sent to milkman for approval.`,
               );
             }}
           >
