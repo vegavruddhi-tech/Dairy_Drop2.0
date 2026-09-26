@@ -47,9 +47,9 @@ export function PwaInstallPrompt() {
               {/* App Icon */}
               <div className="relative shrink-0">
                 <img
-                  src="/image.png"
+                  src="/icon-512.png"
                   alt="DairyDrop"
-                  className="h-11 w-11 rounded-2xl object-contain shadow-md shadow-blue-500/20"
+                  className="h-11 w-11 rounded-2xl object-contain bg-white p-0.5 shadow-md shadow-blue-500/20"
                 />
                 <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[9px] font-black text-white shadow-xs">
                   {isIos ? <AppleIcon className="h-2.5 w-2.5" /> : isAndroid ? <AndroidIcon className="h-2.5 w-2.5" /> : '↓'}

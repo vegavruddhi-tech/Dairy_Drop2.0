@@ -21,8 +21,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'DairyDrop Alert';
   const options = {
     body: data.body || 'You have an update on DairyDrop.',
-    icon: data.icon || '/image.png',
-    badge: data.badge || '/image.png',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
     tag: data.tag || 'dairydrop-general',
     renotify: true,
     vibrate: [100, 50, 100],

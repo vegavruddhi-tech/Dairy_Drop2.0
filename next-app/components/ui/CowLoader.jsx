@@ -86,7 +86,7 @@ export function CowLoader({
           )}
         >
           <Image
-            src="/image.png"
+            src="/icon-512.png"
             alt="DairyDrop Logo"
             width={s.logoSize}
             height={s.logoSize}

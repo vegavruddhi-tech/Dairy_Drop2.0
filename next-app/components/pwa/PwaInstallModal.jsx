@@ -66,9 +66,9 @@ export function PwaInstallModal({
         {/* Brand Header */}
         <div className="flex items-center gap-3 mb-4">
           <img
-            src="/image.png"
+            src="/icon-512.png"
             alt="DairyDrop"
-            className="h-11 w-11 rounded-2xl object-contain shadow-md shadow-blue-500/20"
+            className="h-11 w-11 rounded-2xl object-contain bg-white p-0.5 shadow-md shadow-blue-500/20"
           />
           <div>
             <div className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">

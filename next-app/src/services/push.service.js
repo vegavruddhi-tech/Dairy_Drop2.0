@@ -116,8 +116,8 @@ export async function sendPushNotification(userId, payload) {
   const pushPayload = JSON.stringify({
     title: payload.title || 'DairyDrop',
     body: payload.body || '',
-    icon: '/image.png',
-    badge: '/image.png',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     href: payload.href || '/',
     tag: payload.tag || 'dairydrop-alert',
     timestamp: Date.now(),

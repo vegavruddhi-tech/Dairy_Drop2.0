@@ -18,10 +18,10 @@ export default function manifest() {
     theme_color: '#2563eb',
     categories: ['food', 'shopping', 'business'],
     icons: [
-      { src: '/image.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/image.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/image.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-      { src: '/image.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
 }

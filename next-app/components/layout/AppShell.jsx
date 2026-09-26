@@ -44,9 +44,9 @@ export function AppShell({ nav, more = [], user, title, badge, children }) {
         <div className="flex h-16 items-center gap-2.5 border-b border-slate-200/80 px-5">
           <Link href="/" className="flex items-center gap-2.5 group">
             <img
-              src="/image.png"
+              src="/icon-512.png"
               alt="DairyDrop"
-              className="h-8 w-8 rounded-xl object-contain shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105"
+              className="h-8 w-8 rounded-xl object-contain bg-white p-0.5 shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105"
             />
             <div className="flex flex-col">
               <span className="font-heading text-base font-extrabold tracking-tight text-slate-950">

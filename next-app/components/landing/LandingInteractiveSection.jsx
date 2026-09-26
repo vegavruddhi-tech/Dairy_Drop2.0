@@ -131,7 +131,7 @@ export function LandingInteractiveSection() {
           <h2 className="font-heading text-3xl font-black text-slate-950 sm:text-4xl">
             {isHi ? 'पारंपरिक दूधवाला बनाम DairyDrop' : 'Traditional Milkman vs DairyDrop'}
           </h2>
-          <p className="text-sm sm:text-base text-slate-600">
+          <p className="text-sm sm:text-base text-slate-600 font-medium">
             {isHi
               ? 'जानिए क्यों हज़ारों परिवार और स्थानीय दूध विक्रेता DairyDrop पर भरोसा करते हैं।'
               : 'See why thousands of households and local dairies have switched to DairyDrop.'}
@@ -143,38 +143,44 @@ export function LandingInteractiveSection() {
           <span>{isHi ? 'तुलना देखने के लिए स्वाइप करें →' : 'Swipe table horizontally →'}</span>
         </div>
 
-        <div className="overflow-x-auto rounded-3xl border border-slate-200/90 bg-white shadow-lg shadow-slate-200/50 -mx-1 sm:mx-0">
-          <div className="min-w-[620px]">
-            <div className="grid grid-cols-12 bg-slate-50/80 border-b border-slate-200 p-4 sm:p-5 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <div className="col-span-4 text-slate-700">
-                {isHi ? 'सुविधा' : 'Service Feature'}
+        <div className="overflow-x-auto rounded-3xl border border-slate-200/90 bg-white shadow-xl shadow-slate-200/40 -mx-1 sm:mx-0">
+          <div className="min-w-[640px]">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 bg-slate-50/90 border-b border-slate-200 p-4 sm:p-5 text-xs font-black uppercase tracking-wider text-slate-500">
+              <div className="col-span-4 text-slate-800 flex items-center gap-1.5">
+                <span>{isHi ? 'सुविधा' : 'Service Feature'}</span>
               </div>
               <div className="col-span-4 text-slate-500">
                 {isHi ? 'पारंपरिक तरीका' : 'Traditional Milkman'}
               </div>
-              <div className="col-span-4 font-extrabold text-blue-600 flex items-center gap-1.5">
+              <div className="col-span-4 font-black text-blue-600 flex items-center justify-between">
                 <span>{isHi ? 'DairyDrop प्लेटफॉर्म' : 'DairyDrop Platform'}</span>
-                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] text-blue-700 uppercase">
+                <span className="rounded-full bg-blue-100/90 px-2.5 py-0.5 text-[10px] font-black text-blue-700 border border-blue-200 uppercase tracking-wider">
                   {isHi ? 'सत्यापित' : 'Verified'}
                 </span>
               </div>
             </div>
 
+            {/* Table Rows */}
             <div className="divide-y divide-slate-100 text-xs sm:text-sm">
               {comparisonRows.map((row, idx) => (
                 <div
                   key={idx}
-                  className="grid grid-cols-12 p-4 sm:p-5 items-center hover:bg-slate-50/60 transition-colors"
+                  className="grid grid-cols-12 p-4 sm:p-5 items-center hover:bg-slate-50/50 transition-colors"
                 >
-                  <div className="col-span-4 font-bold text-slate-900 pr-2">
+                  <div className="col-span-4 font-bold text-slate-900 pr-3">
                     {row.feature}
                   </div>
-                  <div className="col-span-4 text-slate-600 flex items-start gap-2 pr-3">
-                    <span className="text-red-500 font-bold shrink-0 mt-0.5">✕</span>
-                    <span className="leading-snug">{row.oldWay}</span>
+                  <div className="col-span-4 text-slate-500 flex items-start gap-2.5 pr-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-500 font-bold text-xs">
+                      ✕
+                    </span>
+                    <span className="leading-snug font-medium">{row.oldWay}</span>
                   </div>
-                  <div className="col-span-4 font-bold text-blue-700 flex items-start gap-2 bg-blue-50/60 -my-2.5 py-2.5 px-3 rounded-2xl border border-blue-100/60">
-                    <span className="text-blue-600 font-bold shrink-0 mt-0.5">✓</span>
+                  <div className="col-span-4 font-bold text-blue-800 flex items-start gap-2.5 bg-blue-50/70 -my-2.5 py-2.5 px-3.5 rounded-2xl border border-blue-100/80 shadow-xs">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-xs shadow-xs">
+                      ✓
+                    </span>
                     <span className="leading-snug">{row.newWay}</span>
                   </div>
                 </div>
@@ -195,39 +201,50 @@ export function LandingInteractiveSection() {
           </h2>
         </div>
 
-        <div className="space-y-3">
-          {faqItems.map((item, idx) => (
-            <div
-              key={idx}
-              className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all"
-            >
-              <button
-                type="button"
-                onClick={() => setOpenFaq(openFaq === idx ? -1 : idx)}
-                className="flex w-full items-center justify-between p-5 text-left font-heading text-sm sm:text-base font-bold text-slate-900 hover:text-blue-600 transition-colors"
+        <div className="space-y-3.5">
+          {faqItems.map((item, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <div
+                key={idx}
+                className={`rounded-2xl border transition-all duration-200 bg-white overflow-hidden shadow-xs ${
+                  isOpen
+                    ? 'border-blue-300 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/10'
+                    : 'border-slate-200/90 hover:border-slate-300'
+                }`}
               >
-                <span>{item.q}</span>
-                <span
-                  className={`ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-transform ${
-                    openFaq === idx ? 'rotate-180 bg-blue-600 text-white' : ''
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? -1 : idx)}
+                  className={`flex w-full items-center justify-between p-5 text-left font-heading text-sm sm:text-base font-bold transition-colors ${
+                    isOpen ? 'text-blue-600' : 'text-slate-900 hover:text-blue-600'
                   }`}
                 >
-                  <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </span>
-              </button>
-              {openFaq === idx && (
-                <div className="border-t border-slate-100 px-5 pb-5 pt-3 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal bg-slate-50/50">
-                  {item.a}
-                </div>
-              )}
-            </div>
-          ))}
+                  <span className="pr-4 leading-snug">{item.q}</span>
+                  <span
+                    className={`ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-transform duration-300 ${
+                      isOpen
+                        ? 'rotate-180 bg-blue-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="border-t border-blue-50 px-5 pb-5 pt-3.5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal bg-blue-50/20">
+                    {item.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>

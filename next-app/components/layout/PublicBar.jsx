@@ -20,9 +20,9 @@ export function PublicBar({ showBrand = true }) {
         {showBrand ? (
           <Link href="/" className="flex items-center gap-2.5 group">
             <img
-              src="/image.png"
+              src="/icon-512.png"
               alt="DairyDrop"
-              className="h-9 w-9 rounded-xl object-contain shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105 group-active:scale-95"
+              className="h-9 w-9 rounded-xl object-contain bg-white p-0.5 shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105 group-active:scale-95"
             />
             <div className="flex flex-col">
               <span className="font-heading text-lg font-extrabold tracking-tight text-slate-950">
