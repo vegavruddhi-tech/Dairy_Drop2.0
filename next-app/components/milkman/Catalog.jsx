@@ -356,6 +356,7 @@ export function ProductList({ products }) {
         slots={unitOptions}
         selectedSlot={selectedUnit}
         onSlotChange={setSelectedUnit}
+        allSlotsLabel={isHi ? 'सभी इकाइयाँ (All Units)' : 'All Units'}
         statusTabs={statusTabs}
         selectedStatus={statusTab}
         onStatusChange={setStatusTab}

@@ -24,22 +24,28 @@ export function OrdersListWithFilters({ pending = [], accepted = [], history = [
     ];
   }, [pending, accepted, history]);
 
-  // Extract distinct areas
+  // Extract distinct areas with live counts
   const areas = useMemo(() => {
-    const set = new Set();
+    const counts = {};
     allOrders.forEach((o) => {
-      const area = (o.customerArea || '').trim();
-      if (area) {
-        set.add(area);
-      } else if (o.deliveryAddress) {
-        // Fallback: extract last or second-to-last comma segment of deliveryAddress
+      let area = (o.customerArea || '').trim();
+      if (!area && o.deliveryAddress) {
         const parts = o.deliveryAddress.split(',').map((p) => p.trim()).filter(Boolean);
         if (parts.length > 1) {
-          set.add(parts[parts.length - 2] || parts[parts.length - 1]);
+          area = parts[parts.length - 2] || parts[parts.length - 1];
+        } else if (parts.length === 1) {
+          area = parts[0];
         }
       }
+      if (area) {
+        counts[area] = (counts[area] || 0) + 1;
+      }
     });
-    return Array.from(set).sort();
+    return Object.entries(counts).map(([name, count]) => ({
+      value: name,
+      label: name,
+      count,
+    }));
   }, [allOrders]);
 
   // Filter orders based on search, area, and statusTab

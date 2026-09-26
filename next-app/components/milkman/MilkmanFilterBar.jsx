@@ -1,6 +1,7 @@
 'use client';
 
-import { SearchIcon, MapPinIcon, CloseIcon, FilterIcon } from '@/components/ui/Icons.jsx';
+import { useMemo } from 'react';
+import { SearchIcon, MapPinIcon, CloseIcon, ChevronDownIcon } from '@/components/ui/Icons.jsx';
 import { cn } from '@/components/ui/index.jsx';
 
 /**
@@ -15,15 +16,18 @@ export function MilkmanFilterBar({
   areas = [],
   selectedArea = 'ALL',
   onAreaChange,
+  allAreasLabel,
   statusTabs = [],
   selectedStatus,
   onStatusChange,
   slots = [],
   selectedSlot,
   onSlotChange,
+  allSlotsLabel,
   totalCount = 0,
   filteredCount = 0,
   onReset,
+  isHi = false,
   className,
 }) {
   const isFiltered =
@@ -32,26 +36,55 @@ export function MilkmanFilterBar({
     (selectedSlot && selectedSlot !== 'ALL') ||
     (selectedStatus && selectedStatus !== 'ALL');
 
+  // Safely normalize areas whether passed as strings or { value, label, count } objects
+  const normalizedAreas = useMemo(() => {
+    return (areas || [])
+      .map((a) => {
+        if (typeof a === 'string') return { value: a, label: a, count: null };
+        return {
+          value: a.value ?? a.id ?? a.name ?? '',
+          label: a.label ?? a.name ?? a.value ?? '',
+          count: a.count ?? null,
+        };
+      })
+      .filter((a) => Boolean(a.value));
+  }, [areas]);
+
+  // Safely normalize slots/units whether passed as strings or objects
+  const normalizedSlots = useMemo(() => {
+    return (slots || [])
+      .map((s) => {
+        if (typeof s === 'string') return { value: s, label: s, count: null };
+        return {
+          value: s.value ?? s.id ?? s.name ?? '',
+          label: s.label ?? s.name ?? s.value ?? '',
+          count: s.count ?? null,
+        };
+      })
+      .filter((s) => Boolean(s.value));
+  }, [slots]);
+
   return (
     <div className={cn('space-y-3 rounded-2xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-2xs mb-5', className)}>
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         {/* ── Search Input ── */}
         <div className="relative flex-1 min-w-0">
-          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
             <SearchIcon className="h-4 w-4" />
-          </span>
+          </div>
           <input
             type="text"
             value={search}
             onChange={(e) => onSearchChange?.(e.target.value)}
             placeholder={searchPlaceholder}
-            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9.5 pr-8 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 transition-all"
+            style={{ paddingLeft: '2.75rem', paddingRight: search ? '2.5rem' : '1rem' }}
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 transition-all shadow-2xs"
           />
           {search ? (
             <button
               type="button"
               onClick={() => onSearchChange?.('')}
-              className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-700"
+              className="tap absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-700 active:scale-95"
               aria-label="Clear search"
             >
               <CloseIcon className="h-4 w-4" />
@@ -60,47 +93,53 @@ export function MilkmanFilterBar({
         </div>
 
         {/* ── Area Dropdown Filter ── */}
-        {areas && areas.length > 0 && onAreaChange ? (
-          <div className="relative shrink-0 sm:w-56">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+        {normalizedAreas.length > 0 && onAreaChange ? (
+          <div className="relative shrink-0 w-full sm:w-60">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-blue-600">
               <MapPinIcon className="h-4 w-4" />
-            </span>
+            </div>
             <select
               value={selectedArea}
               onChange={(e) => onAreaChange(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-7 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 transition-all appearance-none cursor-pointer"
+              style={{ paddingLeft: '2.5rem', paddingRight: '2.25rem' }}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 transition-all appearance-none cursor-pointer shadow-2xs"
             >
-              <option value="ALL">All Areas / Sectors</option>
-              {areas.map((a) => (
-                <option key={a.value} value={a.value}>
+              <option value="ALL" className="bg-white text-slate-900 font-semibold py-1">
+                {allAreasLabel || (isHi ? 'सभी क्षेत्र / सेक्टर' : 'All Areas / Sectors')}
+              </option>
+              {normalizedAreas.map((a) => (
+                <option key={a.value} value={a.value} className="bg-white text-slate-900 font-medium py-1">
                   {a.label} {a.count != null ? `(${a.count})` : ''}
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 text-xs">
-              ▼
-            </span>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+              <ChevronDownIcon className="h-4 w-4" />
+            </div>
           </div>
         ) : null}
 
-        {/* ── Slot Dropdown (if passed) ── */}
-        {slots && slots.length > 0 && onSlotChange ? (
-          <div className="relative shrink-0 sm:w-44">
+        {/* ── Slot / Unit Dropdown (if passed) ── */}
+        {normalizedSlots.length > 0 && onSlotChange ? (
+          <div className="relative shrink-0 w-full sm:w-48">
             <select
               value={selectedSlot}
               onChange={(e) => onSlotChange(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 transition-all appearance-none cursor-pointer"
+              style={{ paddingLeft: '1rem', paddingRight: '2.25rem' }}
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50/70 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/10 transition-all appearance-none cursor-pointer shadow-2xs"
             >
-              <option value="ALL">All Slots</option>
-              {slots.map((s) => (
-                <option key={s.value} value={s.value}>
+              <option value="ALL" className="bg-white text-slate-900 font-semibold py-1">
+                {allSlotsLabel || (isHi ? 'सभी विकल्प' : 'All Slots')}
+              </option>
+              {normalizedSlots.map((s) => (
+                <option key={s.value} value={s.value} className="bg-white text-slate-900 font-medium py-1">
                   {s.label} {s.count != null ? `(${s.count})` : ''}
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 text-xs">
-              ▼
-            </span>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+              <ChevronDownIcon className="h-4 w-4" />
+            </div>
           </div>
         ) : null}
       </div>
@@ -143,7 +182,15 @@ export function MilkmanFilterBar({
         {/* ── Results Info & Reset ── */}
         <div className="flex items-center gap-2 ml-auto text-xs">
           <span className="font-semibold text-slate-500">
-            Showing <strong className="text-slate-900">{filteredCount}</strong> of {totalCount}
+            {isHi ? (
+              <>
+                दिखा रहे हैं: <strong className="text-slate-900">{filteredCount}</strong> / {totalCount}
+              </>
+            ) : (
+              <>
+                Showing <strong className="text-slate-900">{filteredCount}</strong> of {totalCount}
+              </>
+            )}
           </span>
           {isFiltered && onReset ? (
             <button
@@ -151,7 +198,7 @@ export function MilkmanFilterBar({
               onClick={onReset}
               className="tap inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 hover:underline active:scale-95"
             >
-              <span>Reset</span>
+              <span>{isHi ? 'रीसेट करें' : 'Reset'}</span>
             </button>
           ) : null}
         </div>

@@ -604,6 +604,7 @@ export function CustomersListWithFilters({
         totalCount={customers.length}
         filteredCount={filtered.length}
         onReset={handleReset}
+        isHi={isHi}
       />
 
       {filtered.length === 0 ? (

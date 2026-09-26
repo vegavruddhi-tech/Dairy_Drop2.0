@@ -512,6 +512,7 @@ export function PlansViewWithFilters({ plans = [], subscriberCounts = {} }) {
         slots={slotOptions}
         selectedSlot={selectedSlot}
         onSlotChange={setSelectedSlot}
+        allSlotsLabel={isHi ? 'सभी स्लॉट (All Slots)' : 'All Slots'}
         statusTabs={statusTabs}
         selectedStatus={statusTab}
         onStatusChange={setStatusTab}

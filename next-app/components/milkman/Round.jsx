@@ -743,6 +743,7 @@ export function RoundView({ stops = [], summary = {}, date, isHi = false }) {
         totalCount={stops.length}
         filteredCount={filteredStops.length}
         onReset={handleReset}
+        isHi={isHi}
       />
 
       {/* ── Stops Display ── */}
