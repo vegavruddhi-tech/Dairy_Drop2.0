@@ -536,6 +536,21 @@ export async function cancelFrom(tx, { subscriptionRootId, fromDate }) {
     .returning({ id: deliveries.id });
 }
 
+/** Restore future cancelled deliveries when a paused subscription is resumed. */
+export async function restoreCancelledFrom(tx, { subscriptionRootId, fromDate }) {
+  return tx
+    .update(deliveries)
+    .set({ status: 'PENDING', updatedAt: new Date() })
+    .where(
+      and(
+        eq(deliveries.subscriptionRootId, subscriptionRootId),
+        gte(deliveries.deliveryDate, fromDate),
+        eq(deliveries.status, 'CANCELLED'),
+      ),
+    )
+    .returning({ id: deliveries.id });
+}
+
 /** Dates in a range that already have a row — used by the generator to skip work. */
 export async function existingDates(tx, { subscriptionRootIds, from, to }) {
   if (subscriptionRootIds.length === 0) return new Set();

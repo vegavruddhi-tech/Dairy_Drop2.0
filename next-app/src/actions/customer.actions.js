@@ -24,28 +24,28 @@ const subscribeAction = defineAction({
   authorize: requireCustomer,
   schema: V.subscribeSchema,
   handler: ({ actor, input }) => subscriptionService.subscribe(actor, input),
-  revalidate: ['/subscriptions', '/dashboard', '/pending', '/milkman/customers'],
+  revalidate: ['/subscriptions', '/dashboard', '/calendar', '/pending', '/milkman/customers'],
 });
 
 const pauseSubscriptionAction = defineAction({
   authorize: requireCustomer,
   schema: V.subscriptionActionSchema,
   handler: ({ actor, input }) => subscriptionService.pause(actor, input),
-  revalidate: ['/subscriptions', '/dashboard'],
+  revalidate: ['/subscriptions', '/dashboard', '/calendar'],
 });
 
 const resumeSubscriptionAction = defineAction({
   authorize: requireCustomer,
   schema: V.subscriptionActionSchema,
   handler: ({ actor, input }) => subscriptionService.resume(actor, input),
-  revalidate: ['/subscriptions', '/dashboard'],
+  revalidate: ['/subscriptions', '/dashboard', '/calendar'],
 });
 
 const cancelSubscriptionAction = defineAction({
   authorize: requireCustomer,
   schema: V.subscriptionActionSchema,
   handler: ({ actor, input }) => subscriptionService.cancel(actor, input),
-  revalidate: ['/subscriptions', '/dashboard'],
+  revalidate: ['/subscriptions', '/dashboard', '/calendar'],
 });
 
 // ── Deliveries ───────────────────────────────────────────────────────────────

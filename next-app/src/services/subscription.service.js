@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import { milkSubscriptions, users } from '@/db/schema/index.js';
-import { businessDate, businessMonth, addDays } from '@/domain/dates.js';
+import { businessDate, businessMonth, addDays, monthEnd, monthOf } from '@/domain/dates.js';
 import {
   resolveUnitPrice,
   quotedMonthlyPaise,
@@ -195,8 +195,9 @@ export async function subscribe(actor, { planId, startDate, slot }) {
 
   if (!res.requiresApproval) {
     try {
-      const { generateForDate } = await import('./delivery.service.js');
-      await generateForDate(effectiveFrom);
+      const { generateForRange } = await import('./delivery.service.js');
+      const endOfMonth = monthEnd(monthOf(effectiveFrom));
+      await generateForRange(effectiveFrom, endOfMonth);
     } catch (err) {
       console.error('Error generating deliveries on subscribe:', err);
     }
@@ -236,17 +237,26 @@ export async function pause(actor, { rootId }) {
   });
 }
 
-/** Resume a paused subscription. The generator picks it up from tomorrow. */
+/** Resume a paused subscription. Deliveries from tomorrow are restored and generated. */
 export async function resume(actor, { rootId }) {
   const current = await subscriptionsRepo.findCurrentByRoot(actor, rootId);
   if (!current) throw new NotFoundError('That subscription');
   if (current.status !== 'PAUSED') throw new ConflictError('That subscription is not paused.');
 
-  return transaction(async (tx) => {
+  const today = businessDate();
+  const tomorrow = addDays(today, 1);
+
+  const res = await transaction(async (tx) => {
     const updated = await subscriptionsRepo.setStatus(tx, actor, {
       rootId,
       status: 'ACTIVE',
       patch: { pausedAt: null },
+    });
+
+    // Restore any scheduled days that were cancelled when pausing
+    await deliveriesRepo.restoreCancelledFrom(tx, {
+      subscriptionRootId: rootId,
+      fromDate: tomorrow,
     });
 
     await notificationsRepo.create(tx, {
@@ -259,6 +269,19 @@ export async function resume(actor, { rootId }) {
 
     return updated;
   });
+
+  // Ensure deliveries for the rest of the current month are generated if missing
+  try {
+    const { generateForRange } = await import('./delivery.service.js');
+    const endOfMonth = monthEnd(monthOf(today));
+    if (tomorrow <= endOfMonth) {
+      await generateForRange(tomorrow, endOfMonth);
+    }
+  } catch (err) {
+    console.error('Error generating deliveries on resume:', err);
+  }
+
+  return res;
 }
 
 /** Cancel for good. History is kept; the version is closed. */

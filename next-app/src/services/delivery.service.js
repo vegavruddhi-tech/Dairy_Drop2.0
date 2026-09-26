@@ -6,7 +6,7 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 
 import { db, transaction } from '@/db/index.js';
-import { businessDate, addDays, datesBetween, nextMonthStart, monthStart, isPastDeliveryCutoff } from '@/domain/dates.js';
+import { businessDate, businessMonth, addDays, datesBetween, nextMonthStart, monthStart, monthEnd, isPastDeliveryCutoff } from '@/domain/dates.js';
 import { isDeliveryDay, deliveriesPerDay } from '@/domain/pricing.js';
 import { milliToDecimal, toMilli } from '@/domain/money.js';
 import { NotFoundError, ValidationError, ConflictError } from '@/domain/errors.js';
@@ -653,6 +653,15 @@ export async function resumeDay(actor, { deliveryId }) {
 
 /** A customer's month, for the calendar screen. */
 export async function getMonth(actor, { customerId, month }) {
+  if (month === businessMonth()) {
+    try {
+      const today = businessDate();
+      const endOfMonth = monthEnd(month);
+      await generateForRange(today, endOfMonth);
+    } catch (err) {
+      // Best effort generation
+    }
+  }
   return deliveriesRepo.listForMonth(actor, {
     customerId: customerId ?? actor.userId,
     month,
