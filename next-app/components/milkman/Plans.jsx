@@ -78,7 +78,7 @@ export function PlanEditor({ plan, trigger }) {
   const [selectedMilkType, setSelectedMilkType] = useState('cow_milk');
   const [selectedQtyPreset, setSelectedQtyPreset] = useState('1');
 
-  const [basis, setBasis] = useState(plan?.monthlyPrice ? 'MONTHLY' : 'PER_DELIVERY');
+  const [basis, setBasis] = useState(plan?.monthlyPrice ? 'MONTHLY' : 'PER_UNIT');
   const [slot, setSlot] = useState(plan?.slot ?? 'MORNING');
   const [frequency, setFrequency] = useState(plan?.frequency ?? 'DAILY');
   const [name, setName] = useState(plan?.name ?? '1L Pure Cow Milk Daily');
@@ -87,7 +87,15 @@ export function PlanEditor({ plan, trigger }) {
     plan?.quantity ? String(Number(plan.quantity)) : '1',
   );
   const [price, setPrice] = useState(
-    plan ? String(Number(plan.monthlyPrice ?? plan.pricePerDelivery)) : '64.00',
+    plan
+      ? plan.monthlyPrice
+        ? String(Number(plan.monthlyPrice))
+        : String(
+            (
+              Number(plan.pricePerDelivery) / (Number(plan.quantity) || 1)
+            ).toFixed(2),
+          )
+      : '64.00',
   );
   const [unit, setUnit] = useState(plan?.unit ?? 'L');
   const [description, setDescription] = useState(
@@ -104,7 +112,12 @@ export function PlanEditor({ plan, trigger }) {
     setQuantity(defaults.quantity);
     setUnit(defaults.unit);
     setDescription(defaults.description);
-    setPrice(basis === 'MONTHLY' ? defaults.monthlyPrice : defaults.pricePerDelivery);
+    const milkType = MILK_TYPES.find((m) => m.id === milkTypeId) || MILK_TYPES[0];
+    setPrice(
+      basis === 'MONTHLY'
+        ? defaults.monthlyPrice
+        : String(Number(milkType.defaultPricePerLitre).toFixed(2)),
+    );
   }
 
   function handleMilkTypeChange(val) {
@@ -380,15 +393,25 @@ export function PlanEditor({ plan, trigger }) {
             name="pricingBasis"
             label={isHi ? 'मूल्य निर्धारण का आधार' : 'How do you price it?'}
             value={basis}
-            onChange={(event) => setBasis(event.target.value)}
+            onChange={(event) => {
+              const nextBasis = event.target.value;
+              setBasis(nextBasis);
+              const milkType = MILK_TYPES.find((m) => m.id === selectedMilkType) || MILK_TYPES[0];
+              const defaults = generatePlanDefaults(selectedMilkType, quantity, frequency);
+              setPrice(
+                nextBasis === 'MONTHLY'
+                  ? defaults.monthlyPrice
+                  : String(Number(milkType.defaultPricePerLitre).toFixed(2)),
+              );
+            }}
             options={[
-              { value: 'MONTHLY', label: isHi ? 'मासिक मूल्य (A monthly price)' : 'A monthly price' },
               {
                 value: 'PER_UNIT',
                 label: isHi
-                  ? `प्रति ${UNIT_NOUN_HI[unit] ?? 'इकाई'} मूल्य (Price per ${UNIT_NOUN[unit] ?? 'unit'})`
+                  ? `प्रति ${UNIT_NOUN_HI[unit] ?? 'इकाई'} मूल्य (A price per ${UNIT_NOUN[unit] ?? 'unit'})`
                   : `A price per ${UNIT_NOUN[unit] ?? 'unit'}`,
               },
+              { value: 'MONTHLY', label: isHi ? 'मासिक मूल्य (A monthly price)' : 'A monthly price' },
             ]}
           />
 
