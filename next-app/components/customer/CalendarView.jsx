@@ -7,6 +7,7 @@ import { Card, CardBody, StatusBadge } from '@/components/ui/index.jsx';
 import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/interactive.jsx';
 import { InfoIcon, VacationIcon, CheckIcon, CloseIcon } from '@/components/ui/Icons.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
+import { VacationModal } from './VacationModal.jsx';
 import { formatDate, formatDateShort, formatWindow } from '@/domain/dates.js';
 import { useT } from '@/i18n/provider.jsx';
 
@@ -149,6 +150,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
 
   const [selectedDate, setSelectedDate] = useState(defaultSelectedDate);
   const [modalAction, setModalAction] = useState(null); // { type: 'skip' | 'quantity', delivery }
+  const [vacationModalOpen, setVacationModalOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const selectedDeliveries = useMemo(() => {
@@ -602,12 +604,33 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                             </div>
                           ) : selectedDate >= todayDate ? (
                             <>
-                              <div className="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 font-medium">
-                                {isHi ? 'आपके अनुरोध पर छुट्टी की गई (कोई बिल नहीं)।' : 'Skipped at your request (not billed).'}
-                              </div>
+                              {delivery.note?.toLowerCase().includes('vacation') ? (
+                                <div className="text-xs text-amber-900 bg-amber-50/90 p-2.5 rounded-xl border border-amber-200/80 font-medium space-y-1.5">
+                                  <div className="flex items-center gap-1.5 font-semibold text-amber-800">
+                                    <VacationIcon className="h-4 w-4 text-amber-600 shrink-0" />
+                                    <span>{isHi ? 'वेकेशन मोड सक्रिय है' : 'Vacation Mode Active'}</span>
+                                  </div>
+                                  <p className="text-[11px] leading-relaxed text-amber-800/90">
+                                    {isHi
+                                      ? 'इस तारीख की डिलीवरी वेकेशन मोड की वजह से रोकी गई है। आप केवल इस दिन की डिलीवरी नीचे से पुनः चालू कर सकते हैं, या पूरी छुट्टी रद्द करने के लिए वेकेशन सेक्शन का उपयोग करें।'
+                                      : 'Paused due to active vacation. You can resume this specific day below, or manage/cancel your full vacation.'}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setVacationModalOpen(true)}
+                                    className="text-[11px] font-bold text-blue-700 hover:text-blue-800 underline inline-block pt-0.5 cursor-pointer"
+                                  >
+                                    {isHi ? 'वेकेशन तिथियां बदलें या रद्द करें →' : 'Manage / Cancel Full Vacation →'}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 font-medium">
+                                  {isHi ? 'आपके अनुरोध पर छुट्टी की गई (कोई बिल नहीं)।' : 'Skipped at your request (not billed).'}
+                                </div>
+                              )}
                               <Button
                                 size="sm"
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm shadow-blue-500/10"
                                 loading={pending}
                                 onClick={() =>
                                   handleAction(
@@ -661,7 +684,7 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
               const reason = new FormData(event.currentTarget).get('reason');
               handleAction(
                 skipDay,
-                { deliveryId: modalAction.delivery.id, reason: reason ? String(reason) : undefined },
+                { deliveryId: modalAction.delivery.id, note: reason ? String(reason) : undefined },
                 isHi ? 'इस दिन के लिए डिलीवरी छोड़ दी गई।' : 'Delivery skipped for this day.',
               );
             }}
@@ -760,6 +783,9 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
           </form>
         )}
       </Modal>
+
+      {/* ── Vacation Modal for quick access ────────────────────────── */}
+      <VacationModal open={vacationModalOpen} onClose={() => setVacationModalOpen(false)} />
     </div>
   );
 }

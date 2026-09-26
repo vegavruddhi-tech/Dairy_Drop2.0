@@ -11,7 +11,7 @@ import { and, eq, ne, gte, lte, lt, inArray, asc, sql, isNotNull } from 'drizzle
 
 import { db } from '@/db/index.js';
 import { deliveries, milkSubscriptions, milkPlans, users, addresses, serviceAreas } from '@/db/schema/index.js';
-import { PERMISSIONS } from '@/auth/roles.js';
+import { PERMISSIONS, ROLES } from '@/auth/roles.js';
 import { scoped } from './base.js';
 import { monthStart, nextMonthStart } from '@/domain/dates.js';
 
@@ -365,13 +365,16 @@ export async function insertGenerated(tx, rows) {
  * zero rows and is reported as "not found" — never confirming that another
  * tenant's record exists.
  */
-export async function updateStatus(tx, actor, { id, patch }) {
+export async function updateStatus(tx, actor, { id, patch, permission }) {
+  const perm =
+    permission ||
+    (actor?.role === ROLES.CUSTOMER ? PERMISSIONS.DELIVERY_SKIP : PERMISSIONS.DELIVERY_MARK);
   const [row] = await tx
     .update(deliveries)
     .set({ ...patch, updatedAt: new Date() })
     .where(
       scoped(
-        { actor, permission: PERMISSIONS.DELIVERY_MARK, columns: scopeColumns },
+        { actor, permission: perm, columns: scopeColumns },
         eq(deliveries.id, id),
       ),
     )

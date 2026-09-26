@@ -15,6 +15,7 @@ import * as deliveriesRepo from '@/repositories/deliveries.repo.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
 import * as productsRepo from '@/repositories/products.repo.js';
+import { PERMISSIONS } from '@/auth/roles.js';
 
 /**
  * Generate delivery rows for a date.
@@ -598,6 +599,7 @@ export async function skipDay(actor, { deliveryId, note }) {
   return transaction(async (tx) => {
     const updated = await deliveriesRepo.updateStatus(tx, actor, {
       id: deliveryId,
+      permission: PERMISSIONS.DELIVERY_SKIP,
       patch: {
         status: 'SKIPPED',
         skipReason: 'CUSTOMER_REQUEST',
@@ -643,6 +645,7 @@ export async function resumeDay(actor, { deliveryId }) {
   return transaction(async (tx) =>
     deliveriesRepo.updateStatus(tx, actor, {
       id: deliveryId,
+      permission: PERMISSIONS.DELIVERY_SKIP,
       patch: { status: 'PENDING', skipReason: null, note: null },
     }),
   );
