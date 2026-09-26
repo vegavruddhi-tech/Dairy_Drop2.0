@@ -261,12 +261,18 @@ export function computeVariance(deliveries) {
   let reducedMilli = 0;
 
   for (const delivery of deliveries) {
-    if (delivery.status !== 'DELIVERED') continue;
-    const planned = toMilli(delivery.adjustedQuantity ?? delivery.plannedQuantity);
-    const actual = toMilli(delivery.deliveredQuantity ?? 0);
-    const difference = actual - planned;
-    if (difference > 0) extraMilli += difference;
-    else reducedMilli += -difference;
+    if (delivery.status === 'CANCELLED') continue;
+
+    const planned = toMilli(delivery.plannedQuantity ?? 0);
+
+    if (delivery.status === 'DELIVERED') {
+      const actual = toMilli(delivery.deliveredQuantity ?? 0);
+      const difference = actual - planned;
+      if (difference > 0) extraMilli += difference;
+      else if (difference < 0) reducedMilli += -difference;
+    } else if (delivery.status === 'SKIPPED' || delivery.status === 'UNDELIVERED') {
+      reducedMilli += planned;
+    }
   }
 
   return { extraMilli, reducedMilli, netMilli: extraMilli - reducedMilli };

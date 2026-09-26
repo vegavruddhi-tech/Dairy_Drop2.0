@@ -94,7 +94,7 @@ function getDaySummary(dayDeliveries, isHi) {
     return {
       statusType: 'PENDING',
       badgeText,
-      fullTotalText: badgeText,
+      fullTotalText: entries.map(([unit, qty]) => `${formatQty(qty)} ${unit}`).join(', '),
       deliveredCount,
       pendingCount,
       skippedCount,
@@ -488,9 +488,31 @@ export function CalendarView({ cells, deliveriesByDate, month, todayDate }) {
                               {displayQty}
                             </span>
                             <span className="text-xs font-bold text-slate-500">{delivery.unit}</span>
-                            {isAdjusted && (
-                              <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                {isHi ? `बदला गया (${planned} ${delivery.unit} से)` : `Changed from ${planned} ${delivery.unit}`}
+                            {isDelivered && displayQty !== planned && (
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                                  displayQty > planned
+                                    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                    : 'text-amber-700 bg-amber-50 border-amber-200'
+                                }`}
+                              >
+                                {displayQty > planned ? '+' : '-'}
+                                {Math.abs(displayQty - planned).toFixed(1).replace(/\.0$/, '')} {delivery.unit}{' '}
+                                {displayQty > planned ? (isHi ? 'अतिरिक्त' : 'Extra') : (isHi ? 'कम' : 'Less')}
+                              </span>
+                            )}
+                            {!isDelivered && isAdjusted && (
+                              <span
+                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                                  quantity > planned
+                                    ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                    : 'text-amber-700 bg-amber-50 border-amber-200'
+                                }`}
+                              >
+                                {quantity > planned ? '+' : '-'}
+                                {Math.abs(quantity - planned).toFixed(1).replace(/\.0$/, '')} {delivery.unit}{' '}
+                                {quantity > planned ? (isHi ? 'अतिरिक्त' : 'Extra') : (isHi ? 'कम' : 'Less')}{' '}
+                                ({isHi ? 'प्लान' : 'Plan'}: {planned} {delivery.unit})
                               </span>
                             )}
                           </div>

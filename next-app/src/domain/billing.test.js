@@ -328,13 +328,11 @@ describe('computeBill', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('computeVariance', () => {
-  it('reports gross extra and reduced separately', () => {
-    // The old system showed a net figure on the invoice and a gross figure in
-    // history, so the same customer saw two different numbers for one month.
+  it('reports gross extra and reduced separately against the baseline plan', () => {
     const variance = computeVariance([
-      delivery({ deliveryDate: '2026-09-03', deliveredQuantity: '1.500' }), // +0.5
-      delivery({ deliveryDate: '2026-09-09', deliveredQuantity: '0.500' }), // −0.5
-      delivery({ deliveryDate: '2026-09-10', deliveredQuantity: '1.000' }), //  0
+      delivery({ deliveryDate: '2026-09-03', plannedQuantity: '1.000', adjustedQuantity: '1.500', deliveredQuantity: '1.500' }), // +0.5
+      delivery({ deliveryDate: '2026-09-09', plannedQuantity: '1.000', adjustedQuantity: '0.500', deliveredQuantity: '0.500' }), // −0.5
+      delivery({ deliveryDate: '2026-09-10', plannedQuantity: '1.000', deliveredQuantity: '1.000' }), //  0
     ]);
 
     expect(variance.extraMilli).toBe(500);
@@ -342,13 +340,16 @@ describe('computeVariance', () => {
     expect(variance.netMilli).toBe(0);
   });
 
-  it('ignores days that were not delivered', () => {
+  it('counts skipped and undelivered days as reduced milk below plan, while ignoring pending and cancelled', () => {
     const variance = computeVariance([
-      delivery({ status: 'SKIPPED', deliveredQuantity: null }),
-      delivery({ status: 'PENDING', deliveredQuantity: null }),
+      delivery({ status: 'SKIPPED', plannedQuantity: '1.000', deliveredQuantity: null }),
+      delivery({ status: 'UNDELIVERED', plannedQuantity: '0.500', deliveredQuantity: null }),
+      delivery({ status: 'PENDING', plannedQuantity: '1.000', deliveredQuantity: null }),
+      delivery({ status: 'CANCELLED', plannedQuantity: '1.000', deliveredQuantity: null }),
     ]);
     expect(variance.extraMilli).toBe(0);
-    expect(variance.reducedMilli).toBe(0);
+    expect(variance.reducedMilli).toBe(1500);
+    expect(variance.netMilli).toBe(-1500);
   });
 });
 
