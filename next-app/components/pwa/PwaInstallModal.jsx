@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useT } from '@/i18n/provider.jsx';
 import {
   AppleIcon,
@@ -15,7 +16,7 @@ import {
 
 /**
  * High-Aesthetic Blue & White PWA Installation Modal
- * Provides streamlined 1-tap install for Android/Chromium, and accurate guides for iOS.
+ * Portaled to document.body to avoid CSS stacking context traps (backdrop-filter/sticky).
  * Perfectly centered and responsive across all mobile & desktop viewports.
  */
 export function PwaInstallModal({
@@ -27,8 +28,13 @@ export function PwaInstallModal({
   onNativeInstall,
   hasNativePrompt,
 }) {
+  const [mounted, setMounted] = useState(false);
   const { locale } = useT();
   const isHi = locale === 'hi';
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -43,21 +49,23 @@ export function PwaInstallModal({
     }
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-950/75 backdrop-blur-md animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-md my-auto max-h-[90dvh] overflow-y-auto rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xl shadow-blue-500/10 backdrop-blur-xl animate-scale-in">
+      <div className="relative w-full max-w-md my-auto max-h-[88dvh] overflow-y-auto overscroll-contain rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xl shadow-blue-500/10 animate-scale-in">
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors z-10"
           aria-label="Close modal"
         >
           <CloseIcon className="h-4 w-4" />
@@ -132,33 +140,65 @@ export function PwaInstallModal({
             </div>
           </div>
         ) : isAndroid ? (
-          /* ── Android Direct 1-Tap ────────────────────────────── */
+          /* ── Android Direct 1-Tap or 2-Step Chrome Guide ───────── */
           <div className="space-y-3">
-            <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-4 text-center space-y-3">
-              <p className="text-xs text-slate-700 leading-relaxed font-semibold">
-                {isHi
-                  ? 'DairyDrop को तुरंत अपने Android फ़ोन में ऐप की तरह इंस्टॉल करें।'
-                  : 'Install DairyDrop to your Android device for instant 1-tap access.'}
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  onNativeInstall?.();
-                  onClose();
-                }}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-3 text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-600/25 transition-all active:scale-[0.98]"
-              >
-                <DownloadIcon className="h-4 w-4" />
-                <span>{isHi ? 'तुरंत इंस्टॉल करें (Install Now)' : 'Install Now (1-Tap)'}</span>
-              </button>
-            </div>
+            {hasNativePrompt ? (
+              <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-4 text-center space-y-3">
+                <p className="text-xs text-slate-700 leading-relaxed font-semibold">
+                  {isHi
+                    ? 'DairyDrop को तुरंत अपने Android फ़ोन में ऐप की तरह इंस्टॉल करें।'
+                    : 'Install DairyDrop to your Android device for instant 1-tap access.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNativeInstall?.();
+                    onClose();
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-3 text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-600/25 transition-all active:scale-[0.98]"
+                >
+                  <DownloadIcon className="h-4 w-4" />
+                  <span>{isHi ? 'तुरंत इंस्टॉल करें (Install Now)' : 'Install Now (1-Tap)'}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2.5 rounded-2xl bg-blue-50/60 border border-blue-100 p-3.5 text-xs">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 mb-1">
+                  <AndroidIcon className="h-4 w-4 text-emerald-600" />
+                  <span>{isHi ? 'Chrome से 2 आसान चरणों में इंस्टॉल करें:' : 'Install via Chrome in 2 Easy Steps:'}</span>
+                </div>
 
-            {!hasNativePrompt && (
-              <p className="text-[11px] text-slate-500 text-center">
-                {isHi
-                  ? 'अगर प्रॉम्प्ट न दिखे, तो Chrome के मेनू (⋮) में जाकर "Add to Home screen" चुनें।'
-                  : 'Or tap Chrome menu (⋮) → "Install app / Add to Home screen".'}
-              </p>
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs">
+                    1
+                  </div>
+                  <div className="pt-0.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>{isHi ? 'Chrome मेनू पर टैप करें' : 'Tap Chrome Menu'}</span>
+                      <span className="inline-flex items-center rounded bg-white px-1.5 py-0.5 border border-slate-200 text-slate-800 font-extrabold text-xs">
+                        ⋮
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {isHi ? 'स्क्रीन के ऊपर दाईं ओर 3 डॉट्स' : 'Top right corner of browser'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs">
+                    2
+                  </div>
+                  <div className="pt-0.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>{isHi ? '"Install app" या "Add to Home screen" चुनें' : 'Select "Install app" or "Add to Home screen"'}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {isHi ? 'DairyDrop तुरंत आपके फ़ोन में ऐप बन जाएगा' : 'Instantly adds DairyDrop as a native app'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         ) : (
@@ -216,6 +256,7 @@ export function PwaInstallModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
