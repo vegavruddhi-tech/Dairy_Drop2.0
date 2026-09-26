@@ -6,7 +6,7 @@ import { getLocale } from '@/i18n/server.js';
 
 import { EmptyState, Stat, SectionHeading } from '@/components/ui/index.jsx';
 import { PlansIcon, UsersIcon, PlusIcon, RequestsIcon } from '@/components/ui/Icons.jsx';
-import { PlanEditor, PlanList } from '@/components/milkman/Plans.jsx';
+import { PlanEditor, PlansViewWithFilters } from '@/components/milkman/Plans.jsx';
 
 export const metadata = { title: 'Milk plans' };
 
@@ -164,25 +164,7 @@ export default async function MilkPlansPage() {
           action={<PlanEditor />}
         />
       ) : (
-        <>
-          {onOffer.length > 0 ? (
-            <section className="mb-8" aria-labelledby="offer-heading">
-              <SectionHeading id="offer-heading" count={onOffer.length}>
-                {isHi ? 'सक्रिय प्लान (On offer)' : 'On offer'}
-              </SectionHeading>
-              <PlanList plans={onOffer} subscriberCounts={subscriberCounts} />
-            </section>
-          ) : null}
-
-          {retired.length > 0 ? (
-            <section aria-labelledby="retired-heading">
-              <SectionHeading id="retired-heading" count={retired.length} tone="neutral">
-                {isHi ? 'बंद प्लान (Retired)' : 'Retired'}
-              </SectionHeading>
-              <PlanList plans={retired} subscriberCounts={subscriberCounts} />
-            </section>
-          ) : null}
-        </>
+        <PlansViewWithFilters plans={priced} subscriberCounts={subscriberCounts} />
       )}
     </>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
@@ -10,6 +10,7 @@ import { saveProduct, deleteProduct, updateOrderStatus } from '@/actions/milkman
 import { TOP_CATALOG_PRODUCTS, resolveProductImage } from '@/domain/catalogPresets.js';
 import { CheckIcon, DeliveryIcon, PlusIcon, EditIcon, TrashIcon } from '@/components/ui/Icons.jsx';
 import { useT } from '@/i18n/provider.jsx';
+import { MilkmanFilterBar } from './MilkmanFilterBar.jsx';
 
 const UNITS = [
   { value: 'L', label: 'Litres' },
@@ -264,9 +265,66 @@ export function ProductEditor({ product, trigger }) {
 }
 
 export function ProductList({ products }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const isHi = locale === 'hi';
   const [deleting, setDeleting] = useState(null); // the product awaiting confirmation
   const [pending, startTransition] = useTransition();
+
+  const [search, setSearch] = useState('');
+  const [statusTab, setStatusTab] = useState('ALL'); // 'ALL' | 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'HIDDEN'
+  const [selectedUnit, setSelectedUnit] = useState('ALL');
+
+  const unitOptions = useMemo(() => {
+    const counts = {};
+    products.forEach((p) => {
+      const u = p.unit || 'other';
+      counts[u] = (counts[u] || 0) + 1;
+    });
+    return Object.entries(counts).map(([unit, count]) => ({
+      value: unit,
+      label: unit === 'L' ? (isHi ? 'लीटर (L)' : 'Litres (L)') : unit === 'kg' ? (isHi ? 'किलो (kg)' : 'Kilograms (kg)') : unit,
+      count,
+    }));
+  }, [products, isHi]);
+
+  const live = useMemo(() => products.filter((p) => p.isActive), [products]);
+  const inStock = useMemo(() => live.filter((p) => Number(p.availableQuantity) > (LOW_STOCK[p.unit] ?? 3)), [live]);
+  const lowStock = useMemo(() => live.filter((p) => Number(p.availableQuantity) > 0 && Number(p.availableQuantity) <= (LOW_STOCK[p.unit] ?? 3)), [live]);
+  const outOfStock = useMemo(() => live.filter((p) => Number(p.availableQuantity) <= 0), [live]);
+  const hidden = useMemo(() => products.filter((p) => !p.isActive), [products]);
+
+  const statusTabs = [
+    { value: 'ALL', label: isHi ? 'सभी' : 'All', count: products.length },
+    { value: 'IN_STOCK', label: isHi ? 'उपलब्ध' : 'In Stock', count: inStock.length },
+    { value: 'LOW_STOCK', label: isHi ? 'कम स्टॉक' : 'Low Stock', count: lowStock.length },
+    { value: 'OUT_OF_STOCK', label: isHi ? 'आउट ऑफ स्टॉक' : 'Out of Stock', count: outOfStock.length },
+    { value: 'HIDDEN', label: isHi ? 'छिपे हुए' : 'Hidden', count: hidden.length },
+  ];
+
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return products.filter((product) => {
+      const stock = Number(product.availableQuantity ?? 0);
+      const isLow = stock > 0 && stock <= (LOW_STOCK[product.unit] ?? 3);
+      const isOut = stock <= 0;
+      const isInStock = stock > (LOW_STOCK[product.unit] ?? 3);
+
+      if (statusTab === 'IN_STOCK' && (!product.isActive || !isInStock)) return false;
+      if (statusTab === 'LOW_STOCK' && (!product.isActive || !isLow)) return false;
+      if (statusTab === 'OUT_OF_STOCK' && (!product.isActive || !isOut)) return false;
+      if (statusTab === 'HIDDEN' && product.isActive) return false;
+
+      if (selectedUnit !== 'ALL' && product.unit !== selectedUnit) return false;
+
+      if (q) {
+        const name = (product.name || '').toLowerCase();
+        const desc = (product.description || '').toLowerCase();
+        if (!name.includes(q) && !desc.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [products, search, statusTab, selectedUnit]);
 
   function confirmDelete() {
     const product = deleting;
@@ -282,13 +340,54 @@ export function ProductList({ products }) {
     });
   }
 
+  const hasActiveFilters = search.trim() !== '' || statusTab !== 'ALL' || selectedUnit !== 'ALL';
+  const resetFilters = () => {
+    setSearch('');
+    setStatusTab('ALL');
+    setSelectedUnit('ALL');
+  };
+
   return (
     <>
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} onDelete={() => setDeleting(product)} />
-        ))}
-      </div>
+      <MilkmanFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={isHi ? 'उत्पाद का नाम या विवरण खोजें...' : 'Search items by name or description...'}
+        slots={unitOptions}
+        selectedSlot={selectedUnit}
+        onSlotChange={setSelectedUnit}
+        statusTabs={statusTabs}
+        selectedStatus={statusTab}
+        onStatusChange={setStatusTab}
+        totalCount={products.length}
+        filteredCount={filteredProducts.length}
+        onReset={resetFilters}
+        isHi={isHi}
+      />
+
+      {filteredProducts.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center mb-6">
+          <p className="font-heading text-sm font-bold text-slate-800">
+            {isHi ? 'कोई उत्पाद नहीं मिला' : 'No matching items'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {isHi ? 'फ़िल्टर बदलें या रीसेट करें।' : 'Try changing your search keywords or filter selection.'}
+          </p>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="tap mt-3 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition-all"
+          >
+            {isHi ? 'फ़िल्टर रीसेट करें' : 'Reset filters'}
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 mb-6">
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} onDelete={() => setDeleting(product)} />
+          ))}
+        </div>
+      )}
 
       <Modal
         open={Boolean(deleting)}

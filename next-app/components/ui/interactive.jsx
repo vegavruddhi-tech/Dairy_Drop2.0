@@ -228,8 +228,20 @@ export function Textarea({ label, error, className, id, ...props }) {
  * had to find a small `+` on a phone. Typing is the reliable path; the buttons
  * are the fast one.
  */
-export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5, max = 20, unit = 'L' }) {
-  const [value, setValue] = useState(Number(defaultValue));
+export function QuantityStepper({
+  name,
+  defaultValue = 1,
+  value: controlledValue,
+  onChange: onValueChange,
+  step = 0.5,
+  min = 0.5,
+  max = 20,
+  unit = 'L',
+}) {
+  const [internalValue, setInternalValue] = useState(Number(defaultValue));
+  const isControlled = controlledValue !== undefined;
+  const value = isControlled ? Number(controlledValue) : internalValue;
+
   /*
    * The number is typeable, not only tappable.
    *
@@ -241,9 +253,21 @@ export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5,
 
   const clamp = (next) => Math.min(max, Math.max(min, Math.round(next * 1000) / 1000));
 
+  function updateValue(next) {
+    const clamped = clamp(next);
+    if (!isControlled) {
+      setInternalValue(clamped);
+    }
+    onValueChange?.(clamped);
+  }
+
   function commitDraft() {
     const parsed = Number(draft);
-    setValue(draft !== null && draft !== '' && Number.isFinite(parsed) ? clamp(parsed) : value);
+    if (draft !== null && draft !== '' && Number.isFinite(parsed)) {
+      updateValue(parsed);
+    } else {
+      updateValue(value);
+    }
     setDraft(null);
   }
 
@@ -253,7 +277,10 @@ export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5,
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => { commitDraft(); setValue((v) => clamp(v - step)); }}
+        onClick={() => {
+          commitDraft();
+          updateValue(value - step);
+        }}
         aria-label={`Decrease by ${step} ${unit}`}
         className="w-11"
       >
@@ -281,7 +308,10 @@ export function QuantityStepper({ name, defaultValue = 1, step = 0.5, min = 0.5,
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => { commitDraft(); setValue((v) => clamp(v + step)); }}
+        onClick={() => {
+          commitDraft();
+          updateValue(value + step);
+        }}
         aria-label={`Increase by ${step} ${unit}`}
         className="w-11"
       >

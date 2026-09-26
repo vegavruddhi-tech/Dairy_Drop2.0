@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useT } from '@/i18n/provider.jsx';
 
-import { cn, Badge, StatusBadge } from '@/components/ui/index.jsx';
+import { cn, Badge, StatusBadge, Card, CardBody } from '@/components/ui/index.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { Button, Modal, Input, Textarea } from '@/components/ui/interactive.jsx';
 import { EditIcon, PhoneIcon, MapPinIcon, CheckIcon, NoteIcon } from '@/components/ui/Icons.jsx';
 import { approveCustomer, rejectCustomer, updateCustomerAddress } from '@/actions/milkman.actions.js';
+import { MilkmanFilterBar } from './MilkmanFilterBar.jsx';
 
 /**
  * Modal to edit customer address & delivery instructions directly as a Milkman.
@@ -508,5 +509,147 @@ function Avatar({ name, tone = 'brand' }) {
     >
       {(name ?? '?').charAt(0).toUpperCase()}
     </span>
+  );
+}
+
+/**
+ * Interactive filterable customer list.
+ * Supports filtering by customer name, phone, area, and active plan status.
+ */
+export function CustomersListWithFilters({
+  customers = [],
+  summaries = {},
+  isPendingTab = false,
+  atLimit = false,
+  isHi = false,
+}) {
+  const { t } = useT();
+  const [search, setSearch] = useState('');
+  const [selectedArea, setSelectedArea] = useState('ALL');
+  const [selectedPlanFilter, setSelectedPlanFilter] = useState('ALL');
+
+  const areas = useMemo(() => {
+    const counts = {};
+    for (const c of customers) {
+      const area = (c.addressArea || c.area || c.addressCity || '').trim() || (isHi ? 'अन्य क्षेत्र' : 'Other Area');
+      counts[area] = (counts[area] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([value, count]) => ({ value, label: value, count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [customers, isHi]);
+
+  const withPlanCount = useMemo(() => {
+    return customers.filter((c) => {
+      const s = summaries instanceof Map ? summaries.get(c.id) : summaries?.[c.id];
+      return Boolean(s?.count);
+    }).length;
+  }, [customers, summaries]);
+
+  const withoutPlanCount = customers.length - withPlanCount;
+
+  const statusTabs = !isPendingTab
+    ? [
+        { value: 'ALL', label: isHi ? 'सभी ग्राहक' : 'All Customers', count: customers.length },
+        { value: 'WITH_PLAN', label: isHi ? 'सक्रिय प्लान वाले' : 'With Active Plan', count: withPlanCount },
+        { value: 'NO_PLAN', label: isHi ? 'बिना प्लान वाले' : 'Without Plan', count: withoutPlanCount },
+      ]
+    : [];
+
+  const filtered = useMemo(() => {
+    return customers.filter((c) => {
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchName = c.name?.toLowerCase().includes(q);
+        const matchPhone = c.phone?.includes(q);
+        const matchAddr =
+          c.addressLine1?.toLowerCase().includes(q) ||
+          c.addressArea?.toLowerCase().includes(q) ||
+          c.addressLandmark?.toLowerCase().includes(q) ||
+          c.area?.toLowerCase().includes(q);
+        if (!matchName && !matchPhone && !matchAddr) return false;
+      }
+      if (selectedArea !== 'ALL') {
+        const cArea = (c.addressArea || c.area || c.addressCity || '').trim() || (isHi ? 'अन्य क्षेत्र' : 'Other Area');
+        if (cArea !== selectedArea) return false;
+      }
+      if (!isPendingTab && selectedPlanFilter !== 'ALL') {
+        const s = summaries instanceof Map ? summaries.get(c.id) : summaries?.[c.id];
+        const hasPlan = Boolean(s?.count);
+        if (selectedPlanFilter === 'WITH_PLAN' && !hasPlan) return false;
+        if (selectedPlanFilter === 'NO_PLAN' && hasPlan) return false;
+      }
+      return true;
+    });
+  }, [customers, search, selectedArea, selectedPlanFilter, isPendingTab, summaries, isHi]);
+
+  function handleReset() {
+    setSearch('');
+    setSelectedArea('ALL');
+    setSelectedPlanFilter('ALL');
+  }
+
+  return (
+    <div className="space-y-4">
+      <MilkmanFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={isHi ? 'ग्राहक का नाम, फोन या क्षेत्र खोजें...' : 'Search customer name, phone, area...'}
+        areas={areas}
+        selectedArea={selectedArea}
+        onAreaChange={setSelectedArea}
+        statusTabs={statusTabs}
+        selectedStatus={selectedPlanFilter}
+        onStatusChange={setSelectedPlanFilter}
+        totalCount={customers.length}
+        filteredCount={filtered.length}
+        onReset={handleReset}
+      />
+
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xs">
+          <p className="font-heading text-sm font-bold text-slate-800">
+            {isHi ? 'कोई ग्राहक मेल नहीं खाता' : 'No customers match your filters'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {isHi ? 'कृपया अन्य नाम या क्षेत्र आज़माएँ।' : 'Try adjusting your search query or clear the filters.'}
+          </p>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="tap mt-3 inline-flex items-center rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-all active:scale-95"
+          >
+            {isHi ? 'फिल्टर रीसेट करें' : 'Reset filters'}
+          </button>
+        </div>
+      ) : isPendingTab ? (
+        <div className="space-y-3">
+          {filtered.map((customer) => {
+            const sum = summaries instanceof Map ? summaries.get(customer.id) : summaries?.[customer.id];
+            return (
+              <ApprovalCard
+                key={customer.id}
+                customer={customer}
+                summary={sum}
+                atLimit={atLimit}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+          <CardBody className="p-0">
+            <ul className="divide-y divide-border">
+              {filtered.map((customer) => {
+                const sum = summaries instanceof Map ? summaries.get(customer.id) : summaries?.[customer.id];
+                return (
+                  <CustomerRow key={customer.id} customer={customer} summary={sum} />
+                );
+              })}
+            </ul>
+          </CardBody>
+        </Card>
+      )}
+    </div>
   );
 }

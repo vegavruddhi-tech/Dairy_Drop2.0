@@ -7,7 +7,7 @@ import { db } from '@/db/index.js';
 import { Card, CardBody, EmptyState, Notice, Stat } from '@/components/ui/index.jsx';
 import { TabLinks } from '@/components/ui/interactive.jsx';
 import { UsersIcon, RequestsIcon, MembershipIcon } from '@/components/ui/Icons.jsx';
-import { ApprovalCard, CustomerRow } from '@/components/milkman/Customers.jsx';
+import { ApprovalCard, CustomerRow, CustomersListWithFilters } from '@/components/milkman/Customers.jsx';
 
 export const metadata = { title: 'Customers' };
 
@@ -158,27 +158,14 @@ export default async function CustomersPage({ searchParams }) {
               : (isHi ? 'आपके क्षेत्र में साइन अप करने वाले ग्राहक स्वीकृत होने के बाद यहाँ दिखाई देंगे।' : t('customers.noCustomersYetDesc', {}, 'Customers who sign up for your area will appear here once approved.'))
           }
         />
-      ) : status === 'PENDING' ? (
-        <div className="space-y-3">
-          {customers.map((customer) => (
-            <ApprovalCard
-              key={customer.id}
-              customer={customer}
-              summary={summaries.get(customer.id)}
-              atLimit={atLimit}
-            />
-          ))}
-        </div>
       ) : (
-        <Card>
-          <CardBody className="p-0">
-            <ul className="divide-y divide-border">
-              {customers.map((customer) => (
-                <CustomerRow key={customer.id} customer={customer} summary={summaries.get(customer.id)} />
-              ))}
-            </ul>
-          </CardBody>
-        </Card>
+        <CustomersListWithFilters
+          customers={customers}
+          summaries={summaries}
+          isPendingTab={status === 'PENDING'}
+          atLimit={atLimit}
+          isHi={isHi}
+        />
       )}
     </>
   );

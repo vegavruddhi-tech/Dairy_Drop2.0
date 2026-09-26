@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
+import { Card, CardBody, Badge, cn } from '@/components/ui/index.jsx';
 import { Button, QuantityStepper, Modal } from '@/components/ui/interactive.jsx';
 import { TruckIcon, InfoIcon } from '@/components/ui/Icons.jsx';
 import { orderProduct } from '@/actions/customer.actions.js';
@@ -23,7 +23,30 @@ export function OrderCard({ product }) {
   const displayName = formatProductName(product.name);
   const displayDescription = resolveProductDescription(product);
 
-  const [quantity, setQuantity] = useState(1);
+  const isPiece = product.unit === 'pcs';
+  const defaultStep = isPiece ? 1 : 0.25;
+  const defaultMin = isPiece ? 1 : 0.25;
+
+  const [quantity, setQuantity] = useState(defaultMin);
+
+  // Quick preset chips for 250g multiples (250g, 500g, 750g, 1kg)
+  const presets = isPiece
+    ? [1, 2, 3, 5].map((v) => ({ label: `${v} pcs`, val: v }))
+    : product.unit === 'kg'
+      ? [
+          { label: '250 g', val: 0.25 },
+          { label: '500 g', val: 0.5 },
+          { label: '750 g', val: 0.75 },
+          { label: '1 kg', val: 1.0 },
+        ]
+      : [
+          { label: '250 ml', val: 0.25 },
+          { label: '500 ml', val: 0.5 },
+          { label: '750 ml', val: 0.75 },
+          { label: '1 L', val: 1.0 },
+        ];
+
+  const totalAmount = ((Number(quantity) || 0) * price).toFixed(2);
 
   return (
     <>
@@ -77,7 +100,7 @@ export function OrderCard({ product }) {
               className="w-full text-xs font-bold shadow-sm py-1.5 sm:py-2.5"
               disabled={stock <= 0}
               onClick={() => {
-                setQuantity(product.unit === 'pcs' ? 1 : 0.5);
+                setQuantity(defaultMin);
                 setOpen(true);
               }}
             >
@@ -102,14 +125,14 @@ export function OrderCard({ product }) {
             <Button variant="ghost" onClick={() => setOpen(false)}>
               {isHi ? 'रद्द करें' : 'Cancel'}
             </Button>
-            <Button form="order-form" type="submit" loading={pending}>
+            <Button form={`order-form-${product.id}`} type="submit" loading={pending}>
               {isHi ? 'कल के लिए ऑर्डर कन्फर्म करें' : 'Confirm Order for Tomorrow'}
             </Button>
           </>
         }
       >
         <form
-          id="order-form"
+          id={`order-form-${product.id}`}
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
@@ -141,18 +164,49 @@ export function OrderCard({ product }) {
             </p>
           </div>
 
-          <div className="flex flex-col items-center justify-center py-2 gap-2">
+          <div className="flex flex-col items-center justify-center py-2 gap-2.5">
             <label className="text-xs font-bold uppercase tracking-wider text-ink-subtle">
               {isHi ? `मात्रा चुनें (${product.unit})` : `Select Quantity (${product.unit})`}
             </label>
             <QuantityStepper
               name="quantity"
-              defaultValue={product.unit === 'pcs' ? 1 : 0.5}
-              step={product.unit === 'pcs' ? 1 : 0.5}
-              min={product.unit === 'pcs' ? 1 : 0.25}
-              max={Math.max(1, Math.min(stock, 20))}
+              value={quantity}
+              onChange={setQuantity}
+              defaultValue={defaultMin}
+              step={defaultStep}
+              min={defaultMin}
+              max={Math.max(defaultMin, Math.min(stock, 20))}
               unit={product.unit}
             />
+
+            {/* Quick 250g / 500g / 750g / 1kg Chips */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+              {presets.map((preset) => (
+                <button
+                  key={preset.val}
+                  type="button"
+                  onClick={() => setQuantity(preset.val)}
+                  className={cn(
+                    'tap px-3 py-1 rounded-xl text-xs font-bold transition-all border shadow-2xs',
+                    Number(quantity) === preset.val
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Price Estimation */}
+            <div className="mt-1 rounded-xl bg-slate-50 border border-slate-200/80 px-4 py-1.5 text-center">
+              <span className="text-xs text-slate-500 font-semibold">
+                {isHi ? 'कुल मूल्य: ' : 'Total Amount: '}
+              </span>
+              <strong className="text-base font-black text-slate-900 ml-1">
+                ₹{totalAmount}
+              </strong>
+            </div>
           </div>
 
           <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-950 flex items-start gap-2.5">

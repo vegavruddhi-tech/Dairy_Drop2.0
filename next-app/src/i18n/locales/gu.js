@@ -446,7 +446,9 @@ export const gu = {
     "filterByStatus": "સ્થિતિ પ્રમાણે ફિલ્ટર",
     "allDeliveries": "બધી ડિલિવરી",
     "deliveredOnly": "ફક્ત ડિલિવર થયેલી",
-    "pendingOnly": "ફક્ત બાકી"
+    "pendingOnly": "બાકી",
+    "changeQty": "જથ્થો બદલો",
+    "differentQty": "જથ્થો બદલો"
   },
   "customers": {
     "title": "ગ્રાહક અને મંજૂરી",

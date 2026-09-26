@@ -199,6 +199,7 @@ export async function listOrders(actor, { status, ...page } = {}) {
       customerId: purchases.customerId,
       customerName: users.name,
       customerPhone: users.phone,
+      customerArea: users.deliveryArea,
       productName: purchases.productName,
       unit: purchases.unit,
       quantity: purchases.quantity,

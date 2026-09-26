@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useOptimistic } from 'react';
+import { useState, useTransition, useOptimistic, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useT } from '@/i18n/provider.jsx';
 
@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/Icons.jsx';
 import { markDelivery, declareDayOff } from '@/actions/milkman.actions.js';
 import { HolidayManagerModal } from './HolidayManagerModal.jsx';
+import { MilkmanFilterBar } from './MilkmanFilterBar.jsx';
 
 /**
  * One stop on the round.
@@ -55,7 +56,8 @@ const STATUS_EDGE = {
 };
 
 export function RoundStop({ stop }) {
-  const { t } = useT();
+  const { t, locale } = useT();
+  const isHi = locale === 'hi';
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useOptimistic(stop.status);
   const [quantitiesOptimistic, setQuantitiesOptimistic] = useOptimistic(
@@ -384,14 +386,14 @@ export function RoundStop({ stop }) {
                     className="tap flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 font-heading text-xs font-bold text-slate-700 hover:bg-slate-100 transition-all active:scale-[0.98]"
                     onClick={() => setModal('partial')}
                   >
-                    {t('deliveries.pendingOnly', {}, 'Different Qty')}
+                    {isHi ? 'मात्रा बदलें' : t('deliveries.changeQty', {}, 'Change Qty')}
                   </button>
                   <button
                     type="button"
                     className="tap flex h-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 font-heading text-xs font-bold text-rose-700 hover:bg-rose-100 transition-all active:scale-[0.98]"
                     onClick={() => setModal('not')}
                   >
-                    {t('deliveries.markMissed', {}, 'Not Delivered')}
+                    {isHi ? 'डिलीवर नहीं हुआ' : t('deliveries.markMissed', {}, 'Not Delivered')}
                   </button>
                 </div>
               </>
@@ -646,3 +648,149 @@ export function DoneDeliveriesSection({ doneStops, count }) {
     </section>
   );
 }
+
+/**
+ * Filterable interactive view of the round.
+ * Supports filtering by customer search, area dropdown, slot, and status.
+ */
+export function RoundView({ stops = [], summary = {}, date, isHi = false }) {
+  const { t } = useT();
+  const [search, setSearch] = useState('');
+  const [selectedArea, setSelectedArea] = useState('ALL');
+  const [selectedSlot, setSelectedSlot] = useState('ALL');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+
+  const areas = useMemo(() => {
+    const counts = {};
+    for (const stop of stops) {
+      const area = stop.addressArea?.trim() || (isHi ? 'अन्य क्षेत्र' : 'Other Area');
+      counts[area] = (counts[area] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([value, count]) => ({ value, label: value, count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [stops, isHi]);
+
+  const slots = [
+    { value: 'MORNING', label: isHi ? 'सुबह (Morning)' : 'Morning' },
+    { value: 'EVENING', label: isHi ? 'शाम (Evening)' : 'Evening' },
+  ];
+
+  const pendingCount = stops.filter((s) => s.status === 'PENDING').length;
+  const doneCount = stops.filter((s) => s.status !== 'PENDING').length;
+
+  const statusTabs = [
+    { value: 'ALL', label: isHi ? 'सभी स्टॉप्स' : 'All Stops', count: stops.length },
+    { value: 'PENDING', label: isHi ? 'बाकी' : 'To Deliver', count: pendingCount },
+    { value: 'DELIVERED', label: isHi ? 'पूरे हुए' : 'Done', count: doneCount },
+  ];
+
+  const filteredStops = useMemo(() => {
+    return stops.filter((stop) => {
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchName = stop.customerName?.toLowerCase().includes(q);
+        const matchPhone = stop.customerPhone?.includes(q);
+        const matchAddr =
+          stop.addressLine1?.toLowerCase().includes(q) ||
+          stop.addressArea?.toLowerCase().includes(q) ||
+          stop.addressLandmark?.toLowerCase().includes(q);
+        const matchItem = stop.items?.some((it) => it.productName?.toLowerCase().includes(q));
+        if (!matchName && !matchPhone && !matchAddr && !matchItem) return false;
+      }
+      if (selectedArea !== 'ALL') {
+        const stopArea = stop.addressArea?.trim() || (isHi ? 'अन्य क्षेत्र' : 'Other Area');
+        if (stopArea !== selectedArea) return false;
+      }
+      if (selectedSlot !== 'ALL') {
+        if (stop.slot !== selectedSlot) return false;
+      }
+      if (selectedStatus === 'PENDING') {
+        if (stop.status !== 'PENDING') return false;
+      } else if (selectedStatus === 'DELIVERED') {
+        if (stop.status !== 'DELIVERED') return false;
+      }
+      return true;
+    });
+  }, [stops, search, selectedArea, selectedSlot, selectedStatus, isHi]);
+
+  const filteredRemaining = filteredStops.filter((s) => s.status === 'PENDING');
+  const filteredDone = filteredStops.filter((s) => s.status !== 'PENDING');
+
+  function handleReset() {
+    setSearch('');
+    setSelectedArea('ALL');
+    setSelectedSlot('ALL');
+    setSelectedStatus('ALL');
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Filters ── */}
+      <MilkmanFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={isHi ? 'ग्राहक का नाम, फोन या पता खोजें...' : 'Search customer name, phone, address...'}
+        areas={areas}
+        selectedArea={selectedArea}
+        onAreaChange={setSelectedArea}
+        slots={slots}
+        selectedSlot={selectedSlot}
+        onSlotChange={setSelectedSlot}
+        statusTabs={statusTabs}
+        selectedStatus={selectedStatus}
+        onStatusChange={setSelectedStatus}
+        totalCount={stops.length}
+        filteredCount={filteredStops.length}
+        onReset={handleReset}
+      />
+
+      {/* ── Stops Display ── */}
+      {filteredStops.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xs">
+          <p className="font-heading text-sm font-bold text-slate-800">
+            {isHi ? 'कोई स्टॉप मेल नहीं खाता' : 'No deliveries match your filters'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {isHi ? 'कृपया अन्य नाम या क्षेत्र आज़माएँ।' : 'Try adjusting your search query or clear the filters.'}
+          </p>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="tap mt-3 inline-flex items-center rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition-all active:scale-95"
+          >
+            {isHi ? 'फिल्टर रीसेट करें' : 'Reset filters'}
+          </button>
+        </div>
+      ) : (
+        <>
+          {filteredRemaining.length > 0 && (
+            <section className="mb-6" aria-labelledby="filtered-remaining-heading">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 id="filtered-remaining-heading" className="font-heading text-sm font-black uppercase tracking-wider text-slate-800">
+                    {isHi ? 'डिलीवर करने के लिए (बाकी)' : 'To Deliver (Pending)'}
+                  </h3>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-800">
+                    {filteredRemaining.length}
+                  </span>
+                </div>
+                <DayOffButton date={date} count={filteredRemaining.length} />
+              </div>
+              <div className="space-y-2.5">
+                {filteredRemaining.map((stop) => (
+                  <RoundStop key={stop.id} stop={stop} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {filteredDone.length > 0 && (
+            <DoneDeliveriesSection doneStops={filteredDone} count={filteredDone.length} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+

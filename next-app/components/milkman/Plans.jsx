@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import { cn, Badge } from '@/components/ui/index.jsx';
 import { Button, Modal, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
 import { saveMilkPlan, retireMilkPlan, deleteMilkPlan } from '@/actions/milkman.actions.js';
 import { useT } from '@/i18n/provider.jsx';
+import { MilkmanFilterBar } from './MilkmanFilterBar.jsx';
 import {
   PlusIcon,
   EditIcon,
@@ -454,6 +455,94 @@ const FREQUENCY_LABEL_HI = {
   WEEKLY: 'साप्ताहिक (Weekly)',
   MONTHLY: 'मासिक (Monthly)',
 };
+
+export function PlansViewWithFilters({ plans = [], subscriberCounts = {} }) {
+  const { locale } = useT();
+  const isHi = locale === 'hi';
+  const [search, setSearch] = useState('');
+  const [statusTab, setStatusTab] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'RETIRED'
+  const [selectedSlot, setSelectedSlot] = useState('ALL'); // 'ALL' | 'MORNING' | 'EVENING' | 'BOTH'
+
+  const activePlans = useMemo(() => plans.filter((p) => p.isActive), [plans]);
+  const retiredPlans = useMemo(() => plans.filter((p) => !p.isActive), [plans]);
+
+  const slotOptions = [
+    { value: 'MORNING', label: isHi ? 'सुबह (Morning)' : 'Morning' },
+    { value: 'EVENING', label: isHi ? 'शाम (Evening)' : 'Evening' },
+    { value: 'BOTH', label: isHi ? 'दोनों समय (Both)' : 'Both Slots' },
+  ];
+
+  const statusTabs = [
+    { value: 'ALL', label: isHi ? 'सभी प्लान' : 'All Plans', count: plans.length },
+    { value: 'ACTIVE', label: isHi ? 'सक्रिय (On Offer)' : 'On Offer', count: activePlans.length },
+    { value: 'RETIRED', label: isHi ? 'बंद (Retired)' : 'Retired', count: retiredPlans.length },
+  ];
+
+  const filteredPlans = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return plans.filter((plan) => {
+      if (statusTab === 'ACTIVE' && !plan.isActive) return false;
+      if (statusTab === 'RETIRED' && plan.isActive) return false;
+
+      if (selectedSlot !== 'ALL' && plan.slot !== selectedSlot) return false;
+
+      if (q) {
+        const name = (plan.name || '').toLowerCase();
+        const desc = (plan.description || '').toLowerCase();
+        if (!name.includes(q) && !desc.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [plans, search, statusTab, selectedSlot]);
+
+  const hasActiveFilters = search.trim() !== '' || statusTab !== 'ALL' || selectedSlot !== 'ALL';
+  const resetFilters = () => {
+    setSearch('');
+    setStatusTab('ALL');
+    setSelectedSlot('ALL');
+  };
+
+  return (
+    <div className="space-y-6">
+      <MilkmanFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={isHi ? 'दूध का प्रकार या प्लान खोजें...' : 'Search plans by name or milk type...'}
+        slots={slotOptions}
+        selectedSlot={selectedSlot}
+        onSlotChange={setSelectedSlot}
+        statusTabs={statusTabs}
+        selectedStatus={statusTab}
+        onStatusChange={setStatusTab}
+        totalCount={plans.length}
+        filteredCount={filteredPlans.length}
+        onReset={resetFilters}
+        isHi={isHi}
+      />
+
+      {filteredPlans.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center mb-6">
+          <p className="font-heading text-sm font-bold text-slate-800">
+            {isHi ? 'कोई प्लान नहीं मिला' : 'No matching plans'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {isHi ? 'फ़िल्टर बदलें या रीसेट करें।' : 'Try changing your search terms or filter selection.'}
+          </p>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="tap mt-3 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-blue-700 transition-all"
+          >
+            {isHi ? 'फ़िल्टर रीसेट करें' : 'Reset filters'}
+          </button>
+        </div>
+      ) : (
+        <PlanList plans={filteredPlans} subscriberCounts={subscriberCounts} />
+      )}
+    </div>
+  );
+}
 
 /**
  * The plan cards, with retire and delete behind confirm sheets.

@@ -14,7 +14,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@/components/ui/Icons.jsx';
-import { RoundStop, DayOffButton, DoneDeliveriesSection } from '@/components/milkman/Round.jsx';
+import { RoundStop, DayOffButton, DoneDeliveriesSection, RoundView } from '@/components/milkman/Round.jsx';
 
 export const metadata = { title: 'Round' };
 
@@ -140,7 +140,7 @@ export default async function RoundPage({ searchParams }) {
           tone="positive"
         />
         <Stat
-          label={isHi ? 'बाकी' : t('deliveries.pendingOnly', {}, 'Left')}
+          label={isHi ? 'बाकी' : 'Pending'}
           value={remaining.length}
           icon={<ClockIcon className="h-5 w-5" />}
           tone={remaining.length ? 'caution' : 'neutral'}
@@ -172,29 +172,10 @@ export default async function RoundPage({ searchParams }) {
         />
       ) : (
         <>
-          {remaining.length > 0 ? (
-            <section className="mb-8" aria-labelledby="remaining-heading">
-              <SectionHeading
-                id="remaining-heading"
-                count={remaining.length}
-                tone="caution"
-                action={<DayOffButton date={date} count={remaining.length} />}
-              >
-                {isHi ? 'डिलीवर करने के लिए' : t('deliveries.pendingOnly', {}, 'To deliver')}
-              </SectionHeading>
-              <div className="space-y-2.5">
-                {remaining.map((stop) => (
-                  <RoundStop key={stop.id} stop={stop} />
-                ))}
-              </div>
-            </section>
-          ) : (
+          {remaining.length === 0 && done.length > 0 ? (
             <RoundComplete summary={summary} t={t} isHi={isHi} />
-          )}
-
-          {done.length > 0 ? (
-            <DoneDeliveriesSection doneStops={done} count={done.length} />
           ) : null}
+          <RoundView stops={stops} summary={summary} date={date} isHi={isHi} />
         </>
       )}
     </>

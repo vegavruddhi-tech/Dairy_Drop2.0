@@ -463,7 +463,9 @@ export const hi = {
     "filterByStatus": "स्थिति अनुसार फ़िल्टर",
     "allDeliveries": "सभी डिलीवरी",
     "deliveredOnly": "केवल डिलीवर",
-    "pendingOnly": "केवल शेष (Pending)"
+    "pendingOnly": "बाकी",
+    "changeQty": "मात्रा बदलें",
+    "differentQty": "मात्रा बदलें"
   },
   "customers": {
     "title": "ग्राहक और स्वीकृतियां",

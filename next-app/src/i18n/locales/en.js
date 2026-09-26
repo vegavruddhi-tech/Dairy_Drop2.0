@@ -463,7 +463,9 @@ export const en = {
     "filterByStatus": "Filter by Status",
     "allDeliveries": "All Deliveries",
     "deliveredOnly": "Delivered Only",
-    "pendingOnly": "Pending Only"
+    "pendingOnly": "Pending",
+    "changeQty": "Change Qty",
+    "differentQty": "Change Qty"
   },
   "customers": {
     "title": "Customers & Approvals",
