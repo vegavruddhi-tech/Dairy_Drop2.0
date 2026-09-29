@@ -22,6 +22,7 @@ import { NotFoundError, ConflictError, ValidationError } from '@/domain/errors.j
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import * as deliveriesRepo from '@/repositories/deliveries.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
+import * as requestsRepo from '@/repositories/requests.repo.js';
 import { assertCanAcceptCustomer } from './onboarding.service.js';
 
 /** Plans the customer may choose from — their own milkman's catalog. */
@@ -470,6 +471,61 @@ async function endEveryoneOn(tx, actor, plan) {
  *
  * Called by the request service once a milkman approves.
  */
+/**
+ * The milkman changes a customer's plan directly.
+ *
+ * The same versioned change a customer's request goes through when approved —
+ * `applyPlanChange` — so billing, the slot rule and the window cut-off behave
+ * identically; only who starts it differs. The customer is told, and any
+ * change they had asked for on this subscription is closed, since this one
+ * overtakes it.
+ *
+ * Scoped by the milkman's tenant throughout: `findCurrentByRoot` and
+ * `findPlan` only resolve their own customers and their own plans.
+ */
+export async function changeCustomerPlan(actor, { rootId, planId, quantity }) {
+  const current = await subscriptionsRepo.findCurrentByRoot(actor, rootId);
+  if (!current) throw new NotFoundError('That subscription');
+  if (current.status !== 'ACTIVE' && current.status !== 'PAUSED') {
+    throw new ConflictError('That subscription is not running.');
+  }
+
+  const plan = await subscriptionsRepo.findPlan(actor, planId);
+  if (!plan || !plan.isActive) throw new NotFoundError('That plan');
+
+  const nextQuantity = quantity ?? plan.quantity;
+  if (current.planId === plan.id && Number(current.quantity) === Number(nextQuantity)) {
+    throw new ConflictError(`They are already on ${plan.name}.`);
+  }
+
+  return transaction(async (tx) => {
+    const next = await applyPlanChange(tx, actor, {
+      rootId,
+      plan,
+      overrides: quantity != null ? { quantity: String(quantity) } : {},
+    });
+
+    await requestsRepo.declinePendingPlanChangesForRoot(tx, actor, {
+      rootId,
+      note: `Your milkman changed this plan to ${plan.name}.`,
+    });
+
+    await notificationsRepo.create(tx, {
+      userId: current.customerId,
+      type: 'PLAN_CHANGE',
+      title: 'Your milkman changed your plan',
+      body:
+        `${current.productName} ${Number(current.quantity)} ${current.unit} → ` +
+        `${plan.name} (${Number(nextQuantity)} ${plan.unit}), from ${next.effectiveFrom === businessDate() ? 'today' : next.effectiveFrom}.`,
+      href: '/subscriptions',
+      subjectType: 'milk_subscription',
+      subjectId: next.id,
+    });
+
+    return { subscription: next, planName: plan.name, effectiveFrom: next.effectiveFrom };
+  });
+}
+
 export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} }) {
   const [current] = await tx
     .select()

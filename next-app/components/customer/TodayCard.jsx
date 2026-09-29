@@ -8,7 +8,7 @@ import { Card, CardBody, StatusBadge, cn } from '@/components/ui/index.jsx';
 import { Button, Modal, QuantityStepper, Textarea } from '@/components/ui/interactive.jsx';
 import { MilkDropIcon, EditIcon, VacationIcon, UndoIcon } from '@/components/ui/Icons.jsx';
 import { skipDay, resumeDay, adjustQuantity } from '@/actions/customer.actions.js';
-import { formatWindow } from '@/domain/dates.js';
+import { formatWindow, formatDateShort } from '@/domain/dates.js';
 import { useT } from '@/i18n/provider.jsx';
 
 /**
@@ -18,7 +18,14 @@ import { useT } from '@/i18n/provider.jsx';
  * Context-aware: seamlessly switches between Today's and Tomorrow's delivery
  * with strict 10:00 PM previous-night cutoff enforcement.
  */
-export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false }) {
+/**
+ * @param {object} props
+ * @param {object} [props.successor]  the plan version that takes over from
+ *   this delivery's terms, when a change is waiting to start. The card is
+ *   then drawn greyed, as the plan on its way out; today's delivery on it is
+ *   still real and still actionable.
+ */
+export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false, successor = null }) {
   const router = useRouter();
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -45,7 +52,14 @@ export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false }
 
   return (
     <>
-      <div className="group relative overflow-hidden rounded-3xl border-2 border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm transition-all hover:border-blue-400 hover:shadow-md">
+      <div
+        className={cn(
+          'group relative h-full overflow-hidden rounded-3xl border-2 p-5 sm:p-6 shadow-sm transition-all',
+          successor
+            ? 'border-slate-200 bg-slate-50 grayscale opacity-70 hover:opacity-90'
+            : 'border-slate-200/90 bg-white hover:border-blue-400 hover:shadow-md',
+        )}
+      >
         {/* Top accent line based on status */}
         <div
           className={cn(
@@ -72,7 +86,7 @@ export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false }
               <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <SlotLine delivery={delivery} isHi={isHi} />
               </p>
-              <EndingNote delivery={delivery} isHi={isHi} />
+              <EndingNote delivery={delivery} successor={successor} isHi={isHi} />
             </div>
             <StatusBadge status={delivery.status} locale={locale} />
           </div>
@@ -286,7 +300,16 @@ function SlotLine({ delivery, isHi }) {
  * A short line explaining that these terms are ending, or that the plan behind
  * them has been withdrawn.
  */
-function EndingNote({ delivery, isHi }) {
+function EndingNote({ delivery, successor, isHi }) {
+  if (successor) {
+    const when = formatDateShort(successor.effectiveFrom);
+    return (
+      <p className="mt-1 text-xs font-bold text-slate-600">
+        {isHi ? `पुराना प्लान — ${when} से नया प्लान` : `Old plan — ends before ${when}`}
+      </p>
+    );
+  }
+
   if (delivery.termsEndOn) {
     return (
       <p className="mt-1 text-xs font-medium text-caution">
@@ -306,4 +329,64 @@ function EndingNote({ delivery, isHi }) {
   }
 
   return null;
+}
+
+/**
+ * The plan that takes over, shown beside the greyed card it replaces.
+ *
+ * Nothing here is stored or scheduled separately: it is the subscription's
+ * next version, already in the database with its start date. On that date the
+ * old version has ended, today's delivery comes from this one, and the page
+ * simply stops drawing the pair — no job flips anything over.
+ */
+export function UpcomingPlanCard({ successor, isTomorrowStart }) {
+  const { locale } = useT();
+  const isHi = locale === 'hi';
+  const when = formatDateShort(successor.effectiveFrom);
+  const price = Number(successor.unitPrice ?? 0);
+
+  return (
+    <div className="relative h-full overflow-hidden rounded-3xl border-2 border-blue-400 bg-white p-5 sm:p-6 shadow-md">
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-blue-600" />
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <MilkDropIcon className="h-4 w-4" />
+              </span>
+              <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">{successor.productName}</h3>
+            </div>
+            <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+              <SlotLine delivery={successor} isHi={isHi} />
+            </p>
+            <p className="mt-1 text-xs font-bold text-blue-700">
+              {isHi
+                ? `${isTomorrowStart ? 'कल' : when} से शुरू होगा`
+                : `Starts ${isTomorrowStart ? 'tomorrow' : when}`}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-blue-700">
+            {isHi ? 'नया प्लान' : 'New plan'}
+          </span>
+        </div>
+
+        <div className="flex items-baseline gap-2 rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3">
+          <span className="font-heading text-3xl font-black text-slate-950 tnum">{Number(successor.quantity)}</span>
+          <span className="font-heading text-sm font-bold text-slate-600">{successor.unit}</span>
+          {price > 0 ? (
+            <span className="ml-auto text-xs font-bold text-slate-500 tnum">
+              ₹{price % 1 === 0 ? price : price.toFixed(2)}/{successor.unit}
+            </span>
+          ) : null}
+        </div>
+
+        <p className="text-xs font-medium text-slate-500">
+          {isHi
+            ? 'यह अपने आप सक्रिय हो जाएगा — आपको कुछ करने की ज़रूरत नहीं।'
+            : 'This takes over automatically — nothing for you to do.'}
+        </p>
+      </div>
+    </div>
+  );
 }

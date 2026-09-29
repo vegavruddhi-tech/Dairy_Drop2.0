@@ -247,6 +247,33 @@ export async function resolvePlanChangeRequest(tx, actor, { id, status, milkmanN
   return row ?? null;
 }
 
+/**
+ * Close any plan-change request still open on a subscription.
+ *
+ * Used when the milkman changes the plan directly: the customer's pending ask
+ * is overtaken, and leaving it in the inbox would invite approving a second
+ * change on top of the first.
+ */
+export async function declinePendingPlanChangesForRoot(tx, actor, { rootId, note }) {
+  return tx
+    .update(planChangeRequests)
+    .set({
+      status: 'REJECTED',
+      milkmanNote: note,
+      resolvedBy: actor.userId,
+      resolvedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.REQUEST_RESOLVE, columns: pcrScope },
+        eq(planChangeRequests.subscriptionRootId, rootId),
+        eq(planChangeRequests.status, 'PENDING'),
+      ),
+    )
+    .returning({ id: planChangeRequests.id });
+}
+
 /** Badge counts for the milkman's nav, in one round-trip. */
 export async function countPendingRequests(actor) {
   const [quantity] = await db

@@ -185,6 +185,26 @@ export async function listCurrentForCustomer(actor, customerId) {
     .orderBy(asc(milkSubscriptions.createdAt));
 }
 
+/**
+ * Current, running versions for a set of customers, in one query.
+ * Feeds the milkman's "edit plan" sheet on the customer book.
+ */
+export async function listCurrentForCustomers(actor, customerIds) {
+  if (customerIds.length === 0) return [];
+  return db
+    .select()
+    .from(milkSubscriptions)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.SUBSCRIPTION_READ, columns: subScope },
+        inArray(milkSubscriptions.customerId, customerIds),
+        isNull(milkSubscriptions.effectiveTo),
+        inArray(milkSubscriptions.status, ['ACTIVE', 'PAUSED']),
+      ),
+    )
+    .orderBy(asc(milkSubscriptions.createdAt));
+}
+
 /** Current version by root id, within scope. */
 export async function findCurrentByRoot(actor, rootId) {
   const [row] = await db

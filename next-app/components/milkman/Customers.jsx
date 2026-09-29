@@ -10,6 +10,7 @@ import { Button, Modal, Input, Textarea } from '@/components/ui/interactive.jsx'
 import { EditIcon, PhoneIcon, MapPinIcon, CheckIcon, NoteIcon } from '@/components/ui/Icons.jsx';
 import { approveCustomer, rejectCustomer, updateCustomerAddress } from '@/actions/milkman.actions.js';
 import { MilkmanFilterBar } from './MilkmanFilterBar.jsx';
+import { EditPlanButton } from './EditCustomerPlan.jsx';
 
 /**
  * Modal to edit customer address & delivery instructions directly as a Milkman.
@@ -241,7 +242,7 @@ export function EditAddressModal({ customer, open, onClose }) {
 }
 
 /** A customer waiting for a decision. */
-export function ApprovalCard({ customer, summary, atLimit }) {
+export function ApprovalCard({ customer, summary, atLimit, subscriptions = [], plans = [] }) {
   const { t } = useT();
   const [modal, setModal] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -307,6 +308,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
             ) : null}
           </div>
 
+          <EditPlanButton customer={customer} subscriptions={subscriptions} plans={plans} />
           <button
             type="button"
             onClick={() => setModal('editAddress')}
@@ -405,7 +407,7 @@ export function ApprovalCard({ customer, summary, atLimit }) {
 }
 
 /** A row/card in the active customer book with instant address editing and direct call shortcut. */
-export function CustomerRow({ customer, summary }) {
+export function CustomerRow({ customer, summary, subscriptions = [], plans = [] }) {
   const { t } = useT();
   const [editing, setEditing] = useState(false);
   const address =
@@ -437,6 +439,7 @@ export function CustomerRow({ customer, summary }) {
 
           {/* Action shortcuts */}
           <div className="flex shrink-0 items-center gap-2">
+            <EditPlanButton customer={customer} subscriptions={subscriptions} plans={plans} />
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -519,6 +522,8 @@ function Avatar({ name, tone = 'brand' }) {
 export function CustomersListWithFilters({
   customers = [],
   summaries = {},
+  subscriptionsByCustomer = {},
+  plans = [],
   isPendingTab = false,
   atLimit = false,
   isHi = false,
@@ -633,6 +638,8 @@ export function CustomersListWithFilters({
                 customer={customer}
                 summary={sum}
                 atLimit={atLimit}
+                subscriptions={subscriptionsByCustomer[customer.id] ?? []}
+                plans={plans}
               />
             );
           })}
@@ -644,7 +651,7 @@ export function CustomersListWithFilters({
               {filtered.map((customer) => {
                 const sum = summaries instanceof Map ? summaries.get(customer.id) : summaries?.[customer.id];
                 return (
-                  <CustomerRow key={customer.id} customer={customer} summary={sum} />
+                  <CustomerRow key={customer.id} customer={customer} summary={sum} subscriptions={subscriptionsByCustomer[customer.id] ?? []} plans={plans} />
                 );
               })}
             </ul>

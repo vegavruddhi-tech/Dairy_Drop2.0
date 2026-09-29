@@ -15,7 +15,7 @@ import {
   HeroBanner, HeroAction,
 } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
-import { TodayCard } from '@/components/customer/TodayCard.jsx';
+import { TodayCard, UpcomingPlanCard } from '@/components/customer/TodayCard.jsx';
 import { CalendarVacationButton } from '@/components/customer/CalendarAction.jsx';
 import { OrderCard } from '@/components/customer/OrderCard.jsx';
 import { PushNotificationPrompt } from '@/components/ui/PushNotificationPrompt.jsx';
@@ -70,6 +70,22 @@ export default async function CustomerDashboard() {
   const targetDeliveries = showTomorrow ? tomorrowDeliveries : todayDeliveries;
   const isTomorrowTarget = showTomorrow;
   const targetDate = isTomorrowTarget ? tomorrow : today;
+
+  /*
+   * A plan change waiting to start.
+   *
+   * When a change is dated after the day on show, that day's delivery still
+   * runs on the old terms and its version has an end date. The subscription's
+   * current version — same root, starting later — is the plan taking over.
+   * Once the start date arrives there is no such pair any more: the day's
+   * delivery is generated from the new version and only it is drawn.
+   */
+  const successorFor = (delivery) =>
+    delivery.termsEndOn
+      ? subscriptions.find(
+          (s) => s.rootId === delivery.subscriptionRootId && s.effectiveFrom > targetDate,
+        ) ?? null
+      : null;
 
   const greetingText = await getGreeting(new Date().getHours());
 
@@ -218,14 +234,46 @@ export default async function CustomerDashboard() {
           )
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {targetDeliveries.map((delivery) => (
-              <TodayCard
-                key={delivery.id}
-                delivery={delivery}
-                isTomorrow={isTomorrowTarget}
-                cutoffPassed={isPastDeliveryCutoff(targetDate, delivery.slot)}
-              />
-            ))}
+            {targetDeliveries.map((delivery) => {
+              const successor = successorFor(delivery);
+              const card = (
+                <TodayCard
+                  key={delivery.id}
+                  delivery={delivery}
+                  isTomorrow={isTomorrowTarget}
+                  cutoffPassed={isPastDeliveryCutoff(targetDate, delivery.slot)}
+                  successor={successor}
+                />
+              );
+              if (!successor) return card;
+              // Old plan greyed on the left, the new one beside it (below it on a phone).
+              return (
+                <div key={delivery.id} className="relative grid gap-4 sm:col-span-2 sm:grid-cols-2">
+                  {card}
+                  <UpcomingPlanCard
+                    successor={{
+                      productName: successor.productName,
+                      quantity: String(successor.quantity),
+                      unit: successor.unit,
+                      slot: successor.slot,
+                      morningStart: successor.morningStart,
+                      morningEnd: successor.morningEnd,
+                      eveningStart: successor.eveningStart,
+                      eveningEnd: successor.eveningEnd,
+                      unitPrice: successor.unitPrice != null ? String(successor.unitPrice) : null,
+                      effectiveFrom: successor.effectiveFrom,
+                    }}
+                    isTomorrowStart={successor.effectiveFrom === addDays(targetDate, 1)}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-1/2 top-1/2 hidden h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-sm font-black text-white shadow-md sm:flex"
+                  >
+                    →
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

@@ -356,6 +356,14 @@ export const planChangeRequestSchema = z.object({
   note: nonEmpty(500, 'Tell your milkman why you would like to change.'),
 });
 
+/** A milkman moving one of their customer's subscriptions onto another plan. */
+export const customerPlanChangeSchema = z.object({
+  rootId: uuid,
+  planId: uuid,
+  /** Optional: a quantity other than the plan's own, e.g. 1.5 L on a 1 L plan. */
+  quantity: quantity.optional(),
+});
+
 export const resolveRequestSchema = z.object({
   requestId: uuid,
   approve: z.boolean(),

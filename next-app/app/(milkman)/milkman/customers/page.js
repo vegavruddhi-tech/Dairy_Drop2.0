@@ -28,10 +28,34 @@ export default async function CustomersPage({ searchParams }) {
     subscriptionsRepo.countActiveCustomers(db, actor.userId),
   ]);
 
-  const summaries = await subscriptionsRepo.summariseByCustomer(
-    actor,
-    customers.map((customer) => customer.id),
-  );
+  const customerIds = customers.map((customer) => customer.id);
+  const [summaries, running, plansOnOffer] = await Promise.all([
+    subscriptionsRepo.summariseByCustomer(actor, customerIds),
+    subscriptionsRepo.listCurrentForCustomers(actor, customerIds),
+    subscriptionsRepo.listPlans(actor, { activeOnly: true }),
+  ]);
+
+  // For the "edit plan" sheet: each customer's running subscriptions, and the
+  // plans they can be moved onto. Plain objects — these cross to the client.
+  const subscriptionsByCustomer = {};
+  for (const s of running) {
+    (subscriptionsByCustomer[s.customerId] ??= []).push({
+      rootId: s.rootId,
+      planId: s.planId,
+      productName: s.productName,
+      quantity: String(s.quantity),
+      unit: s.unit,
+      slot: s.slot,
+      status: s.status,
+    });
+  }
+  const plans = plansOnOffer.map((p) => ({
+    id: p.id,
+    name: p.name,
+    quantity: String(p.quantity),
+    unit: p.unit,
+    slot: p.slot,
+  }));
 
   const limit = actor.saas?.customerLimit;
   const atLimit = limit ? customerCount >= limit : false;
@@ -162,6 +186,8 @@ export default async function CustomersPage({ searchParams }) {
         <CustomersListWithFilters
           customers={customers}
           summaries={summaries}
+          subscriptionsByCustomer={subscriptionsByCustomer}
+          plans={plans}
           isPendingTab={status === 'PENDING'}
           atLimit={atLimit}
           isHi={isHi}

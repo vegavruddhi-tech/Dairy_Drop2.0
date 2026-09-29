@@ -61,6 +61,14 @@ const approveCustomerAction = defineAction({
   revalidate: ['/milkman/customers'],
 });
 
+const changeCustomerPlanAction = defineAction({
+  authorize: paid,
+  schema: V.customerPlanChangeSchema,
+  handler: ({ actor, input }) => subscriptionService.changeCustomerPlan(actor, input),
+  // The customer's own screens read the same rows, so they update too.
+  revalidate: ['/milkman/customers', '/milkman/round', '/subscriptions', '/dashboard'],
+});
+
 const rejectCustomerAction = defineAction({
   authorize: paid,
   schema: V.rejectCustomerSchema,
@@ -237,6 +245,10 @@ export async function declareDayOff(input) {
 
 export async function cancelDayOff(input) {
   return cancelDayOffAction(input);
+}
+
+export async function changeCustomerPlan(input) {
+  return changeCustomerPlanAction(input);
 }
 
 export async function approveCustomer(input) {
