@@ -1,5 +1,3 @@
-const DEFAULT_VAPID_PUBLIC_KEY =
-  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZfIjSPOQVZVt0Tzx5426Q1HTINWzz6F_joBp-0';
 
 function urlBase64ToUint8Array(base64String) {
   if (!base64String || typeof base64String !== 'string') {
@@ -52,9 +50,12 @@ export async function subscribeUserToPush() {
     throw new Error('Push notifications are not supported on this browser.');
   }
 
-  const rawKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  const vapidPublicKey =
-    rawKey && rawKey.trim().length > 30 ? rawKey.trim().replace(/['"]/g, '') : DEFAULT_VAPID_PUBLIC_KEY;
+  // Must be the same key the server signs with; there is deliberately no
+  // fallback — a different key would subscribe fine and then never deliver.
+  const vapidPublicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').replace(/['"]/g, '').trim();
+  if (!vapidPublicKey) {
+    throw new Error('Notifications are not set up on this server yet.');
+  }
 
   // 1. Request permission
   const permission = await Notification.requestPermission();
@@ -119,5 +120,54 @@ export async function unsubscribeUserFromPush() {
     }
   } catch (err) {
     console.error('Error during push unsubscription:', err);
+  }
+}
+
+/**
+ * Make sure this device's subscription uses the server's current key and is
+ * saved on the server. Runs silently whenever permission is already granted.
+ *
+ * Needed because a subscription is bound to the key it was made with. Devices
+ * that subscribed under an old or wrong key keep a subscription the server can
+ * never deliver to, and the "Enable notifications" card never shows again once
+ * permission is granted — so without this they would stay silent for good.
+ */
+export async function syncPushSubscription() {
+  if (!isPushNotificationSupported() || Notification.permission !== 'granted') return;
+  const vapidPublicKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '').replace(/['"]/g, '').trim();
+  if (!vapidPublicKey) return;
+
+  try {
+    const registration = (await registerServiceWorker()) && (await navigator.serviceWorker.ready);
+    if (!registration) return;
+
+    const wanted = urlBase64ToUint8Array(vapidPublicKey);
+    let subscription = await registration.pushManager.getSubscription();
+
+    const currentKey = subscription?.options?.applicationServerKey
+      ? new Uint8Array(subscription.options.applicationServerKey)
+      : null;
+    const sameKey =
+      currentKey && currentKey.length === wanted.length && currentKey.every((b, i) => b === wanted[i]);
+
+    if (subscription && !sameKey) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: wanted,
+      });
+    }
+
+    // Idempotent upsert on the server, keyed by endpoint.
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription }),
+    });
+  } catch (error) {
+    console.warn('[pushClient] could not refresh the subscription:', error?.message ?? error);
   }
 }

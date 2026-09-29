@@ -70,6 +70,40 @@ export { schema };
  * @param {(tx: typeof db) => Promise<T>} fn
  * @returns {Promise<T>}
  */
-export function transaction(fn) {
-  return db.transaction(fn);
+export async function transaction(fn) {
+  /*
+   * Work to run only once the transaction has committed — a web push for a
+   * notification, say. Sending it from inside would announce things that a
+   * later statement could still roll back. Callers register with
+   * `afterCommit(tx, fn)`; a rolled-back transaction runs none of them.
+   */
+  const pending = [];
+  const result = await db.transaction((tx) => {
+    tx[AFTER_COMMIT] = pending;
+    return fn(tx);
+  });
+  for (const job of pending) {
+    Promise.resolve()
+      .then(job)
+      .catch((error) => console.warn('[afterCommit]', error?.message ?? error));
+  }
+  return result;
+}
+
+const AFTER_COMMIT = Symbol('afterCommit');
+
+/**
+ * Run `job` after `txOrDb` commits. Outside a transaction (plain `db`) there is
+ * nothing to wait for, so it runs straight away. Never awaited by the caller,
+ * never able to fail the request.
+ */
+export function afterCommit(txOrDb, job) {
+  const queue = txOrDb?.[AFTER_COMMIT];
+  if (queue) {
+    queue.push(job);
+    return;
+  }
+  Promise.resolve()
+    .then(job)
+    .catch((error) => console.warn('[afterCommit]', error?.message ?? error));
 }

@@ -39,7 +39,7 @@ export async function DELETE(request) {
   try {
     const body = await request.json().catch(() => ({}));
     if (body.endpoint) {
-      await pushRepo.removeSubscription(body.endpoint);
+      await pushRepo.removeOwnSubscription(actor.userId, body.endpoint);
     } else {
       await pushRepo.removeSubscriptionsForUser(actor.userId);
     }

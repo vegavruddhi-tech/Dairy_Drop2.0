@@ -62,14 +62,21 @@ export const notifications = pgTable(
   }),
 );
 
+/**
+ * Web-push subscriptions: one row per browser/device endpoint.
+ *
+ * Matches the table as it exists (created by 0006_push_subscriptions.sql):
+ * `user_id` is text with no foreign key, and `endpoint` is unique. A second,
+ * unused definition in `schema/push.js` disagreed with this one and is gone.
+ * Rows for a deleted user are never reached (pushes are looked up by user id)
+ * and 404/410 from the push service removes dead ones.
+ */
 export const pushSubscriptions = pgTable(
   'push_subscriptions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    endpoint: text('endpoint').notNull(),
+    userId: text('user_id').notNull(),
+    endpoint: text('endpoint').notNull().unique(),
     p256dh: text('p256dh').notNull(),
     auth: text('auth').notNull(),
     userAgent: text('user_agent'),
@@ -77,7 +84,6 @@ export const pushSubscriptions = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    userEndpointIdx: index('push_subscriptions_user_endpoint_idx').on(t.userId, t.endpoint),
-    endpointIdx: index('push_subscriptions_endpoint_idx').on(t.endpoint),
+    userIdx: index('push_subscriptions_user_id_idx').on(t.userId),
   }),
 );

@@ -5,7 +5,7 @@
 import 'server-only';
 import { and, eq, desc, isNull, lt, gte, sql, inArray } from 'drizzle-orm';
 
-import { db } from '@/db/index.js';
+import { db, afterCommit } from '@/db/index.js';
 import { notifications } from '@/db/schema/index.js';
 import { paginate } from './base.js';
 
@@ -13,7 +13,30 @@ import { paginate } from './base.js';
 export async function create(tx, values) {
   const rows = Array.isArray(values) ? values : [values];
   if (rows.length === 0) return [];
-  return tx.insert(notifications).values(rows).returning({ id: notifications.id });
+  const inserted = await tx.insert(notifications).values(rows).returning({ id: notifications.id });
+
+  /*
+   * Every in-app notification also goes to the person's devices, once the
+   * transaction that wrote it has committed. Previously only "delivered"
+   * pushed; a plan change or a confirmed payment reached the bell and nothing
+   * else. Loaded lazily so this repository does not pull `web-push` into
+   * every import graph.
+   */
+  afterCommit(tx, async () => {
+    const { sendPushNotification } = await import('@/services/push.service.js');
+    await Promise.allSettled(
+      rows.map((row) =>
+        sendPushNotification(row.userId, {
+          title: row.title,
+          body: row.body,
+          href: row.href ?? '/',
+          tag: row.type,
+        }),
+      ),
+    );
+  });
+
+  return inserted;
 }
 
 /**

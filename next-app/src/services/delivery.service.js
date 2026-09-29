@@ -376,19 +376,8 @@ export async function markDelivery(actor, { deliveryId, status, quantity, note, 
         subjectId: updated.id,
       });
 
-      // Dispatch real-time web push notification to customer devices
-      try {
-        const { sendPushNotification } = await import('@/services/push.service.js');
-        sendPushNotification(updated.customerId, {
-          title: 'Milk Delivered',
-          body: `${updated.productName} (${Number(updated.deliveredQuantity)} ${updated.unit}) has arrived at your doorstep!`,
-          href: '/calendar',
-          tag: 'delivery-delivered',
-          data: { deliveryId: updated.id },
-        }).catch((err) => console.warn('[push error]:', err?.message));
-      } catch (err) {
-        // Non-blocking
-      }
+      // The notification above is pushed to their devices by
+      // `notificationsRepo.create`, once this transaction commits.
     }
 
     return updated;

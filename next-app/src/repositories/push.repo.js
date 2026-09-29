@@ -52,12 +52,26 @@ export async function listSubscriptionsForUser(userId) {
     .where(eq(pushSubscriptions.userId, userId));
 }
 
-/** Delete a single endpoint (e.g. on 410 Gone / 404 Unregistered or user unsubscribe) */
+/**
+ * Forget an endpoint the push service says is dead (404/410). System use only:
+ * the push service, not a user, is the authority here.
+ */
 export async function removeSubscription(endpoint) {
   if (!endpoint) return;
   return db
     .delete(pushSubscriptions)
     .where(eq(pushSubscriptions.endpoint, endpoint));
+}
+
+/**
+ * A user unsubscribing one of their own devices. Matching on the endpoint
+ * alone let anyone who learned an endpoint switch off someone else's alerts.
+ */
+export async function removeOwnSubscription(userId, endpoint) {
+  if (!userId || !endpoint) return;
+  return db
+    .delete(pushSubscriptions)
+    .where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userId, userId)));
 }
 
 /** Remove all subscriptions for a user */

@@ -122,6 +122,24 @@ export function NotificationBell({ className = '' }) {
     }
   }
 
+  const [testing, setTesting] = useState(false);
+
+  async function sendTestPush() {
+    setTesting(true);
+    try {
+      const res = await fetch('/api/push/test', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) toast.error(data.message ?? 'Could not send a test.');
+      else if (data.sent > 0) toast.success(`Sent to ${data.sent} device${data.sent === 1 ? '' : 's'}.`);
+      else if (data.failed > 0) toast.error('The push service refused it — check the server log.');
+      else toast.error('No device is subscribed. Tap "Enable Notifications" on the home page first.');
+    } catch {
+      toast.error('Could not send a test.');
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
     <div className={`relative ${className}`} ref={menuRef}>
       {/* Bell Button */}
@@ -218,6 +236,18 @@ export function NotificationBell({ className = '' }) {
                 );
               })
             )}
+          </div>
+
+          {/* Checks the whole path — keys, encryption, this device's subscription. */}
+          <div className="border-t border-slate-100 px-3.5 py-2.5 text-center">
+            <button
+              type="button"
+              onClick={sendTestPush}
+              disabled={testing}
+              className="text-[11px] font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50"
+            >
+              {testing ? 'Sending…' : 'Send a test notification to my devices'}
+            </button>
           </div>
         </div>
       ) : null}

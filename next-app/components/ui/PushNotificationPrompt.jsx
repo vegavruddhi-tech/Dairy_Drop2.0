@@ -6,6 +6,7 @@ import {
   isPushNotificationSupported,
   getPushPermissionState,
   subscribeUserToPush,
+  syncPushSubscription,
 } from '@/lib/pushClient.js';
 import { BellIcon } from '@/components/ui/Icons.jsx';
 
@@ -24,7 +25,10 @@ export function PushNotificationPrompt({
     const isSupp = isPushNotificationSupported();
     setSupported(isSupp);
     if (isSupp) {
-      setPermission(getPushPermissionState());
+      const state = getPushPermissionState();
+      setPermission(state);
+      // Already allowed: quietly keep this device's subscription current.
+      if (state === 'granted') syncPushSubscription();
       const wasDismissed = localStorage.getItem('dairydrop_push_dismissed');
       if (wasDismissed === 'true') {
         setDismissed(true);
