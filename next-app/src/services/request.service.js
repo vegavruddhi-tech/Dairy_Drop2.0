@@ -251,10 +251,11 @@ export async function resolvePlanChangeRequest(actor, { requestId, approve, note
 
 /** The milkman's combined request inbox. */
 export async function listInbox(actor) {
-  const [quantity, plan, counts] = await Promise.all([
+  const [quantity, plan, subscriptions, counts] = await Promise.all([
     requestsRepo.listQuantityRequests(actor, { status: 'PENDING' }),
     requestsRepo.listPlanChangeRequests(actor, { status: 'PENDING' }),
+    subscriptionsRepo.listPendingRequests(actor),
     requestsRepo.countPendingRequests(actor),
   ]);
-  return { quantity, plan, counts };
+  return { quantity, plan, subscriptions, counts };
 }

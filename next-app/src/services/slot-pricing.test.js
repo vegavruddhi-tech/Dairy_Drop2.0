@@ -11,7 +11,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
@@ -93,7 +93,7 @@ suite('morning and evening', () => {
 
   it('generates a morning row and an evening row for one day', async () => {
     if (!planId) return;
-    const created = await subscriptions.subscribe(customer, { planId });
+    const created = await subscribeApproved(subscriptions, customer, { planId });
     rootIds.push(created.rootId);
 
     await db.execute(sql`

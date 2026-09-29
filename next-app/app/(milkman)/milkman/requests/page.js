@@ -5,6 +5,7 @@ import * as requestService from '@/services/request.service.js';
 import { EmptyState, Stat, SectionHeading } from '@/components/ui/index.jsx';
 import { RequestsIcon, MilkDropIcon, PlansIcon } from '@/components/ui/Icons.jsx';
 import { QuantityRequest, PlanChangeRequest } from '@/components/milkman/Requests.jsx';
+import { SubscriptionRequest } from '@/components/milkman/SubscriptionRequest.jsx';
 
 export const metadata = { title: 'Requests' };
 
@@ -16,9 +17,9 @@ export default async function RequestsPage() {
   const t = await getT();
   const locale = await getLocale();
   const isHi = locale === 'hi';
-  const { quantity, plan } = await requestService.listInbox(actor);
+  const { quantity, plan, subscriptions } = await requestService.listInbox(actor);
 
-  const total = quantity.length + plan.length;
+  const total = quantity.length + plan.length + subscriptions.length;
   const empty = total === 0;
 
   const subtitle = empty
@@ -27,6 +28,7 @@ export default async function RequestsPage() {
       : t('requests.allCaughtUp', {}, 'All caught up — nothing needs an answer.')
     : [
         `${total} ${isHi ? 'प्रतीक्षारत' : t('requests.waiting', {}, 'waiting')}`,
+        subscriptions.length ? `${subscriptions.length} ${isHi ? 'नए प्लान' : 'new plans'}` : null,
         quantity.length ? `${quantity.length} ${isHi ? 'एक दिन के लिए' : t('requests.forADay', {}, 'for a day')}` : null,
         plan.length ? `${plan.length} ${isHi ? 'प्लान बदलाव' : t('requests.planChanges', {}, 'plan changes')}` : null,
       ]
@@ -99,6 +101,19 @@ export default async function RequestsPage() {
         />
       ) : (
         <div className="space-y-8">
+          {subscriptions.length > 0 ? (
+            <section aria-labelledby="sub-heading">
+              <SectionHeading id="sub-heading" count={subscriptions.length} tone="positive">
+                {isHi ? 'नए प्लान अनुरोध' : 'New plans to approve'}
+              </SectionHeading>
+              <div className="space-y-3">
+                {subscriptions.map((request) => (
+                  <SubscriptionRequest key={request.rootId} request={request} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {quantity.length > 0 ? (
             <section aria-labelledby="qty-heading">
               <SectionHeading id="qty-heading" count={quantity.length} tone="caution">

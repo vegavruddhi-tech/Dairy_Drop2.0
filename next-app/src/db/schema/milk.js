@@ -237,10 +237,10 @@ export const milkSubscriptions = pgTable(
      */
     oneMorningPerProduct: uniqueIndex('milk_subs_one_morning_per_product')
       .on(t.customerId, t.productKey)
-      .where(sql`occupies_morning and effective_to is null and status in ('ACTIVE', 'PAUSED')`),
+      .where(sql`occupies_morning and effective_to is null and status in ('PENDING', 'ACTIVE', 'PAUSED')`),
     oneEveningPerProduct: uniqueIndex('milk_subs_one_evening_per_product')
       .on(t.customerId, t.productKey)
-      .where(sql`occupies_evening and effective_to is null and status in ('ACTIVE', 'PAUSED')`),
+      .where(sql`occupies_evening and effective_to is null and status in ('PENDING', 'ACTIVE', 'PAUSED')`),
 
     positiveQuantity: check('milk_subs_qty_positive', sql`${t.quantity} > 0`),
     nonNegativePrice: check('milk_subs_price_non_negative', sql`${t.unitPrice} >= 0`),

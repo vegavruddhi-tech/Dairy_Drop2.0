@@ -74,3 +74,22 @@ export async function removeStaleTestCustomers(db, sql) {
     await removeTestCustomer(db, sql, row.id);
   }
 }
+
+/**
+ * Subscribe and have the milkman approve it at once.
+ *
+ * A new subscription now starts as a PENDING request. Most suites are about
+ * what a running plan does, not about approval, so they go through this and
+ * get an ACTIVE subscription from its requested start date — the state
+ * `subscribe` used to return directly. Approval itself is covered by
+ * `subscription-approval.test.js`.
+ */
+export async function subscribeApproved(service, actor, input) {
+  const created = await service.subscribe(actor, input);
+  const { db } = await import('@/db/index.js');
+  const { sql } = await import('drizzle-orm');
+  await db.execute(sql`
+    update "app".milk_subscriptions set status = 'ACTIVE'
+     where id = ${created.id} and status = 'PENDING'`);
+  return { ...created, status: 'ACTIVE' };
+}

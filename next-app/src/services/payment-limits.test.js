@@ -93,28 +93,28 @@ suite('payment submission limits', () => {
 
   it('refuses more than is owed', async () => {
     if (!subscribed) return;
-    await expect(pay(500, 'LIM-OVER')).rejects.toThrow(/you owe/i);
+    await expect(pay(500, '604287310001')).rejects.toThrow(/you owe/i);
     expect(await countRows()).toBe(0);
   });
 
   it('makes a customer wait between submissions', async () => {
     if (!subscribed) return;
-    await pay(40, 'LIM-A');
-    await expect(pay(10, 'LIM-B')).rejects.toThrow(/wait/i);
+    await pay(40, '604287310002');
+    await expect(pay(10, '604287310003')).rejects.toThrow(/wait/i);
     expect(await countRows()).toBe(1);
   });
 
   it('refuses a reference that is already recorded', async () => {
     if (!subscribed) return;
     await ageAllPayments();
-    await expect(pay(10, ' lim-a ')).rejects.toThrow(/already been recorded/i);
+    await expect(pay(10, ' 6042 8731-0002 ')).rejects.toThrow(/already been recorded/i);
   });
 
   it('holds at most two unconfirmed payments per bill', async () => {
     if (!subscribed) return;
-    await pay(10, 'LIM-B');
+    await pay(10, '604287310003');
     await ageAllPayments();
-    await expect(pay(10, 'LIM-C')).rejects.toThrow(/still confirming/i);
+    await expect(pay(10, '604287310004')).rejects.toThrow(/still confirming/i);
     expect(await countRows()).toBe(2);
   });
 
@@ -125,7 +125,7 @@ suite('payment submission limits', () => {
     await db.execute(sql`delete from "app".payments where bill_id in ${bills()}`);
     await ageAllPayments();
 
-    const results = await Promise.allSettled([pay(120, 'LIM-P1'), pay(120, 'LIM-P2')]);
+    const results = await Promise.allSettled([pay(120, '604287310005'), pay(120, '604287310006')]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(await countRows()).toBe(1);
   });

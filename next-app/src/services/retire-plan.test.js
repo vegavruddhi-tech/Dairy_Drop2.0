@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
@@ -59,7 +59,7 @@ suite('retiring a plan', () => {
     planId = (created.rows ?? created)[0].id;
     planIds.push(planId);
 
-    await subs.subscribe(customer, { planId });
+    await subscribeApproved(subs, customer, { planId });
     await db.execute(sql`
       update "app".milk_subscriptions set effective_from = ${today}
        where customer_id = ${fixture.id}`);

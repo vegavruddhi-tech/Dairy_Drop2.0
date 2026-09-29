@@ -10,7 +10,7 @@
  */
 
 import 'server-only';
-import { eq, and, ne, sql } from 'drizzle-orm';
+import { eq, and, ne, sql, isNull } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import {
@@ -172,9 +172,12 @@ export async function register(actor, input) {
         .limit(1);
 
       if (plan) {
-        const { resolveUnitPrice } = await import('@/domain/pricing.js');
-        const { toPaise } = await import('@/domain/money.js');
-        const { unitPrice } = resolveUnitPrice(plan, month);
+        // The customer chose the amount; price it from the plan's rate.
+        const { quoteForQuantity } = await import('@/domain/pricing.js');
+        const { paiseToDecimal } = await import('@/domain/money.js');
+        const chosenQuantity = String(input.quantities?.[plan.id] ?? plan.quantity);
+        const quote = quoteForQuantity(plan, { quantity: chosenQuantity }, month);
+        const unitPrice = quote.unitPrice;
         const subId = crypto.randomUUID();
 
         await tx.insert(milkSubscriptions).values({
@@ -184,7 +187,7 @@ export async function register(actor, input) {
           milkmanId: input.milkmanId,
           planId: plan.id,
           productName: plan.productName,
-          quantity: plan.quantity,
+          quantity: chosenQuantity,
           unit: plan.unit,
           frequency: plan.frequency,
           slot: plan.slot,
@@ -193,8 +196,10 @@ export async function register(actor, input) {
           eveningStart: plan.eveningStart,
           eveningEnd: plan.eveningEnd,
           unitPrice,
-          quotedMonthlyPrice: plan.monthlyPrice ? String(plan.monthlyPrice) : null,
-          status: 'ACTIVE',
+          quotedMonthlyPrice: paiseToDecimal(quote.monthlyPaise),
+          // A request until the milkman approves the customer, which opens it
+          // from the next round the cut-off allows.
+          status: 'PENDING',
           effectiveFrom: startDate,
         });
       }
@@ -264,6 +269,27 @@ export async function approveCustomer(actor, { customerId }) {
       },
     });
     if (!updated) throw new NotFoundError('That customer');
+
+    /*
+     * Approving a customer also approves the plan they asked for at sign-up.
+     * It was a request like any other, and making the milkman approve the
+     * person and then separately approve their milk would be the same yes twice.
+     */
+    const { approvalStartDate } = await import('./subscription.service.js');
+    const waiting = await tx
+      .select()
+      .from(milkSubscriptions)
+      .where(
+        and(
+          eq(milkSubscriptions.customerId, customerId),
+          eq(milkSubscriptions.milkmanId, actor.userId),
+          eq(milkSubscriptions.status, 'PENDING'),
+          isNull(milkSubscriptions.effectiveTo),
+        ),
+      );
+    for (const sub of waiting) {
+      await subscriptionsRepo.activatePending(tx, { id: sub.id, effectiveFrom: approvalStartDate(sub) });
+    }
 
     const [hasActiveSub] = await tx
       .select({ id: milkSubscriptions.id })
@@ -548,8 +574,12 @@ export async function switchMilkman(actor, input) {
         .limit(1);
 
       if (plan) {
-        const { resolveUnitPrice } = await import('@/domain/pricing.js');
-        const { unitPrice } = resolveUnitPrice(plan, month);
+        // The customer chose the amount; price it from the plan's rate.
+        const { quoteForQuantity } = await import('@/domain/pricing.js');
+        const { paiseToDecimal } = await import('@/domain/money.js');
+        const chosenQuantity = String(input.quantities?.[plan.id] ?? plan.quantity);
+        const quote = quoteForQuantity(plan, { quantity: chosenQuantity }, month);
+        const unitPrice = quote.unitPrice;
         const subId = crypto.randomUUID();
 
         await tx.insert(milkSubscriptions).values({
@@ -559,7 +589,7 @@ export async function switchMilkman(actor, input) {
           milkmanId: input.newMilkmanId,
           planId: plan.id,
           productName: plan.productName,
-          quantity: plan.quantity,
+          quantity: chosenQuantity,
           unit: plan.unit,
           frequency: plan.frequency,
           slot: plan.slot,
@@ -568,8 +598,10 @@ export async function switchMilkman(actor, input) {
           eveningStart: plan.eveningStart,
           eveningEnd: plan.eveningEnd,
           unitPrice,
-          quotedMonthlyPrice: plan.monthlyPrice ? String(plan.monthlyPrice) : null,
-          status: 'ACTIVE',
+          quotedMonthlyPrice: paiseToDecimal(quote.monthlyPaise),
+          // A request until the milkman approves the customer, which opens it
+          // from the next round the cut-off allows.
+          status: 'PENDING',
           effectiveFrom: startDate,
         });
       }

@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader, Field, Badge } from '@/components/ui/index.
 import { Button, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
 import { submitPayment } from '@/actions/customer.actions.js';
 import { formatPaise } from '@/domain/money.js';
+import { validateReference } from '@/domain/utr.js';
 import { useT } from '@/i18n/provider.jsx';
 
 /**
@@ -50,6 +51,16 @@ export function PayForm({ month, balancePaise, awaitingPaise = 0, milkman }) {
 
     const data = new FormData(event.currentTarget);
     const form = event.currentTarget;
+
+    // Same rule as the server, checked here first so a typo is caught before
+    // it reaches the milkman's queue.
+    if (data.get('method') !== 'CASH') {
+      const check = validateReference(data.get('reference'), data.get('method') === 'UPI' ? 'UPI' : 'BANK_TRANSFER');
+      if (!check.ok) {
+        setErrors((prev) => ({ ...prev, reference: check.message }));
+        return;
+      }
+    }
 
     startTransition(async () => {
       const result = await submitPayment({
@@ -195,11 +206,24 @@ export function PayForm({ month, balancePaise, awaitingPaise = 0, milkman }) {
 
             {method !== 'CASH' ? (
               <Input
+                key={method}
                 name="reference"
                 label={isHi ? 'UPI संदर्भ / UTR नंबर' : 'UPI Reference / UTR Number'}
-                hint={isHi ? 'GPay, PhonePe या Paytm से 12-अंकों का ट्रांजेक्शन ID' : '12-digit transaction ID from GPay, PhonePe, or Paytm'}
-                placeholder="e.g. 426891028471"
+                hint={
+                  method === 'UPI'
+                    ? isHi
+                      ? 'GPay, PhonePe या Paytm में दिखने वाला 12 अंकों का UTR'
+                      : 'The 12-digit UTR shown in GPay, PhonePe or Paytm'
+                    : isHi
+                      ? 'IMPS: 12 अंक · NEFT: 16 अक्षर · RTGS: 22 अक्षर'
+                      : 'IMPS: 12 digits · NEFT: 16 characters · RTGS: 22 characters'
+                }
+                placeholder={method === 'UPI' ? 'e.g. 426891028471' : 'e.g. HDFCN52026091234'}
+                inputMode={method === 'UPI' ? 'numeric' : 'text'}
+                autoComplete="off"
+                maxLength={method === 'UPI' ? 16 : 28}
                 error={errors.reference}
+                onChange={() => errors.reference && setErrors((prev) => ({ ...prev, reference: undefined }))}
               />
             ) : null}
 

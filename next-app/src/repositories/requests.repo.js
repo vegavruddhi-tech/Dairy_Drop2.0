@@ -3,10 +3,10 @@
  */
 
 import 'server-only';
-import { and, eq, desc, asc, sql } from 'drizzle-orm';
+import { and, eq, desc, asc, sql, isNull } from 'drizzle-orm';
 
 import { db } from '@/db/index.js';
-import { quantityChangeRequests, planChangeRequests, users, milkPlans, deliveries } from '@/db/schema/index.js';
+import { quantityChangeRequests, planChangeRequests, users, milkPlans, deliveries, milkSubscriptions } from '@/db/schema/index.js';
 import { PERMISSIONS } from '@/auth/roles.js';
 import { scoped, paginate } from './base.js';
 
@@ -296,9 +296,22 @@ export async function countPendingRequests(actor) {
       ),
     );
 
-  return {
+  // New subscriptions waiting for a yes — the badge should count them too.
+  const [subscription] = await db
+    .select({ count: sql`count(*)::int` })
+    .from(milkSubscriptions)
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.SUBSCRIPTION_READ, columns: { tenant: milkSubscriptions.milkmanId, owner: milkSubscriptions.customerId } },
+        eq(milkSubscriptions.status, 'PENDING'),
+        isNull(milkSubscriptions.effectiveTo),
+      ),
+    );
+
+  const counts = {
     quantity: quantity?.count ?? 0,
     plan: plan?.count ?? 0,
-    total: (quantity?.count ?? 0) + (plan?.count ?? 0),
+    subscription: subscription?.count ?? 0,
   };
+  return { ...counts, total: counts.quantity + counts.plan + counts.subscription };
 }

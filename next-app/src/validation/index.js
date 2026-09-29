@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import { validateReference } from '@/domain/utr.js';
 
 // ── Primitives ───────────────────────────────────────────────────────────────
 
@@ -44,7 +45,9 @@ export const quantity = z
   .transform((value) => String(value).trim())
   .refine((value) => /^\d+(\.\d{1,3})?$/.test(value), 'Enter a quantity like 1 or 1.5')
   .refine((value) => Number(value) > 0, 'Enter a quantity greater than zero.')
-  .refine((value) => Number(value) <= 100, 'That quantity is too large.');
+  // No business limit on how much a customer orders; this is only the most
+  // the numeric(10,3) column can hold.
+  .refine((value) => Number(value) < 10_000_000, 'That quantity is too large.');
 
 const nonEmpty = (max, message) => z.string().trim().min(1, message).max(max);
 
@@ -63,6 +66,8 @@ export const registerCustomerSchema = z.object({
   landmark: z.string().trim().max(200).optional().or(z.literal('')),
   deliveryInstructions: z.string().trim().max(500).optional().or(z.literal('')),
   planIds: z.array(z.string()).max(2, 'A customer cannot select more than 2 plans.').optional(),
+  /** How much of each chosen plan, by plan id. A plan left out gets its own amount. */
+  quantities: z.record(z.string(), quantity).optional(),
 });
 
 export const approveCustomerSchema = z.object({ customerId: uuid });
@@ -105,6 +110,8 @@ export const switchMilkmanSchema = z.object({
   pincode: pincode,
   area: nonEmpty(120, 'Sector / Area is required.'),
   planIds: z.array(z.string()).max(2, 'A customer cannot select more than 2 plans.').optional(),
+  /** How much of each chosen plan, by plan id. A plan left out gets its own amount. */
+  quantities: z.record(z.string(), quantity).optional(),
 });
 
 /**
@@ -138,6 +145,15 @@ export const subscribeSchema = z.object({
   planId: uuid,
   startDate: businessDate.optional(),
   slot: z.enum(['MORNING', 'EVENING', 'BOTH']).optional(),
+  /** How much per delivery. Defaults to the plan's own amount (1 on a rate card). */
+  quantity: quantity.optional(),
+});
+
+/** The milkman's answer to a customer's subscription request. */
+export const subscriptionDecisionSchema = z.object({
+  rootId: uuid,
+  approve: z.boolean(),
+  note: z.string().trim().max(500).optional().or(z.literal('')),
 });
 
 export const subscriptionActionSchema = z.object({
@@ -162,7 +178,13 @@ export const milkPlanSchema = z
     name: nonEmpty(120, 'Give the plan a name.'),
     description: z.string().trim().max(500).optional().or(z.literal('')),
     productName: nonEmpty(120, 'What is being delivered?'),
-    quantity,
+    /*
+     * A plan is a rate card: the customer chooses how much when they
+     * subscribe. The row still carries a quantity — 1 of the unit — so the
+     * price below is stored as "per one litre" and every existing pricing
+     * path keeps working. Older plans that carry their own quantity still load.
+     */
+    quantity: quantity.optional().default('1'),
     unit: z.enum(['L', 'ml', 'kg', 'g', 'pcs']).default('L'),
     frequency: z.enum(['DAILY', 'ALTERNATE_DAYS', 'WEEKLY', 'MONTHLY']).default('DAILY'),
     slot: z.enum(['MORNING', 'EVENING', 'BOTH']).default('MORNING'),
@@ -170,7 +192,7 @@ export const milkPlanSchema = z
     morningEnd: clockTime,
     eveningStart: clockTime,
     eveningEnd: clockTime,
-    pricingBasis: z.enum(['MONTHLY', 'PER_DELIVERY', 'PER_UNIT']),
+    pricingBasis: z.enum(['MONTHLY', 'PER_DELIVERY', 'PER_UNIT']).default('PER_UNIT'),
     price: money,
     isActive: z.boolean().default(true),
   })
@@ -380,10 +402,21 @@ export const submitPaymentSchema = z
     reference: z.string().trim().max(120).optional().or(z.literal('')),
     note: z.string().trim().max(300).optional().or(z.literal('')),
   })
-  .refine((data) => data.method === 'CASH' || Boolean(data.reference), {
-    message: 'Enter the UPI reference or UTR from your payment app.',
-    path: ['reference'],
-  });
+  /*
+   * Cash needs no reference; UPI needs its 12-digit UTR; a bank transfer
+   * accepts IMPS, NEFT or RTGS. The cleaned value (spaces removed, upper-case)
+   * replaces what was typed, so duplicates match however they were written.
+   */
+  .superRefine((data, ctx) => {
+    if (data.method === 'CASH') return;
+    const check = validateReference(data.reference, data.method === 'UPI' ? 'UPI' : 'BANK_TRANSFER');
+    if (!check.ok) ctx.addIssue({ code: 'custom', path: ['reference'], message: check.message });
+  })
+  .transform((data) =>
+    data.method === 'CASH'
+      ? { ...data, reference: '' }
+      : { ...data, reference: validateReference(data.reference, data.method).value ?? data.reference },
+  );
 
 export const verifyPaymentSchema = z.object({
   paymentId: uuid,
@@ -395,11 +428,15 @@ export const verifyPaymentSchema = z.object({
 
 export const submitSaasPaymentSchema = z.object({
   planId: uuid,
+  // Platform payments may come by UPI or bank transfer; either format passes.
   reference: z
     .string()
-    .trim()
-    .min(6, 'Enter the full transaction reference from your bank or UPI app.')
-    .max(120),
+    .max(120)
+    .superRefine((value, ctx) => {
+      const check = validateReference(value, 'ANY');
+      if (!check.ok) ctx.addIssue({ code: 'custom', message: check.message });
+    })
+    .transform((value) => validateReference(value, 'ANY').value ?? value),
 });
 
 export const verifySaasPaymentSchema = z.object({

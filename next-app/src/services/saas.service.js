@@ -14,6 +14,7 @@ import { db, transaction } from '@/db/index.js';
 import { saasSubscriptions, saasPayments, users, milkmanProfiles } from '@/db/schema/index.js';
 import { ValidationError, ConflictError, NotFoundError, ForbiddenError } from '@/domain/errors.js';
 import { daysRemaining, evaluateSaasAccess } from '@/auth/policy.js';
+import { validateReference } from '@/domain/utr.js';
 
 import * as saasRepo from '@/repositories/saas.repo.js';
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
@@ -112,10 +113,9 @@ export async function submitPayment(actor, { planId, reference }) {
   const plan = await saasRepo.findSaasPlan(planId);
   if (!plan || !plan.isActive) throw new NotFoundError('That plan');
 
-  const trimmed = String(reference ?? '').trim();
-  if (trimmed.length < 6) {
-    throw new ValidationError('Enter the full transaction reference from your bank or UPI app.');
-  }
+  const check = validateReference(reference, 'ANY');
+  if (!check.ok) throw new ValidationError(check.message);
+  const trimmed = check.value;
 
   if (await saasRepo.findPendingSaasSubscription(actor.userId)) {
     throw new ConflictError('We are already checking a payment from you.');

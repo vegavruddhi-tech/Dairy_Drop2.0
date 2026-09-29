@@ -1,0 +1,4 @@
+DROP INDEX "app"."milk_subs_one_morning_per_product";--> statement-breakpoint
+DROP INDEX "app"."milk_subs_one_evening_per_product";--> statement-breakpoint
+CREATE UNIQUE INDEX "milk_subs_one_morning_per_product" ON "app"."milk_subscriptions" USING btree ("customer_id","product_key") WHERE occupies_morning and effective_to is null and status in ('PENDING', 'ACTIVE', 'PAUSED');--> statement-breakpoint
+CREATE UNIQUE INDEX "milk_subs_one_evening_per_product" ON "app"."milk_subscriptions" USING btree ("customer_id","product_key") WHERE occupies_evening and effective_to is null and status in ('PENDING', 'ACTIVE', 'PAUSED');

@@ -24,7 +24,7 @@ const subscribeAction = defineAction({
   authorize: requireCustomer,
   schema: V.subscribeSchema,
   handler: ({ actor, input }) => subscriptionService.subscribe(actor, input),
-  revalidate: ['/subscriptions', '/dashboard', '/calendar', '/pending', '/milkman/customers'],
+  revalidate: ['/subscriptions', '/dashboard', '/calendar', '/pending', '/milkman/customers', '/milkman/requests'],
 });
 
 const pauseSubscriptionAction = defineAction({

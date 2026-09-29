@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import { clashingSlots, slotsOccupied, productKey } from '@/domain/pricing.js';
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const cow = (slot) => ({ slot, productName: 'cow milk' });
 const buffalo = (slot) => ({ slot, productName: 'buffalo milk' });
@@ -116,10 +116,10 @@ suite('subscribing alongside what you already have', () => {
 
   it('allows a different product at the same time', async () => {
     if (!milkmanId) return;
-    await subscriptions.subscribe(actor, { planId: await makePlan('MORNING', 'cow milk') });
+    await subscribeApproved(subscriptions, actor, { planId: await makePlan('MORNING', 'cow milk') });
 
     // One visit, two bottles — the whole point of the change.
-    const second = await subscriptions.subscribe(actor, {
+    const second = await subscribeApproved(subscriptions, actor, {
       planId: await makePlan('MORNING', 'buffalo milk'),
     });
     expect(second.slot).toBe('MORNING');
@@ -128,9 +128,9 @@ suite('subscribing alongside what you already have', () => {
   it('allows the same product at a different time', async () => {
     if (!milkmanId) return;
     const { actor: mine } = await freshCustomer('same-product');
-    await subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'goat milk') });
+    await subscribeApproved(subscriptions, mine, { planId: await makePlan('MORNING', 'goat milk') });
 
-    const created = await subscriptions.subscribe(mine, {
+    const created = await subscribeApproved(subscriptions, mine, {
       planId: await makePlan('EVENING', 'goat milk'),
     });
     expect(created.slot).toBe('EVENING');
@@ -139,21 +139,21 @@ suite('subscribing alongside what you already have', () => {
   it('refuses the same product at a time it already arrives', async () => {
     if (!milkmanId) return;
     const { actor: mine } = await freshCustomer('same-slot');
-    await subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'cow milk') });
+    await subscribeApproved(subscriptions, mine, { planId: await makePlan('MORNING', 'cow milk') });
 
     await expect(
-      subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'cow milk') }),
+      subscribeApproved(subscriptions, mine, { planId: await makePlan('MORNING', 'cow milk') }),
     ).rejects.toThrow(/already get cow milk in the morning/i);
   });
 
   it('refuses a both-slot plan when that product already has one of the times', async () => {
     if (!milkmanId) return;
     const { actor: mine } = await freshCustomer('both-slot');
-    await subscriptions.subscribe(mine, { planId: await makePlan('MORNING', 'cow milk') });
+    await subscribeApproved(subscriptions, mine, { planId: await makePlan('MORNING', 'cow milk') });
 
     // Cow milk is already a morning delivery; BOTH needs morning as well.
     await expect(
-      subscriptions.subscribe(mine, { planId: await makePlan('BOTH', 'cow milk') }),
+      subscribeApproved(subscriptions, mine, { planId: await makePlan('BOTH', 'cow milk') }),
     ).rejects.toThrow(/already get cow milk in the morning/i);
   });
 
@@ -203,7 +203,7 @@ suite('subscribing alongside what you already have', () => {
     );
     await subscriptions.cancel(actor, { rootId: blocking.rootId, reason: 'test' });
 
-    const created = await subscriptions.subscribe(actor, {
+    const created = await subscribeApproved(subscriptions, actor, {
       planId: await makePlan('BOTH', 'cow milk'),
     });
     expect(created.slot).toBe('BOTH');

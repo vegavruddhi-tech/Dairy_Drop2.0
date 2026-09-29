@@ -197,6 +197,13 @@ const resolvePlanChangeRequestAction = defineAction({
   revalidate: ['/milkman/requests', '/milkman/round', '/dashboard', '/calendar', '/subscriptions'],
 });
 
+const decideSubscriptionAction = defineAction({
+  authorize: paid,
+  schema: V.subscriptionDecisionSchema,
+  handler: ({ actor, input }) => subscriptionService.decideSubscription(actor, input),
+  revalidate: ['/milkman/requests', '/milkman/round', '/milkman/customers', '/dashboard', '/subscriptions', '/calendar'],
+});
+
 // ── Payments ─────────────────────────────────────────────────────────────────
 
 const verifyPaymentAction = defineAction({
@@ -245,6 +252,10 @@ export async function declareDayOff(input) {
 
 export async function cancelDayOff(input) {
   return cancelDayOffAction(input);
+}
+
+export async function decideSubscription(input) {
+  return decideSubscriptionAction(input);
 }
 
 export async function changeCustomerPlan(input) {

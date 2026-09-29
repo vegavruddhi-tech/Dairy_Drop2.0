@@ -1,0 +1,1 @@
+ALTER TYPE "app"."milk_subscription_status" ADD VALUE 'PENDING' BEFORE 'ACTIVE';

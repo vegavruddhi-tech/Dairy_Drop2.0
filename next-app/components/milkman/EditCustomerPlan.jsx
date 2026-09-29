@@ -176,6 +176,9 @@ function EditPlanSheet({ customer, subscriptions, plans, onClose }) {
                 {current.productName} · {Number(current.quantity)} {current.unit} · {SLOT_LABEL[current.slot] ?? current.slot}
               </p>
               {current.status === 'PAUSED' ? <Badge tone="caution" className="mt-1">Paused</Badge> : null}
+              {current.status === 'PENDING' ? (
+                <Badge tone="info" className="mt-1">Waiting for your approval — edits the request</Badge>
+              ) : null}
             </div>
           ) : null}
 
@@ -209,6 +212,9 @@ function EditPlanSheet({ customer, subscriptions, plans, onClose }) {
           </div>
 
           <p className="rounded-xl border border-info/15 bg-info-soft px-3 py-2 text-xs font-semibold text-info">
+            {current?.status === 'PENDING'
+              ? 'This is a request you have not approved yet: it is corrected in place and starts when you approve. '
+              : ''}
             Starts today if that round has not set off yet, otherwise tomorrow. Days already delivered
             keep their price. {customer.name} gets a notification and sees the new plan in their app.
           </p>

@@ -8,6 +8,7 @@ import { Card, CardBody, EmptyState } from '@/components/ui/index.jsx';
 import { Button, Input, Select, Textarea } from '@/components/ui/interactive.jsx';
 import { registerWithMilkman } from '@/actions/customer.actions.js';
 import { useFormDraft } from '@/lib/useFormDraft.js';
+import { QuantityPicker, rateLabel, SLOT_LABEL, FREQUENCY_LABEL } from './QuantityPicker.jsx';
 
 /**
  * Modern High-Aesthetic Blue & White Customer Onboarding Wizard (English).
@@ -28,6 +29,7 @@ export function RegisterFlow({ defaultName }) {
     result: null,
     milkman: null,
     selectedPlanIds: [],
+    quantities: {},
     name: defaultName || '',
     phone: '',
     area: '',
@@ -41,6 +43,9 @@ export function RegisterFlow({ defaultName }) {
   const [result, setResult] = useState(null);
   const [milkman, setMilkman] = useState(null);
   const [selectedPlanIds, setSelectedPlanIds] = useState([]);
+  // Litres per delivery for each chosen plan, by plan id. The plan is a rate
+  // card; the customer decides how much.
+  const [quantities, setQuantities] = useState({});
   const [formData, setFormData] = useState({
     name: defaultName || '',
     phone: '',
@@ -61,6 +66,7 @@ export function RegisterFlow({ defaultName }) {
       if (draft.result) setResult(draft.result);
       if (draft.milkman) setMilkman(draft.milkman);
       if (Array.isArray(draft.selectedPlanIds)) setSelectedPlanIds(draft.selectedPlanIds);
+      if (draft.quantities && typeof draft.quantities === 'object') setQuantities(draft.quantities);
       setFormData({
         name: draft.name || defaultName || '',
         phone: draft.phone || '',
@@ -128,6 +134,19 @@ export function RegisterFlow({ defaultName }) {
     });
   }
 
+  function setQuantity(planId, value) {
+    const clean = String(value).replace(/[^\d.]/g, '');
+    setQuantities((prev) => {
+      const next = { ...prev, [planId]: clean };
+      saveDraft({ quantities: next });
+      return next;
+    });
+  }
+
+  function quantityOf(plan) {
+    return quantities[plan.id] ?? String(Number(plan.quantity) || 1);
+  }
+
   function handleInputChange(field, value) {
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
@@ -149,6 +168,12 @@ export function RegisterFlow({ defaultName }) {
         milkmanId: milkman.id,
         pincode,
         planIds: selectedPlanIds,
+        quantities: Object.fromEntries(
+          selectedPlanIds.map((id) => {
+            const plan = milkman.plans?.find((p) => p.id === id);
+            return [id, plan ? quantityOf(plan) : '1'];
+          }),
+        ),
       });
 
       if (response.ok) {
@@ -390,7 +415,7 @@ export function RegisterFlow({ defaultName }) {
                             key={p.id}
                             className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700"
                           >
-                            {p.productName} ({p.quantity} {p.unit}) • ₹{p.monthlyPrice || p.pricePerDelivery}
+                            {p.productName} • {rateLabel(p)}
                           </span>
                         ))}
                       </div>
@@ -511,7 +536,7 @@ export function RegisterFlow({ defaultName }) {
                                   {plan.productName}
                                 </p>
                                 <p className="text-xs text-slate-500">
-                                  {plan.quantity} {plan.unit} • {plan.frequency}
+                                  {SLOT_LABEL[plan.slot] ?? plan.slot} • {FREQUENCY_LABEL[plan.frequency] ?? plan.frequency}
                                 </p>
                               </div>
                               <div
@@ -527,9 +552,18 @@ export function RegisterFlow({ defaultName }) {
                             <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
                               <span className="text-slate-500">Rate:</span>
                               <span className="font-heading font-bold text-blue-600">
-                                ₹{plan.monthlyPrice ? `${plan.monthlyPrice}/mo` : `${plan.pricePerDelivery}/drop`}
+                                {rateLabel(plan)}
                               </span>
                             </div>
+
+                            {/* The customer picks how much; the price follows. */}
+                            {isSelected ? (
+                              <QuantityPicker
+                                plan={plan}
+                                value={quantityOf(plan)}
+                                onChange={(value) => setQuantity(plan.id, value)}
+                              />
+                            ) : null}
                           </div>
                         );
                       })
@@ -646,3 +680,4 @@ export function RegisterFlow({ defaultName }) {
     </div>
   );
 }
+

@@ -199,7 +199,9 @@ export async function listCurrentForCustomers(actor, customerIds) {
         { actor, permission: PERMISSIONS.SUBSCRIPTION_READ, columns: subScope },
         inArray(milkSubscriptions.customerId, customerIds),
         isNull(milkSubscriptions.effectiveTo),
-        inArray(milkSubscriptions.status, ['ACTIVE', 'PAUSED']),
+        // Waiting requests too: the milkman sees and can adjust what a new
+        // customer asked for before approving them.
+        inArray(milkSubscriptions.status, ['PENDING', 'ACTIVE', 'PAUSED']),
       ),
     )
     .orderBy(asc(milkSubscriptions.createdAt));
@@ -299,6 +301,87 @@ export async function countActiveCustomers(tx, milkmanId) {
 export async function insertSubscription(tx, values) {
   const [row] = await tx.insert(milkSubscriptions).values(values).returning();
   return row;
+}
+
+/**
+ * Subscriptions customers have asked for and the milkman has not answered.
+ * Scoped to the milkman's own customers.
+ */
+export async function listPendingRequests(actor) {
+  return db
+    .select({
+      rootId: milkSubscriptions.rootId,
+      id: milkSubscriptions.id,
+      customerId: milkSubscriptions.customerId,
+      customerName: users.name,
+      customerPhone: users.phone,
+      customerApproval: users.approvalStatus,
+      planId: milkSubscriptions.planId,
+      planName: milkPlans.name,
+      productName: milkSubscriptions.productName,
+      quantity: milkSubscriptions.quantity,
+      unit: milkSubscriptions.unit,
+      frequency: milkSubscriptions.frequency,
+      slot: milkSubscriptions.slot,
+      unitPrice: milkSubscriptions.unitPrice,
+      quotedMonthlyPrice: milkSubscriptions.quotedMonthlyPrice,
+      morningStart: milkSubscriptions.morningStart,
+      morningEnd: milkSubscriptions.morningEnd,
+      eveningStart: milkSubscriptions.eveningStart,
+      eveningEnd: milkSubscriptions.eveningEnd,
+      createdAt: milkSubscriptions.createdAt,
+    })
+    .from(milkSubscriptions)
+    .innerJoin(users, eq(users.id, milkSubscriptions.customerId))
+    .leftJoin(milkPlans, eq(milkPlans.id, milkSubscriptions.planId))
+    .where(
+      scoped(
+        { actor, permission: PERMISSIONS.SUBSCRIPTION_READ, columns: subScope },
+        eq(milkSubscriptions.status, 'PENDING'),
+        isNull(milkSubscriptions.effectiveTo),
+      ),
+    )
+    .orderBy(asc(milkSubscriptions.createdAt));
+}
+
+/**
+ * Rewrite a request that has not been approved yet. It never ran, so there is
+ * no history to protect with a new version — the terms are simply corrected.
+ */
+export async function amendRequest(tx, { id, patch }) {
+  const [row] = await tx
+    .update(milkSubscriptions)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(and(eq(milkSubscriptions.id, id), eq(milkSubscriptions.status, 'PENDING'), isNull(milkSubscriptions.effectiveTo)))
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * Open an approved request: ACTIVE from `effectiveFrom`. Guarded on PENDING so
+ * a double-click, or an approve racing a decline, changes nothing twice.
+ */
+export async function activatePending(tx, { id, effectiveFrom }) {
+  const [row] = await tx
+    .update(milkSubscriptions)
+    .set({ status: 'ACTIVE', effectiveFrom, updatedAt: new Date() })
+    .where(and(eq(milkSubscriptions.id, id), eq(milkSubscriptions.status, 'PENDING'), isNull(milkSubscriptions.effectiveTo)))
+    .returning();
+  return row ?? null;
+}
+
+/**
+ * Close a declined request. It never ran, so it ends on the day it was dated
+ * to begin — `milk_subs_range` allows an equal start and end — and it releases
+ * its slot because `effective_to` is now set.
+ */
+export async function declinePending(tx, { id }) {
+  const [row] = await tx
+    .update(milkSubscriptions)
+    .set({ status: 'CANCELLED', effectiveTo: sql`${milkSubscriptions.effectiveFrom}`, updatedAt: new Date() })
+    .where(and(eq(milkSubscriptions.id, id), eq(milkSubscriptions.status, 'PENDING'), isNull(milkSubscriptions.effectiveTo)))
+    .returning();
+  return row ?? null;
 }
 
 /** Close the current version at `effectiveTo`. Half of a plan change. */

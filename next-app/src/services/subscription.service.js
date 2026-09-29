@@ -15,8 +15,9 @@ import {
   clashingSlots,
   slotLabel,
   slotsStillAheadToday,
+  quoteForQuantity,
 } from '@/domain/pricing.js';
-import { paiseToDecimal } from '@/domain/money.js';
+import { paiseToDecimal, formatPaise } from '@/domain/money.js';
 import { NotFoundError, ConflictError, ValidationError } from '@/domain/errors.js';
 
 import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
@@ -51,8 +52,10 @@ export async function listMine(actor) {
 /** Subscriptions that still hold their delivery times. */
 function holdsASlot(subscription) {
   // A paused plan keeps its slot — it is coming back, and freeing the slot
-  // would let something else take it with no way to resume.
-  return subscription.status === 'ACTIVE' || subscription.status === 'PAUSED';
+  // would let something else take it with no way to resume. A request still
+  // waiting for the milkman holds it too, or the same order could be asked
+  // for twice before either is answered.
+  return ['PENDING', 'ACTIVE', 'PAUSED'].includes(subscription.status);
 }
 
 /**
@@ -102,7 +105,7 @@ function windowsFor(plan, slot) {
   };
 }
 
-export async function subscribe(actor, { planId, startDate, slot }) {
+export async function subscribe(actor, { planId, startDate, slot, quantity }) {
   const plan = await subscriptionsRepo.findPlan(actor, planId);
   if (!plan || !plan.isActive) throw new NotFoundError('That plan');
 
@@ -110,30 +113,38 @@ export async function subscribe(actor, { planId, startDate, slot }) {
   const month = effectiveFrom.slice(0, 7);
 
   /*
-   * Price and quote for the slot this customer actually takes.
+   * Price for the slot *and the quantity* this customer takes.
    *
-   * A customer may take only the morning half of a "morning & evening" plan.
-   * The per-unit rate is the same either way, but the monthly quote is not:
-   * quoting the plan's own slot would have promised them a full month of two
-   * drops a day while they receive one.
+   * A plan is a rate card — a price per litre and a shift — and the customer
+   * decides how much. A customer may also take only the morning half of a
+   * "morning & evening" plan; quoting the plan's own slot would have promised
+   * two drops a day while they receive one.
    */
   const chosenSlot = slot ?? plan.slot;
-  const agreed = { ...plan, slot: chosenSlot };
-  const { unitPrice } = resolveUnitPrice(agreed, month);
+  const chosenQuantity = String(quantity ?? plan.quantity);
+  const quote = quoteForQuantity(plan, { quantity: chosenQuantity, slot: chosenSlot }, month);
 
   const existing = await subscriptionsRepo.listCurrentForCustomer(actor, actor.userId);
-  if (existing.some((s) => s.planId === plan.id && s.status === 'ACTIVE')) {
-    throw new ConflictError('You are already subscribed to that plan.');
+  if (existing.some((s) => s.planId === plan.id && (s.status === 'ACTIVE' || s.status === 'PENDING'))) {
+    throw new ConflictError('You already have that plan, or a request for it is waiting.');
   }
 
-  const activeCount = existing.filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED').length;
-  if (activeCount >= 2) {
+  const runningCount = existing.filter(holdsASlot).length;
+  if (runningCount >= 2) {
     throw new ValidationError('You can have a maximum of 2 active milk plans at a time. Please cancel or change an existing plan first.');
   }
 
   assertSlotIsFree(existing, { slot: chosenSlot, productName: plan.productName });
 
-  const res = await transaction(async (tx) => {
+  /*
+   * Every new subscription is a request until the milkman approves it.
+   *
+   * PENDING generates no deliveries and bills nothing; it holds its slot so the
+   * same thing cannot be asked for twice. Approval — `decideSubscription`, or
+   * approving the customer themselves — makes it ACTIVE from the next round
+   * the cut-off still allows.
+   */
+  return transaction(async (tx) => {
     const rootId = randomUUID();
 
     const subscription = await subscriptionsRepo.insertSubscription(tx, {
@@ -143,68 +154,106 @@ export async function subscribe(actor, { planId, startDate, slot }) {
       milkmanId: actor.tenantId,
       planId: plan.id,
       productName: plan.productName,
-      quantity: plan.quantity,
+      quantity: chosenQuantity,
       unit: plan.unit,
       frequency: plan.frequency,
       slot: chosenSlot,
       // Snapshotted with the rest of the agreed terms: editing the plan later
       // must not silently move the time this customer was promised.
       ...windowsFor(plan, chosenSlot),
-      unitPrice,
-      quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise(agreed, month)),
-      status: 'ACTIVE',
+      unitPrice: quote.unitPrice,
+      quotedMonthlyPrice: paiseToDecimal(quote.monthlyPaise),
+      status: 'PENDING',
       effectiveFrom,
     });
 
-    // When a customer has no currently active/running plans (e.g. they cancelled their
-    // plan and are retaking/subscribing again), require milkman approval before deliveries start.
-    const requiresApproval = activeCount === 0;
+    await notificationsRepo.create(tx, {
+      userId: actor.tenantId,
+      type: 'SUBSCRIPTION',
+      title: 'New subscription request',
+      body: `${actor.name} wants ${plan.name}: ${Number(chosenQuantity)} ${plan.unit} ${slotLabel(chosenSlot).toLowerCase()}, about ${formatPaise(quote.monthlyPaise, { whole: true })} a month.`,
+      href: '/milkman/requests',
+      subjectType: 'milk_subscription',
+      subjectId: subscription.id,
+    });
 
-    if (requiresApproval) {
-      await tx
-        .update(users)
-        .set({
-          approvalStatus: 'PENDING',
-          rejectionReason: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, actor.userId));
-
-      await notificationsRepo.create(tx, {
-        userId: actor.tenantId,
-        type: 'APPROVAL',
-        title: 'Customer re-subscription request',
-        body: `${actor.name} has re-subscribed to ${plan.name} (${Number(plan.quantity)} ${plan.unit}, ${chosenSlot.toLowerCase()}) and is awaiting your approval.`,
-        href: '/milkman/customers?status=PENDING',
-        subjectType: 'user',
-        subjectId: actor.userId,
-      });
-    } else {
-      await notificationsRepo.create(tx, {
-        userId: actor.tenantId,
-        type: 'SUBSCRIPTION',
-        title: 'New subscription',
-        body: `${actor.name} subscribed to ${plan.name} (${Number(plan.quantity)} ${plan.unit}, ${chosenSlot.toLowerCase()}).`,
-        href: '/milkman/customers',
-        subjectType: 'milk_subscription',
-        subjectId: subscription.id,
-      });
-    }
-
-    return { ...subscription, requiresApproval };
+    return { ...subscription, requiresApproval: true };
   });
+}
 
-  if (!res.requiresApproval) {
-    try {
-      const { generateForRange } = await import('./delivery.service.js');
-      const endOfMonth = monthEnd(monthOf(effectiveFrom));
-      await generateForRange(effectiveFrom, endOfMonth);
-    } catch (err) {
-      console.error('Error generating deliveries on subscribe:', err);
+/**
+ * The day an approved request starts: today if that round has not set off,
+ * otherwise tomorrow — the same rule a plan change follows. Never earlier than
+ * the date the customer asked for.
+ */
+export function approvalStartDate(subscription, today = businessDate()) {
+  const asked = subscription.effectiveFrom > today ? subscription.effectiveFrom : today;
+  if (asked > today) return asked;
+  return slotsStillAheadToday(subscription).length > 0 ? today : addDays(today, 1);
+}
+
+/**
+ * The milkman approves or declines a customer's subscription request.
+ *
+ * Approving opens it from `approvalStartDate` and builds its deliveries;
+ * declining closes it and frees its slot. The customer is told either way.
+ */
+export async function decideSubscription(actor, { rootId, approve, note }) {
+  const current = await subscriptionsRepo.findCurrentByRoot(actor, rootId);
+  if (!current) throw new NotFoundError('That request');
+  if (current.status !== 'PENDING') throw new ConflictError('That request has already been answered.');
+
+  // A brand-new customer's first plan is approved by approving the customer —
+  // one yes for both. Approving only the plan would open it for an account
+  // that still cannot receive deliveries.
+  if (approve) {
+    const [owner] = await db
+      .select({ approvalStatus: users.approvalStatus })
+      .from(users)
+      .where(eq(users.id, current.customerId))
+      .limit(1);
+    if (owner?.approvalStatus && owner.approvalStatus !== 'APPROVED') {
+      throw new ConflictError(
+        'This is a new customer. Approve them under Customers → Waiting; that approves this plan too.',
+      );
     }
   }
 
-  return res;
+  const startsOn = approvalStartDate(current);
+
+  const decided = await transaction(async (tx) => {
+    const row = approve
+      ? await subscriptionsRepo.activatePending(tx, { id: current.id, effectiveFrom: startsOn })
+      : await subscriptionsRepo.declinePending(tx, { id: current.id });
+    if (!row) throw new ConflictError('That request has already been answered.');
+
+    await notificationsRepo.create(tx, {
+      userId: current.customerId,
+      type: 'SUBSCRIPTION',
+      title: approve ? 'Your milk plan is approved' : 'Your milk plan request was declined',
+      body: approve
+        ? `${current.productName} · ${Number(current.quantity)} ${current.unit} ${slotLabel(current.slot).toLowerCase()} starts ${startsOn === businessDate() ? 'today' : startsOn}.`
+        : note || 'Your milkman could not take this plan on. You can choose another.',
+      href: approve ? '/dashboard' : '/subscriptions',
+      subjectType: 'milk_subscription',
+      subjectId: current.id,
+    });
+
+    return row;
+  });
+
+  if (approve) await buildDeliveriesFrom(startsOn);
+  return { subscription: decided, approved: approve, startsOn: approve ? startsOn : null };
+}
+
+/** Generate the rest of the month from a start date. Never fails the caller. */
+export async function buildDeliveriesFrom(fromDate) {
+  try {
+    const { generateForRange } = await import('./delivery.service.js');
+    await generateForRange(fromDate, monthEnd(monthOf(fromDate)));
+  } catch (err) {
+    console.error('Error generating deliveries after approval:', err);
+  }
 }
 
 /** Pause deliveries. Future scheduled days are withdrawn. */
@@ -300,7 +349,9 @@ export async function cancel(actor, { rootId, reason }) {
         status: 'CANCELLED',
         cancelledAt: new Date(),
         cancellationReason: reason ?? null,
-        effectiveTo: today,
+        // A request withdrawn before it was approved may be dated ahead of
+        // today; ending it before it began would break milk_subs_range.
+        effectiveTo: current.effectiveFrom > today ? current.effectiveFrom : today,
         updatedAt: new Date(),
       })
       .where(eq(milkSubscriptions.id, current.id));
@@ -324,8 +375,8 @@ export async function cancel(actor, { rootId, reason }) {
     await notificationsRepo.create(tx, {
       userId: current.milkmanId,
       type: 'SUBSCRIPTION',
-      title: 'Subscription cancelled',
-      body: `${actor.name} cancelled ${current.productName}${reason ? ` — ${reason}` : ''}.`,
+      title: current.status === 'PENDING' ? 'Subscription request withdrawn' : 'Subscription cancelled',
+      body: `${actor.name} ${current.status === 'PENDING' ? 'withdrew their request for' : 'cancelled'} ${current.productName}${reason ? ` — ${reason}` : ''}.`,
       href: '/milkman/customers',
     });
 
@@ -486,7 +537,7 @@ async function endEveryoneOn(tx, actor, plan) {
 export async function changeCustomerPlan(actor, { rootId, planId, quantity }) {
   const current = await subscriptionsRepo.findCurrentByRoot(actor, rootId);
   if (!current) throw new NotFoundError('That subscription');
-  if (current.status !== 'ACTIVE' && current.status !== 'PAUSED') {
+  if (!['PENDING', 'ACTIVE', 'PAUSED'].includes(current.status)) {
     throw new ConflictError('That subscription is not running.');
   }
 
@@ -496,6 +547,49 @@ export async function changeCustomerPlan(actor, { rootId, planId, quantity }) {
   const nextQuantity = quantity ?? plan.quantity;
   if (current.planId === plan.id && Number(current.quantity) === Number(nextQuantity)) {
     throw new ConflictError(`They are already on ${plan.name}.`);
+  }
+
+  /*
+   * A request not yet approved is corrected in place: it has never run, so
+   * there is nothing for a versioned change to preserve. It stays waiting;
+   * approving the customer (or the request) opens it on the new terms.
+   */
+  if (current.status === 'PENDING') {
+    const month = current.effectiveFrom.slice(0, 7);
+    const quote = quoteForQuantity(plan, { quantity: nextQuantity }, month);
+    const others = (await subscriptionsRepo.listCurrentForCustomer(actor, current.customerId))
+      .filter((s) => s.rootId !== rootId);
+    assertSlotIsFree(others, { slot: plan.slot, productName: plan.productName });
+
+    return transaction(async (tx) => {
+      const amended = await subscriptionsRepo.amendRequest(tx, {
+        id: current.id,
+        patch: {
+          planId: plan.id,
+          productName: plan.productName,
+          quantity: String(nextQuantity),
+          unit: plan.unit,
+          frequency: plan.frequency,
+          slot: plan.slot,
+          ...windowsFor(plan, plan.slot),
+          unitPrice: quote.unitPrice,
+          quotedMonthlyPrice: paiseToDecimal(quote.monthlyPaise),
+        },
+      });
+      if (!amended) throw new ConflictError('That request was answered while you were editing it.');
+
+      await notificationsRepo.create(tx, {
+        userId: current.customerId,
+        type: 'PLAN_CHANGE',
+        title: 'Your milkman adjusted your plan request',
+        body: `${plan.name}: ${Number(nextQuantity)} ${plan.unit} ${slotLabel(plan.slot).toLowerCase()}, about ${formatPaise(quote.monthlyPaise, { whole: true })} a month.`,
+        href: '/subscriptions',
+        subjectType: 'milk_subscription',
+        subjectId: current.id,
+      });
+
+      return { subscription: amended, planName: plan.name, effectiveFrom: amended.effectiveFrom };
+    });
   }
 
   return transaction(async (tx) => {
@@ -563,8 +657,10 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
 
   const quantity = overrides.quantity ?? plan.quantity;
   const nextSlot = overrides.slot ?? plan.slot;
-  const agreed = { ...plan, quantity, slot: nextSlot };
-  const { unitPrice } = resolveUnitPrice(agreed, month);
+  // The plan's rate, scaled to the quantity agreed. Before, an override kept
+  // the plan's per-delivery price and divided it by the new amount.
+  const quote = quoteForQuantity(plan, { quantity, slot: nextSlot }, month);
+  const { unitPrice } = quote;
 
   /*
    * A change can collide too.
@@ -591,7 +687,7 @@ export async function applyPlanChange(tx, actor, { rootId, plan, overrides = {} 
     slot: nextSlot,
     ...windowsFor(plan, nextSlot),
     unitPrice,
-    quotedMonthlyPrice: paiseToDecimal(quotedMonthlyPaise(agreed, month)),
+    quotedMonthlyPrice: paiseToDecimal(quote.monthlyPaise),
   };
 
   /*

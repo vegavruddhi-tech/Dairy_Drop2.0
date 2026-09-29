@@ -15,7 +15,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
@@ -111,7 +111,7 @@ suite('delivery windows', () => {
 
   it('snapshots the window onto the subscription at enrolment', async () => {
     if (!planId) return;
-    const created = await subscriptions.subscribe(customer, { planId });
+    const created = await subscribeApproved(subscriptions, customer, { planId });
     rootIds.push(created.rootId);
 
     expect(created.morningStart).toBe('06:00:00');
@@ -138,7 +138,7 @@ suite('delivery windows', () => {
 
   it('carries only the window for the slot the customer actually takes', async () => {
     if (!secondPlanId) return;
-    const created = await subscriptions.subscribe(secondCustomer, { planId: secondPlanId, slot: 'MORNING' });
+    const created = await subscribeApproved(subscriptions, secondCustomer, { planId: secondPlanId, slot: 'MORNING' });
     rootIds.push(created.rootId);
 
     expect(created.morningStart).toBeTruthy();

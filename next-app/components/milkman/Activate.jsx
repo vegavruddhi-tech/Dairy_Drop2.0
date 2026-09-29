@@ -7,6 +7,7 @@ import { cn, Card, CardBody, CardHeader, Notice, Badge } from '@/components/ui/i
 import { Button, Input } from '@/components/ui/interactive.jsx';
 import { startTrial, submitSaasPayment } from '@/actions/milkman.actions.js';
 import { formatPaise, toPaise } from '@/domain/money.js';
+import { validateReference } from '@/domain/utr.js';
 import { CheckIcon, CopyIcon, PhoneIcon, UsersIcon, PaymentsIcon } from '@/components/ui/Icons.jsx';
 import { useT } from '@/i18n/provider.jsx';
 
@@ -222,6 +223,11 @@ export function SubmitSaasPayment({ plans, settings, current = null, customerCou
             onSubmit={(event) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
+              const check = validateReference(data.get('reference'), 'ANY');
+              if (!check.ok) {
+                setErrors({ reference: check.message });
+                return;
+              }
               startTransition(async () => {
                 const result = await submitSaasPayment({
                   planId,
@@ -240,13 +246,14 @@ export function SubmitSaasPayment({ plans, settings, current = null, customerCou
             <Input
               name="reference"
               label={isHi ? 'लेनदेन संदर्भ / UTR नंबर' : 'Transaction reference / UTR'}
-              inputMode="numeric"
+              // Text, not numeric: NEFT and RTGS references contain letters.
               autoComplete="off"
-              placeholder={isHi ? '12-अंकों का UTR' : '12-digit UTR'}
+              maxLength={28}
+              placeholder="e.g. 426891028471"
               hint={
                 isHi
-                  ? 'भुगतान सफल होने के बाद अपने UPI या बैंकिंग ऐप से दर्ज करें।'
-                  : 'From your UPI or banking app, once the payment shows as successful.'
+                  ? 'UPI/IMPS: 12 अंक · NEFT: 16 अक्षर · RTGS: 22 अक्षर। भुगतान सफल होने के बाद ऐप से कॉपी करें।'
+                  : 'UPI/IMPS: 12 digits · NEFT: 16 characters · RTGS: 22 characters. Copy it once the payment shows as successful.'
               }
               error={errors.reference}
               required

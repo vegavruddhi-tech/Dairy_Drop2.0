@@ -11,7 +11,7 @@
  * Pure module — no I/O.
  */
 
-import { toPaise, toMilli, roundHalfUp } from './money.js';
+import { toPaise, toMilli, roundHalfUp, lineAmountPaise } from './money.js';
 import { daysInMonth, dayOfWeek, dayOfMonth, daysBetween, isClockTime, businessClockNow } from './dates.js';
 
 /**
@@ -301,4 +301,30 @@ export function countDeliveryDays(frequency, month) {
     default:
       throw new RangeError(`Unknown frequency: ${frequency}`);
   }
+}
+
+/**
+ * What a customer pays for a plan at the quantity *they* chose.
+ *
+ * A plan is now a rate card — a price per litre, a shift, a frequency — and
+ * the customer picks how much. The rate comes from the plan (for an older plan
+ * with its own quantity, its per-litre equivalent), and every figure scales by
+ * the chosen amount.
+ *
+ * Previously a quantity override kept the plan's *per-delivery* price and
+ * divided it by the new amount, so asking for more milk lowered the rate.
+ *
+ * @param {object} plan   a milk plan row (or draft)
+ * @param {{quantity?: string|number, slot?: string}} choice
+ * @param {string} month  'YYYY-MM' the quote is for
+ * @returns {{unitPrice: string, perDeliveryPaise: number, monthlyPaise: number, deliveries: number}}
+ */
+export function quoteForQuantity(plan, { quantity, slot } = {}, month) {
+  const agreed = { ...plan, slot: slot ?? plan.slot };
+  const { unitPrice } = resolveUnitPrice(agreed, month);
+  const milli = toMilli(quantity ?? plan.quantity);
+  if (milli <= 0) throw new RangeError('Quantity must be greater than zero.');
+  const perDeliveryPaise = lineAmountPaise(milli, unitPrice);
+  const deliveries = countDeliveries(agreed, month);
+  return { unitPrice, perDeliveryPaise, monthlyPaise: perDeliveryPaise * deliveries, deliveries };
 }

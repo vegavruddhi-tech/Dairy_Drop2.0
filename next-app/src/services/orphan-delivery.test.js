@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
@@ -54,7 +54,7 @@ suite('a delivery whose subscription was removed', () => {
       returning id`);
     planId = (plan.rows ?? plan)[0].id;
 
-    const created = await subs.subscribe(customer, { planId });
+    const created = await subscribeApproved(subs, customer, { planId });
     rootId = created.rootId;
     await db.execute(sql`
       update "app".milk_subscriptions set effective_from = ${today} where root_id = ${rootId}`);

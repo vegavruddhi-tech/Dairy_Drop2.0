@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
@@ -53,7 +53,7 @@ suite('switching off a retired plan', () => {
 
     // Subscribe while it is still offered, then the milkman withdraws it.
     retiredPlanId = await makePlan('Switch From', true);
-    const created = await subs.subscribe(customer, { planId: retiredPlanId });
+    const created = await subscribeApproved(subs, customer, { planId: retiredPlanId });
     rootId = created.rootId;
     await db.execute(sql`
       update "app".milk_plans set is_active = false where id = ${retiredPlanId}`);

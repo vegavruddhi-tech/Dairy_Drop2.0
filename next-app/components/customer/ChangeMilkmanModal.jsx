@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Modal, Button, Input } from '@/components/ui/interactive.jsx';
 import { formatPaise } from '@/domain/money.js';
 import { switchMilkman } from '@/actions/customer.actions.js';
+import { QuantityPicker, rateLabel, SLOT_LABEL, FREQUENCY_LABEL } from './QuantityPicker.jsx';
 import { useT } from '@/i18n/provider.jsx';
 
 export function ChangeMilkmanModal({
@@ -26,6 +27,9 @@ export function ChangeMilkmanModal({
   const [milkmen, setMilkmen] = useState([]);
   const [selectedMilkman, setSelectedMilkman] = useState(null);
   const [selectedPlanIds, setSelectedPlanIds] = useState([]);
+  // Litres per delivery for each chosen plan; the plan is a per-litre rate.
+  const [quantities, setQuantities] = useState({});
+  const quantityOf = (plan) => quantities[plan.id] ?? String(Number(plan.quantity) || 1);
   const [pending, startTransition] = useTransition();
 
   const handleLookup = async (pincodeToSearch) => {
@@ -89,6 +93,12 @@ export function ChangeMilkmanModal({
         pincode: pincode.trim(),
         area: selectedArea.trim() || customerAddress?.area || 'Local Area',
         planIds: selectedPlanIds,
+        quantities: Object.fromEntries(
+          selectedPlanIds.map((id) => {
+            const plan = selectedMilkman?.plans?.find((p) => p.id === id);
+            return [id, plan ? quantityOf(plan) : '1'];
+          }),
+        ),
       });
 
       if (res.ok) {
@@ -343,8 +353,8 @@ export function ChangeMilkmanModal({
               (selectedMilkman?.plans || []).map((plan) => {
                 const isSelected = selectedPlanIds.includes(plan.id);
                 return (
+                  <div key={plan.id}>
                   <div
-                    key={plan.id}
                     onClick={() => togglePlan(plan.id)}
                     className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
                       isSelected
@@ -356,15 +366,12 @@ export function ChangeMilkmanModal({
                       {/* Product Name stays in English */}
                       <p className="font-heading text-sm font-bold text-slate-900">{plan.productName}</p>
                       <p className="text-xs text-slate-500 font-medium">
-                        {plan.quantity} {plan.unit} • {plan.frequency} • {plan.slot}
+                        {SLOT_LABEL[plan.slot] ?? plan.slot} • {FREQUENCY_LABEL[plan.frequency] ?? plan.frequency}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0 ml-3">
-                      <span className="font-heading text-sm font-black text-slate-900">
-                        ₹{Number(plan.unitPrice || plan.price || 0).toFixed(2)}
-                        <span className="text-[10px] font-normal text-slate-400">/{plan.unit}</span>
-                      </span>
+                      <span className="font-heading text-sm font-black text-slate-900">{rateLabel(plan)}</span>
                       <span
                         className={`flex h-5 w-5 items-center justify-center rounded-md border text-xs font-bold ${
                           isSelected
@@ -375,6 +382,16 @@ export function ChangeMilkmanModal({
                         {isSelected ? '✓' : ''}
                       </span>
                     </div>
+                  </div>
+                  {isSelected ? (
+                    <QuantityPicker
+                      plan={plan}
+                      value={quantityOf(plan)}
+                      onChange={(value) =>
+                        setQuantities((prev) => ({ ...prev, [plan.id]: String(value).replace(/[^\d.]/g, '') }))
+                      }
+                    />
+                  ) : null}
                   </div>
                 );
               })

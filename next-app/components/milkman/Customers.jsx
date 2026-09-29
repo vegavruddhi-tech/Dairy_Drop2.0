@@ -284,12 +284,40 @@ export function ApprovalCard({ customer, summary, atLimit, subscriptions = [], p
               <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">{customer.name}</h3>
               <StatusBadge status="PENDING" />
             </div>
-            {summary?.productNames ? (
+            {/* What they asked for, at the amount and price they chose. */}
+            {subscriptions.length ? (
+              <ul className="mt-2 space-y-1.5">
+                {subscriptions.map((s) => (
+                  <li
+                    key={s.rootId}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs"
+                  >
+                    <span className="font-bold text-blue-800">{t('common.details', {}, 'Wants')}:</span>
+                    <span className="font-heading text-sm font-black text-slate-900">
+                      {s.productName} · {Number(s.quantity)} {s.unit}
+                    </span>
+                    <span className="font-semibold text-slate-600">
+                      {s.slot === 'BOTH' ? 'Morning & evening' : s.slot === 'EVENING' ? 'Evening' : 'Morning'}
+                    </span>
+                    {s.unitPrice ? (
+                      <span className="font-semibold text-slate-600">₹{Number(s.unitPrice).toFixed(2)}/{s.unit}</span>
+                    ) : null}
+                    {s.quotedMonthlyPrice ? (
+                      <span className="ml-auto font-heading font-black text-slate-900">
+                        ≈ {formatPaise(Math.round(Number(s.quotedMonthlyPrice) * 100), { whole: true })}/mo
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : summary?.productNames ? (
               <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-xs font-bold text-blue-700">
                 <span className="font-medium opacity-70">{t('common.details', {}, 'Wants')}:</span>
                 {summary.productNames}
               </p>
-            ) : null}
+            ) : (
+              <p className="mt-1.5 text-xs font-semibold text-slate-400">No plan chosen yet</p>
+            )}
             <p className="mt-1.5 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
               <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <span>

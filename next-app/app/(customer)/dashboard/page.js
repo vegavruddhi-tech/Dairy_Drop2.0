@@ -60,6 +60,7 @@ export default async function CustomerDashboard() {
 
   const active = subscriptions.filter((s) => s.status === 'ACTIVE');
   const paused = subscriptions.filter((s) => s.status === 'PAUSED');
+  const awaiting = subscriptions.filter((s) => s.status === 'PENDING');
 
   // Smart Context Switch:
   // If today has pending actionable deliveries (e.g. today's evening delivery before 3 PM), focus on Today.
@@ -190,6 +191,21 @@ export default async function CustomerDashboard() {
                 isHi
                   ? 'आपका प्लान सक्रिय है। डिलीवरी राउंड शेड्यूल के अनुसार स्वतः तैयार होगा।'
                   : "Your plan is active. Delivery rounds are generated according to your scheduled plan."
+              }
+              action={
+                <Link href="/subscriptions">
+                  <Button variant="secondary">{isHi ? 'मेरा प्लान देखें' : 'View My Plan'}</Button>
+                </Link>
+              }
+            />
+          ) : awaiting.length > 0 ? (
+            <EmptyState
+              icon={<CalendarIcon className="h-8 w-8 text-blue-600" />}
+              title={isHi ? 'दूधवाले की स्वीकृति की प्रतीक्षा' : 'Waiting for your milkman to approve'}
+              description={
+                isHi
+                  ? `${awaiting[0].productName} · ${Number(awaiting[0].quantity)} ${awaiting[0].unit} — स्वीकृति के बाद अगले राउंड से डिलीवरी शुरू होगी।`
+                  : `${awaiting[0].productName} · ${Number(awaiting[0].quantity)} ${awaiting[0].unit} — deliveries start with the next round once they approve.`
               }
               action={
                 <Link href="/subscriptions">

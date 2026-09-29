@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 import { slotsStillAheadToday } from '@/domain/pricing.js';
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 describe('which slots are still ahead', () => {
   const both = {
@@ -80,7 +80,7 @@ suite('a change made before the round', () => {
     customer = customerActor(fixture, milkmanId, roles);
 
     const first = await makePlan('Cutoff From', '1.000');
-    const created = await subs.subscribe(customer, { planId: first });
+    const created = await subscribeApproved(subs, customer, { planId: first });
     rootId = created.rootId;
 
     // Backdate the enrolment so there is a yesterday to close it at.

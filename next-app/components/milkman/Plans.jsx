@@ -59,7 +59,9 @@ const PRICE_HINT = {
       ? 'महीने की सभी डिलीवरी में वितरित। ग्राहक केवल उसी का भुगतान करते हैं जो डिलीवर होता है।'
       : 'Spread across every delivery in the month. Customers pay only for what is actually delivered.',
   PER_UNIT: (isHi) =>
-    isHi ? 'मासिक आंकड़ा इसी दर से निकाला जाता है।' : 'The monthly figure is worked out from this.',
+    isHi
+      ? 'ग्राहक प्लान चुनते समय मात्रा खुद चुनेगा; उसका बिल इसी दर × मात्रा से बनेगा।'
+      : 'Customers choose how much when they subscribe; their price is this rate × their quantity.',
   PER_DELIVERY: (isHi) =>
     isHi ? 'केवल वास्तविक रूप से हुई प्रत्येक डिलीवरी के लिए शुल्क लिया जाता है।' : 'Charged for each delivery that actually happens.',
 };
@@ -77,25 +79,22 @@ export function PlanEditor({ plan, trigger }) {
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState({});
   const [selectedMilkType, setSelectedMilkType] = useState('cow_milk');
-  const [selectedQtyPreset, setSelectedQtyPreset] = useState('1');
 
-  const [basis, setBasis] = useState(plan?.monthlyPrice ? 'MONTHLY' : 'PER_UNIT');
+  // A plan is a rate card: always a price per unit. The customer chooses
+  // how much when they subscribe, so there is no quantity to set here.
+  const basis = 'PER_UNIT';
   const [slot, setSlot] = useState(plan?.slot ?? 'MORNING');
   const [frequency, setFrequency] = useState(plan?.frequency ?? 'DAILY');
-  const [name, setName] = useState(plan?.name ?? '1L Pure Cow Milk Daily');
+  const [name, setName] = useState(plan?.name ?? 'Pure Cow Milk Daily');
   const [productName, setProductName] = useState(plan?.productName ?? 'Pure Cow Milk');
-  const [quantity, setQuantity] = useState(
-    plan?.quantity ? String(Number(plan.quantity)) : '1',
-  );
+  const quantity = '1';
+  // Older plans were priced per delivery or per month for a fixed amount;
+  // opening one here shows its per-unit rate, and saving converts it.
   const [price, setPrice] = useState(
     plan
-      ? plan.monthlyPrice
-        ? String(Number(plan.monthlyPrice))
-        : String(
-            (
-              Number(plan.pricePerDelivery) / (Number(plan.quantity) || 1)
-            ).toFixed(2),
-          )
+      ? plan.unitPrice != null
+        ? String(Number(plan.unitPrice).toFixed(2))
+        : String((Number(plan.pricePerDelivery ?? 0) / (Number(plan.quantity) || 1)).toFixed(2))
       : '64.00',
   );
   const [unit, setUnit] = useState(plan?.unit ?? 'L');
@@ -106,31 +105,19 @@ export function PlanEditor({ plan, trigger }) {
   const showMorning = slot === 'MORNING' || slot === 'BOTH';
   const showEvening = slot === 'EVENING' || slot === 'BOTH';
 
-  function applyPreset(milkTypeId, qtyVal, freq = frequency) {
-    const defaults = generatePlanDefaults(milkTypeId, qtyVal, freq);
-    setName(defaults.name);
+  function applyPreset(milkTypeId) {
+    const defaults = generatePlanDefaults(milkTypeId, 1, frequency);
+    const milkType = MILK_TYPES.find((m) => m.id === milkTypeId) || MILK_TYPES[0];
+    setName(`${milkType.name} ${frequency === 'ALTERNATE_DAYS' ? 'Alternate Days' : 'Daily'}`);
     setProductName(defaults.productName);
-    setQuantity(defaults.quantity);
     setUnit(defaults.unit);
     setDescription(defaults.description);
-    const milkType = MILK_TYPES.find((m) => m.id === milkTypeId) || MILK_TYPES[0];
-    setPrice(
-      basis === 'MONTHLY'
-        ? defaults.monthlyPrice
-        : String(Number(milkType.defaultPricePerLitre).toFixed(2)),
-    );
+    setPrice(String(Number(milkType.defaultPricePerLitre).toFixed(2)));
   }
 
   function handleMilkTypeChange(val) {
     setSelectedMilkType(val);
-    applyPreset(val, quantity);
-  }
-
-  function handleQtyPresetChange(val) {
-    setSelectedQtyPreset(val);
-    if (val !== 'custom') {
-      applyPreset(selectedMilkType, val);
-    }
+    applyPreset(val);
   }
 
   return (
@@ -220,7 +207,7 @@ export function PlanEditor({ plan, trigger }) {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid gap-2.5">
               <div>
                 <label className="block text-xs font-bold text-ink mb-1">
                   {isHi ? 'दूध का प्रकार चुनें' : 'Select Milk Type'}
@@ -238,22 +225,6 @@ export function PlanEditor({ plan, trigger }) {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-ink mb-1">
-                  {isHi ? 'दैनिक मात्रा चुनें' : 'Select Daily Quantity'}
-                </label>
-                <select
-                  value={selectedQtyPreset}
-                  onChange={(e) => handleQtyPresetChange(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs font-semibold text-ink shadow-sm focus:border-brand focus:outline-none"
-                >
-                  {QUANTITY_PRESETS.map((q) => (
-                    <option key={q.value} value={q.value}>
-                      {q.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
 
@@ -277,27 +248,14 @@ export function PlanEditor({ plan, trigger }) {
             placeholder="Pure Cow Milk"
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              name="quantity"
-              label={isHi ? 'प्रति डिलीवरी मात्रा' : 'Quantity per delivery'}
-              inputMode="decimal"
-              value={quantity}
-              onChange={(event) => {
-                setQuantity(event.target.value);
-                applyPreset(selectedMilkType, event.target.value);
-              }}
-              error={errors.quantity}
-              required
-            />
-            <Select
-              name="unit"
-              label={isHi ? 'इकाई (Unit)' : 'Unit'}
-              value={unit}
-              onChange={(event) => setUnit(event.target.value)}
-              options={UNITS}
-            />
-          </div>
+          {/* No quantity: the customer picks how much when they subscribe. */}
+          <Select
+            name="unit"
+            label={isHi ? 'किस इकाई में बेचते हैं (Unit)' : 'Sold per'}
+            value={unit}
+            onChange={(event) => setUnit(event.target.value)}
+            options={UNITS}
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <Select
@@ -390,31 +348,7 @@ export function PlanEditor({ plan, trigger }) {
             </p>
           </div>
 
-          <Select
-            name="pricingBasis"
-            label={isHi ? 'मूल्य निर्धारण का आधार' : 'How do you price it?'}
-            value={basis}
-            onChange={(event) => {
-              const nextBasis = event.target.value;
-              setBasis(nextBasis);
-              const milkType = MILK_TYPES.find((m) => m.id === selectedMilkType) || MILK_TYPES[0];
-              const defaults = generatePlanDefaults(selectedMilkType, quantity, frequency);
-              setPrice(
-                nextBasis === 'MONTHLY'
-                  ? defaults.monthlyPrice
-                  : String(Number(milkType.defaultPricePerLitre).toFixed(2)),
-              );
-            }}
-            options={[
-              {
-                value: 'PER_UNIT',
-                label: isHi
-                  ? `प्रति ${UNIT_NOUN_HI[unit] ?? 'इकाई'} मूल्य (A price per ${UNIT_NOUN[unit] ?? 'unit'})`
-                  : `A price per ${UNIT_NOUN[unit] ?? 'unit'}`,
-              },
-              { value: 'MONTHLY', label: isHi ? 'मासिक मूल्य (A monthly price)' : 'A monthly price' },
-            ]}
-          />
+          <input type="hidden" name="pricingBasis" value="PER_UNIT" />
 
           <Input
             name="price"
@@ -725,7 +659,7 @@ function PlanCard({ plan, subscribers, onRetire, onDelete, isHi }) {
       <div className="mx-4 flex items-end justify-between gap-3 rounded-2xl bg-surface-muted/70 px-4 py-3 sm:mx-5">
         <div>
           <p className="text-[10.5px] font-bold uppercase tracking-wider text-ink-subtle">
-            {isHi ? 'पूरे महीने का' : 'A full month'}
+            {isHi ? 'पूरा महीना · 1 ' : 'A full month · 1 '}{plan.unit} {isHi ? 'पर' : 'per drop'}
           </p>
           <p className="stat-number text-2xl leading-none text-ink">
             {plan.quotedMonthlyPaise != null ? formatPaise(plan.quotedMonthlyPaise, { whole: true }) : '—'}
@@ -748,8 +682,12 @@ function PlanCard({ plan, subscribers, onRetire, onDelete, isHi }) {
       <dl className="grid grid-cols-2 gap-2 p-4 pt-3 sm:p-5 sm:pt-3">
         <Term
           icon={<MilkDropIcon className="h-4 w-4" />}
-          label={isHi ? 'प्रति डिलीवरी' : 'Per delivery'}
-          value={`${Number(plan.quantity)} ${plan.unit}`}
+          label={isHi ? 'मात्रा' : 'Quantity'}
+          value={
+            Number(plan.quantity) === 1
+              ? isHi ? 'ग्राहक चुनेगा' : 'Customer chooses'
+              : `${Number(plan.quantity)} ${plan.unit} (older plan)`
+          }
         />
         <Term
           icon={<CalendarIcon className="h-4 w-4" />}

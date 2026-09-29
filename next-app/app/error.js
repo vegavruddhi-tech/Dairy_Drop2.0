@@ -3,8 +3,13 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 
+import { isStaleActionError, reloadForNewDeployment } from '@/lib/staleDeployment.js';
+
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
+    // A button pressed in a tab older than the latest deploy lands here;
+    // fresh JavaScript is the fix, so fetch it instead of showing a glitch.
+    if (isStaleActionError(error) && reloadForNewDeployment()) return;
     console.error('[Application Error]:', error);
   }, [error]);
 

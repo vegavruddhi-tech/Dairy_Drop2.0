@@ -64,7 +64,9 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest,
             'absolute top-0 left-0 right-0 h-1.5',
             subscription.status === 'ACTIVE'
               ? 'bg-emerald-500'
-              : subscription.status === 'PAUSED'
+              : subscription.status === 'PENDING'
+                ? 'bg-blue-400'
+                : subscription.status === 'PAUSED'
                 ? 'bg-amber-500'
                 : 'bg-slate-300',
           )}
@@ -99,6 +101,23 @@ export function SubscriptionCard({ subscription, availablePlans, pendingRequest,
           </div>
 
           <RateNote subscription={subscription} plans={availablePlans} isHi={isHi} />
+
+          {subscription.status === 'PENDING' ? (
+            <>
+              <Notice tone="info" title={isHi ? 'दूधवाले की स्वीकृति की प्रतीक्षा' : 'Waiting for your milkman'}>
+                {isHi
+                  ? `आपने ${Number(subscription.quantity)} ${subscription.unit} चुना है (लगभग ${formatPaise(Math.round(Number(subscription.quotedMonthlyPrice ?? 0) * 100), { whole: true })}/माह)। स्वीकृति के बाद अगले राउंड से डिलीवरी शुरू होगी।`
+                  : `You asked for ${Number(subscription.quantity)} ${subscription.unit} (about ${formatPaise(Math.round(Number(subscription.quotedMonthlyPrice ?? 0) * 100), { whole: true })} a month). Deliveries start with the next round once they approve.`}
+              </Notice>
+              <button
+                type="button"
+                className="tap w-full rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 font-heading text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all active:scale-[0.98]"
+                onClick={() => setModal('cancel')}
+              >
+                {isHi ? 'अनुरोध वापस लें' : 'Withdraw request'}
+              </button>
+            </>
+          ) : null}
 
           {withdrawn ? (
             <Notice tone="info" title={isHi ? 'अब उपलब्ध नहीं' : 'No longer offered'}>
@@ -246,6 +265,18 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, m
   const { locale } = useT();
   const isHi = locale === 'hi';
 
+  /*
+   * The customer decides how much. The plan is a rate card; the quote scales
+   * with the amount (the server recomputes it exactly on subscribe). An older
+   * plan that still carries its own quantity starts from that amount.
+   */
+  const [quantity, setQuantity] = useState(String(Number(plan.quantity) || 1));
+  const qty = Number(quantity);
+  const validQty = Number.isFinite(qty) && qty > 0 && /^\d+(\.\d{1,3})?$/.test(quantity);
+  const monthlyPaise = validQty
+    ? Math.round((Number(plan.quotedMonthlyPaise) || 0) * (qty / (Number(plan.quantity) || 1)))
+    : 0;
+
   const slotName = isHi
     ? plan.slot === 'MORNING' ? 'सुबह' : plan.slot === 'EVENING' ? 'शाम' : plan.slot.toLowerCase()
     : plan.slot.toLowerCase();
@@ -274,19 +305,45 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, m
 
         <div className="flex items-baseline gap-1.5 rounded-2xl bg-slate-50 border border-slate-200/70 p-3">
           <span className="font-heading text-2xl font-black text-slate-950 tnum">
-            {formatPaise(plan.quotedMonthlyPaise, { whole: true })}
+            ₹{Number(plan.unitPrice).toFixed(2)}
           </span>
           <span className="font-heading text-xs font-bold text-slate-500">
-            {isHi ? '/ अनुमानित मासिक' : '/ estimated mo.'}
+            {isHi ? `प्रति ${plan.unit}` : `per ${plan.unit}`}
           </span>
         </div>
+
+        {!alreadySubscribed && !blockedBy && !maxPlansReached ? (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3">
+            <label htmlFor={`qty-${plan.id}`} className="block text-[11px] font-extrabold uppercase tracking-wider text-blue-700">
+              {isHi ? `हर डिलीवरी में कितना (${plan.unit})` : `How much per delivery (${plan.unit})`}
+            </label>
+            <div className="mt-1.5 flex items-center gap-2">
+              <input
+                id={`qty-${plan.id}`}
+                inputMode="decimal"
+                value={quantity}
+                onChange={(event) => setQuantity(event.target.value.replace(/[^\d.]/g, ''))}
+                className={cn(
+                  'h-11 w-24 rounded-xl border bg-white px-3 text-center font-heading text-lg font-black text-slate-900 focus:outline-none focus:ring-2',
+                  validQty ? 'border-blue-200 focus:ring-blue-500/30' : 'border-rose-400 focus:ring-rose-400/30',
+                )}
+              />
+              <span className="text-sm font-bold text-slate-500">{plan.unit}</span>
+              <span className="ml-auto text-right">
+                <span className="block font-heading text-lg font-black text-slate-950 tnum">
+                  {validQty ? formatPaise(monthlyPaise, { whole: true }) : '—'}
+                </span>
+                <span className="block text-[10px] font-bold text-slate-500">{isHi ? 'अनुमानित / माह' : 'estimated / month'}</span>
+              </span>
+            </div>
+          </div>
+        ) : null}
 
         <ul className="space-y-1.5 text-xs font-medium text-slate-600">
           <li className="flex items-center gap-2">
             <CheckIcon className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
             <span>
-              <strong className="text-slate-900">{Number(plan.quantity)} {plan.unit}</strong>{' '}
-              {isHi ? 'प्रति सुबह' : 'per morning'}
+              {isHi ? 'मात्रा आप चुनें' : 'You choose the quantity'}
             </span>
           </li>
           <li className="flex items-center gap-2">
@@ -370,24 +427,25 @@ export function PlanCard({ plan, alreadySubscribed, subscribedRate, blockedBy, m
           <button
             type="button"
             className="tap flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 font-heading text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-[0.98]"
-            disabled={pending}
+            disabled={pending || !validQty}
             onClick={() =>
               startTransition(async () => {
-                const result = await subscribe({ planId: plan.id });
+                const result = await subscribe({ planId: plan.id, quantity: String(qty) });
                 if (result.ok) {
-                  if (result.data?.requiresApproval) {
-                    toast.success(isHi ? `${plan.name} के लिए अनुरोध भेजा गया! दूधवाले की स्वीकृति की प्रतीक्षा है।` : `Subscribed to ${plan.name}! Waiting for milkman approval.`);
-                    window.location.href = '/pending';
-                  } else {
-                    toast.success(isHi ? `${plan.name} सब्सक्राइब हो गया। डिलीवरी कल से शुरू होगी!` : `Subscribed to ${plan.name}. Deliveries start tomorrow!`);
-                  }
+                  // Every new plan waits for the milkman's yes; it now shows
+                  // under "My plans" as waiting until they answer.
+                  toast.success(
+                    isHi
+                      ? `${plan.name} (${qty} ${plan.unit}) का अनुरोध भेजा गया। दूधवाले की स्वीकृति के बाद डिलीवरी शुरू होगी।`
+                      : `Request sent for ${plan.name} (${qty} ${plan.unit}). Deliveries start once your milkman approves.`,
+                  );
                 } else {
                   toast.error(result.message ?? (isHi ? 'सब्सक्राइब नहीं हो सका।' : 'Could not subscribe.'));
                 }
               })
             }
           >
-            <span>{isHi ? 'अभी सब्सक्राइब करें' : 'Subscribe Now'}</span>
+            <span>{isHi ? 'अनुरोध भेजें' : 'Request this plan'}</span>
             <span>→</span>
           </button>
         )}

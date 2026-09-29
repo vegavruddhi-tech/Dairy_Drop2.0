@@ -100,7 +100,7 @@ suite('paying a settled month', () => {
     expect(bill.balancePaise).toBeGreaterThan(0);
 
     const created = await payment.submit(actor, {
-      month: MONTH, amount: '60', method: 'UPI', reference: 'TEST-OWED',
+      month: MONTH, amount: '60', method: 'UPI', reference: '604112358139',
     });
     expect(created?.id).toBeTruthy();
   });
@@ -109,7 +109,7 @@ suite('paying a settled month', () => {
     if (!subscribed) return;
     await expect(
       payment.submit(actor, {
-        month: MONTH, amount: '60', method: 'UPI', reference: 'TEST-DUPLICATE',
+        month: MONTH, amount: '60', method: 'UPI', reference: '604112358140',
       }),
     ).rejects.toThrow(/already recorded/i);
 
@@ -134,7 +134,7 @@ suite('paying a settled month', () => {
 
     await expect(
       payment.submit(actor, {
-        month: MONTH, amount: '25', method: 'UPI', reference: 'TEST-SETTLED',
+        month: MONTH, amount: '25', method: 'UPI', reference: '604112358141',
       }),
     ).rejects.toThrow(/nothing left to pay/i);
   });

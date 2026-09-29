@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-import { createTestCustomer, removeTestCustomer, customerActor } from '@/test/customer-fixture.js';
+import { createTestCustomer, removeTestCustomer, customerActor, subscribeApproved } from '@/test/customer-fixture.js';
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const suite = hasDatabase ? describe : describe.skip;
@@ -57,7 +57,7 @@ suite('milkman changes a customer plan', () => {
 
     fromPlanId = await makePlan('MM Change From', 'mmchange milk');
     toPlanId = await makePlan('MM Change To', 'mmchange milk');
-    rootId = (await subs.subscribe(customer, { planId: fromPlanId })).rootId;
+    rootId = (await subscribeApproved(subs, customer, { planId: fromPlanId })).rootId;
 
     // The customer has asked for a change of their own, still pending.
     await db.execute(sql`

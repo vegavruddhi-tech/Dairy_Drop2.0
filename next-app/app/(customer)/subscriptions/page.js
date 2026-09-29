@@ -38,7 +38,9 @@ export default async function SubscriptionsPage() {
   );
 
   const onOffer = new Set(available.map((plan) => plan.id));
-  const holding = mine.filter((s) => s.status === 'ACTIVE' || s.status === 'PAUSED');
+  // A request waiting for the milkman holds its slot and counts towards the
+  // two-plan limit, exactly as the server treats it.
+  const holding = mine.filter((s) => ['PENDING', 'ACTIVE', 'PAUSED'].includes(s.status));
   const maxPlansReached = holding.length >= 2;
   const blockedByPlan = new Map();
 

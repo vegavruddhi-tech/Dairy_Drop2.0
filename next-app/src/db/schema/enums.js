@@ -30,6 +30,10 @@ export const saasStatusEnum = pgEnum('saas_status', [
 
 /** A customer's milk subscription. */
 export const milkSubscriptionStatusEnum = pgEnum('milk_subscription_status', [
+  // Requested by the customer, waiting for the milkman to approve. Generates no
+  // deliveries and bills nothing, but holds its slot so a second identical
+  // request cannot slip in beside it.
+  'PENDING',
   'ACTIVE',
   'PAUSED',
   'CANCELLED',

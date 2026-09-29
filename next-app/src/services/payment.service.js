@@ -14,6 +14,7 @@ import { db, transaction } from '@/db/index.js';
 import { businessMonth, monthEnd, formatMonth } from '@/domain/dates.js';
 import { toPaise, formatPaise } from '@/domain/money.js';
 import { ValidationError, NotFoundError, ConflictError } from '@/domain/errors.js';
+import { validateReference } from '@/domain/utr.js';
 
 import * as billingRepo from '@/repositories/billing.repo.js';
 import * as usersRepo from '@/repositories/users.repo.js';
@@ -47,11 +48,12 @@ export async function submit(actor, { month, amount, method, reference, note }) 
   const paise = toPaise(amount);
 
   if (paise <= 0) throw new ValidationError('Enter the amount you paid.');
-  if (method === 'UPI' && !String(reference ?? '').trim()) {
-    throw new ValidationError('Enter the UPI reference or UTR from your payment app.');
+  let cleanReference = null;
+  if (method !== 'CASH') {
+    const check = validateReference(reference, method === 'UPI' ? 'UPI' : 'BANK_TRANSFER');
+    if (!check.ok) throw new ValidationError(check.message, { fieldErrors: { reference: check.message } });
+    cleanReference = check.value;
   }
-
-  const cleanReference = reference ? String(reference).trim() : null;
 
   return transaction(async (tx) => {
     /*

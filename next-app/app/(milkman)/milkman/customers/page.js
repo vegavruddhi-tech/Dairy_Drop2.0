@@ -47,6 +47,8 @@ export default async function CustomersPage({ searchParams }) {
       unit: s.unit,
       slot: s.slot,
       status: s.status,
+      unitPrice: s.unitPrice != null ? String(s.unitPrice) : null,
+      quotedMonthlyPrice: s.quotedMonthlyPrice != null ? String(s.quotedMonthlyPrice) : null,
     });
   }
   const plans = plansOnOffer.map((p) => ({
