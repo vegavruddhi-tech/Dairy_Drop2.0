@@ -20,6 +20,16 @@ import * as usersRepo from '@/repositories/users.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
 import { materialiseBill } from './billing.service.js';
 
+/*
+ * Limits on recording a payment. Each exists because the queue a milkman
+ * checks by hand is the thing being protected: every submission is a row to
+ * look up in a UPI app and a notification on their phone.
+ */
+/** Unconfirmed payments one bill may hold at once. */
+export const MAX_PENDING_PER_BILL = 2;
+/** Seconds between two submissions by the same customer. */
+export const SUBMIT_COOLDOWN_SECONDS = 60;
+
 /** Where the customer should send the money. */
 export async function getPaymentInfo(actor) {
   if (!actor.tenantId) throw new NotFoundError('Your milkman');
@@ -41,7 +51,21 @@ export async function submit(actor, { month, amount, method, reference, note }) 
     throw new ValidationError('Enter the UPI reference or UTR from your payment app.');
   }
 
+  const cleanReference = reference ? String(reference).trim() : null;
+
   return transaction(async (tx) => {
+    /*
+     * Lock the bill before reading what is owed. Without it, several requests
+     * sent at once each saw the full balance outstanding and all went in.
+     */
+    const locked = await billingRepo.ensureBill(tx, {
+      customerId: actor.userId,
+      milkmanId: actor.tenantId,
+      month: targetMonth,
+      dueDate: monthEnd(targetMonth),
+    });
+    await billingRepo.lockBill(tx, locked.id);
+
     const { bill, computed } = await materialiseBill(tx, actor, {
       customerId: actor.userId,
       milkmanId: actor.tenantId,
@@ -70,13 +94,41 @@ export async function submit(actor, { month, amount, method, reference, note }) 
       );
     }
 
+    // More than is owed is a typo or a probe; either way it is not a payment.
+    if (paise > stillDuePaise) {
+      throw new ValidationError(
+        `You owe ${formatPaise(stillDuePaise)} for ${formatMonth(targetMonth)}. Enter that amount or less.`,
+      );
+    }
+
+    // Many small payments were the other way to flood the queue.
+    if ((await billingRepo.countPendingForBill(tx, bill.id)) >= MAX_PENDING_PER_BILL) {
+      throw new ConflictError(
+        'Your milkman is still confirming your earlier payments. Try again once they have.',
+      );
+    }
+
+    const last = await billingRepo.lastPaymentAt(tx, actor.userId);
+    if (last) {
+      const waited = (Date.now() - new Date(last).getTime()) / 1000;
+      if (waited < SUBMIT_COOLDOWN_SECONDS) {
+        throw new ConflictError(
+          `You recorded a payment a moment ago. Please wait ${Math.ceil(SUBMIT_COOLDOWN_SECONDS - waited)} seconds before recording another.`,
+        );
+      }
+    }
+
+    if (cleanReference && (await billingRepo.referenceInUse(tx, { milkmanId: actor.tenantId, reference: cleanReference }))) {
+      throw new ConflictError(`Reference ${cleanReference} has already been recorded.`);
+    }
+
     const payment = await billingRepo.createPayment(tx, {
       billId: bill.id,
       customerId: actor.userId,
       milkmanId: actor.tenantId,
       amount: String(amount),
       method: method ?? 'UPI',
-      reference: reference ? String(reference).trim() : null,
+      reference: cleanReference,
       customerNote: note ?? null,
       status: 'SUBMITTED',
     });

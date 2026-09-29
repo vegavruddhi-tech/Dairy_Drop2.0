@@ -17,12 +17,24 @@ import {
   deliveries,
 } from '@/db/schema/index.js';
 import { businessDate, businessMonth, monthStart } from '@/domain/dates.js';
-import { NotFoundError, ValidationError } from '@/domain/errors.js';
+import { NotFoundError, ValidationError, ForbiddenError } from '@/domain/errors.js';
 
 import * as usersRepo from '@/repositories/users.repo.js';
 import * as saasRepo from '@/repositories/saas.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
 import * as auditService from './audit.service.js';
+
+/**
+ * Every write in this file is an administrator's act. The actions that call
+ * them already require an admin, but the service checks again: a stray action
+ * once wired `verifyMilkman` to the milkman being verified, and that was all
+ * it took for a dairy to approve itself.
+ */
+function assertAdmin(actor) {
+  if (actor?.role !== 'ADMIN') {
+    throw new ForbiddenError('Only an administrator can do that.');
+  }
+}
 
 /** Platform KPIs for the admin dashboard. All aggregation in SQL. */
 export async function getDashboard() {
@@ -128,6 +140,7 @@ export async function getMilkman(milkmanId) {
 
 /** Verify a business. Opens the panel, subject to the subscription gate. */
 export async function verifyMilkman(actor, { milkmanId }) {
+  assertAdmin(actor);
   return transaction(async (tx) => {
     const [row] = await tx
       .update(milkmanProfiles)
@@ -171,6 +184,7 @@ export async function verifyMilkman(actor, { milkmanId }) {
  * cancel the subscription, so verifying again fully restores access.
  */
 export async function suspendMilkman(actor, { milkmanId, reason }) {
+  assertAdmin(actor);
   if (!String(reason ?? '').trim()) {
     throw new ValidationError('Give a reason — the milkman will see it.');
   }
@@ -251,6 +265,7 @@ export async function listPlans() {
 }
 
 export async function savePlan(actor, { id, values }) {
+  assertAdmin(actor);
   return transaction(async (tx) => {
     if (id) {
       const [row] = await tx
@@ -282,6 +297,7 @@ export async function savePlan(actor, { id, values }) {
 
 /** Retire a plan. Existing subscribers keep the terms frozen on their row. */
 export async function retirePlan(actor, { id }) {
+  assertAdmin(actor);
   return savePlan(actor, { id, values: { isActive: false } });
 }
 
@@ -292,6 +308,7 @@ export async function getSettings() {
 }
 
 export async function saveSettings(actor, values) {
+  assertAdmin(actor);
   return transaction(async (tx) => {
     const current = await saasRepo.getPlatformSettings();
     const [row] = await tx

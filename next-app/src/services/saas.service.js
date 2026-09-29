@@ -12,7 +12,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 
 import { db, transaction } from '@/db/index.js';
 import { saasSubscriptions, saasPayments, users, milkmanProfiles } from '@/db/schema/index.js';
-import { ValidationError, ConflictError, NotFoundError } from '@/domain/errors.js';
+import { ValidationError, ConflictError, NotFoundError, ForbiddenError } from '@/domain/errors.js';
 import { daysRemaining, evaluateSaasAccess } from '@/auth/policy.js';
 
 import * as saasRepo from '@/repositories/saas.repo.js';
@@ -200,6 +200,8 @@ export async function submitPayment(actor, { planId, reference }) {
  * decides it.
  */
 export async function verifyPayment(actor, { subscriptionId, approve, rejectionReason }) {
+  // Opening a panel is an administrator's decision; checked here as well as at the action.
+  if (actor?.role !== 'ADMIN') throw new ForbiddenError('Only an administrator can verify payments.');
   return transaction(async (tx) => {
     const [subscription] = await tx
       .select()

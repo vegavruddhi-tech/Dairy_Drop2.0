@@ -89,6 +89,57 @@ export async function ensureBill(tx, { customerId, milkmanId, month, dueDate }) 
   return existing;
 }
 
+/**
+ * Take the row lock on a bill for the rest of the transaction.
+ *
+ * Two payment submissions for the same month now queue behind each other, so
+ * the second one sees the first when it works out what is still due.
+ */
+export async function lockBill(tx, billId) {
+  await tx.execute(sql`select id from ${monthlyBills} where id = ${billId} for update`);
+}
+
+/** How many payments on a bill are still waiting for the milkman. */
+export async function countPendingForBill(tx, billId) {
+  const [row] = await tx
+    .select({ n: sql`count(*)::int` })
+    .from(payments)
+    .where(and(eq(payments.billId, billId), eq(payments.status, 'SUBMITTED')));
+  return row?.n ?? 0;
+}
+
+/** When this customer last recorded any payment, or null. */
+export async function lastPaymentAt(tx, customerId) {
+  const [row] = await tx
+    .select({ at: payments.createdAt })
+    .from(payments)
+    .where(eq(payments.customerId, customerId))
+    .orderBy(desc(payments.createdAt))
+    .limit(1);
+  return row?.at ?? null;
+}
+
+/**
+ * Whether this milkman already holds a payment with this reference.
+ *
+ * Rejected ones do not count: a milkman may reject a reference they could not
+ * find, and the customer resubmitting the same (correct) one is legitimate.
+ */
+export async function referenceInUse(tx, { milkmanId, reference }) {
+  const [row] = await tx
+    .select({ id: payments.id })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.milkmanId, milkmanId),
+        sql`lower(btrim(${payments.reference})) = lower(${reference})`,
+        inArray(payments.status, ['SUBMITTED', 'VERIFIED']),
+      ),
+    )
+    .limit(1);
+  return Boolean(row);
+}
+
 /** Write computed figures onto a bill. Used by live recompute and month-close. */
 export async function updateBillTotals(tx, { billId, totals }) {
   const [row] = await tx

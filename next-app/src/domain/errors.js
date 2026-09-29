@@ -53,6 +53,20 @@ export class ForbiddenError extends DomainError {
   }
 }
 
+/**
+ * 409 — two sign-in identities claim one account.
+ *
+ * Raised when an email already belongs to a different, still-existing Clerk
+ * user. Never resolved automatically: rebinding would hand one person's
+ * account — bills, customers, payments — to whoever signed up second.
+ */
+export class AccountConflictError extends DomainError {
+  constructor(message = 'This email is linked to another sign-in.', details = {}) {
+    super('ACCOUNT_CONFLICT', message, details);
+    this.status = 409;
+  }
+}
+
 /** 402 — the milkman's SaaS subscription does not permit this. */
 export class SubscriptionRequiredError extends DomainError {
   constructor(gate, message) {

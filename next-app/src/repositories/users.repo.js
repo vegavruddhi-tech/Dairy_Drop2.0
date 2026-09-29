@@ -8,7 +8,7 @@ import { and, eq, ne, asc, desc, sql, inArray, ilike, or } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { users, milkmanProfiles, addresses, serviceAreas } from '@/db/schema/index.js';
 import { PERMISSIONS } from '@/auth/roles.js';
-import { scoped, paginate } from './base.js';
+import { scoped, paginate, likeContains } from './base.js';
 
 const customerScope = { tenant: users.milkmanId, owner: users.id };
 
@@ -57,13 +57,10 @@ export async function listCustomers(actor, { status = 'APPROVED', search, ...pag
 
   const filters = [eq(users.role, 'CUSTOMER')];
   if (status) filters.push(eq(users.approvalStatus, status));
-  if (search) {
+  const pattern = likeContains(search);
+  if (pattern) {
     filters.push(
-      or(
-        ilike(users.name, `%${search}%`),
-        ilike(users.email, `%${search}%`),
-        ilike(users.phone, `%${search}%`),
-      ),
+      or(ilike(users.name, pattern), ilike(users.email, pattern), ilike(users.phone, pattern)),
     );
   }
 
@@ -333,13 +330,10 @@ export async function listMilkmen({ search, verified, ...page } = {}) {
   const filters = [eq(users.role, 'MILKMAN')];
   if (verified === true) filters.push(eq(milkmanProfiles.isVerified, true));
   if (verified === false) filters.push(eq(milkmanProfiles.isVerified, false));
-  if (search) {
+  const pattern = likeContains(search);
+  if (pattern) {
     filters.push(
-      or(
-        ilike(users.name, `%${search}%`),
-        ilike(users.email, `%${search}%`),
-        ilike(milkmanProfiles.businessName, `%${search}%`),
-      ),
+      or(ilike(users.name, pattern), ilike(users.email, pattern), ilike(milkmanProfiles.businessName, pattern)),
     );
   }
 

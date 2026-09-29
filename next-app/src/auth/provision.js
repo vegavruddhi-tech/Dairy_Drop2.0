@@ -26,7 +26,10 @@
 import 'server-only';
 import { eq, sql } from 'drizzle-orm';
 
+import { clerkClient } from '@clerk/nextjs/server';
+
 import { db } from '@/db/index.js';
+import { AccountConflictError } from '@/domain/errors.js';
 import { users, adminAllowlist, milkmanProfiles } from '@/db/schema/index.js';
 import { ROLES } from './roles.js';
 
@@ -99,7 +102,10 @@ export async function findAccountByClerkId(clerkId) {
  * @param {string} [identity.imageUrl]
  * @param {string} [identity.phone]
  */
-export async function upsertFromClerk({ clerkId, email, name, imageUrl, phone }) {
+export async function upsertFromClerk(
+  { clerkId, email, name, imageUrl, phone },
+  { identityExists = clerkIdentityExists } = {},
+) {
   const cleanEmail = String(email ?? '').trim().toLowerCase();
   if (!cleanEmail) throw new Error('Cannot provision an account without an email address.');
 
@@ -134,11 +140,31 @@ export async function upsertFromClerk({ clerkId, email, name, imageUrl, phone })
     .limit(1);
 
   if (byEmail) {
-    // Rebind to the newly verified Clerk identity and ensure the account is active.
+    if (byEmail.clerkId && byEmail.clerkId !== clerkId) {
+      /*
+       * The row is bound to another Clerk identity. Ask Clerk whether that
+       * identity still exists rather than guessing:
+       *
+       *   · gone — it was deleted in Clerk and the `user.deleted` webhook never
+       *     arrived (routine on localhost, where Clerk cannot reach the app).
+       *     The row is an orphan; this person owns the email, so rebind it.
+       *   · still there — two people claim one account. Refuse, with a page
+       *     that says so, rather than a 500 on every request.
+       */
+      if (await identityExists(byEmail.clerkId)) {
+        throw new AccountConflictError(undefined, { email: cleanEmail });
+      }
+      console.warn(
+        `[provision] rebinding ${cleanEmail} from deleted Clerk user ${byEmail.clerkId} to ${clerkId}`,
+      );
+    }
     await db
       .update(users)
       .set({
         clerkId,
+        // A row freed by `deactivateByClerkId` is inactive. Signing up again
+        // with the same email is the person coming back, so reopen it —
+        // otherwise they sign up successfully and are still locked out.
         isActive: true,
         name: name || undefined,
         avatarUrl: imageUrl || undefined,
@@ -173,6 +199,23 @@ export async function upsertFromClerk({ clerkId, email, name, imageUrl, phone })
   if (!created) return findAccountByClerkId(clerkId);
 
   return { ...created, isVerified: false };
+}
+
+/**
+ * Whether a Clerk user id still exists.
+ *
+ * Only a definite 404 counts as "gone". Any other failure — network, rate
+ * limit, a bad key — answers "exists", which sends the person to the locked
+ * page instead of rebinding an account on a guess.
+ */
+export async function clerkIdentityExists(clerkId) {
+  try {
+    const clerk = await clerkClient();
+    await clerk.users.getUser(clerkId);
+    return true;
+  } catch (error) {
+    return !(error?.status === 404 || error?.errors?.[0]?.code === 'resource_not_found');
+  }
 }
 
 /** Record a sign-in. Fire-and-forget; never block a request on it. */

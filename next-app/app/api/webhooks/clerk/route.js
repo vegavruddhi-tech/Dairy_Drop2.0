@@ -2,6 +2,7 @@ import { verifyWebhook } from '@clerk/nextjs/webhooks';
 import { clerkClient } from '@clerk/nextjs/server';
 
 import { upsertFromClerk, deactivateByClerkId } from '@/auth/provision.js';
+import { AccountConflictError } from '@/domain/errors.js';
 
 /**
  * Clerk → database sync.
@@ -50,6 +51,12 @@ export async function POST(request) {
         break;
     }
   } catch (error) {
+    // A conflict will not resolve by retrying; acknowledge it and leave it for
+    // a human. The person sees /account-locked when they next load a page.
+    if (error instanceof AccountConflictError) {
+      console.warn(`[clerk-webhook] ${event.type}: ${error.message}`, error.details);
+      return new Response('Conflict acknowledged', { status: 200 });
+    }
     // A 5xx makes Svix retry, which is what we want for a transient failure.
     console.error(`[clerk-webhook] ${event.type} failed`, error);
     return new Response('Handler failed', { status: 500 });

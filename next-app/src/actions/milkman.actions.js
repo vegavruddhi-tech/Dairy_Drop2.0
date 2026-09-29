@@ -219,15 +219,6 @@ const cancelSaasSubscriptionAction = defineAction({
   revalidate: ['/milkman/membership'],
 });
 
-const quickVerifyMyDairyAction = defineAction({
-  authorize: unpaid,
-  handler: async ({ actor }) => {
-    const { verifyMilkman } = await import('@/services/admin.service.js');
-    return verifyMilkman(actor, { milkmanId: actor.userId });
-  },
-  revalidate: ['/milkman/activate', '/milkman'],
-});
-
 /**
  * Exported Server Actions.
  *
@@ -313,10 +304,6 @@ const updatePaymentSettingsAction = defineAction({
 
 export async function cancelSaasSubscription(input) {
   return cancelSaasSubscriptionAction(input);
-}
-
-export async function quickVerifyMyDairy(input) {
-  return quickVerifyMyDairyAction(input);
 }
 
 export async function addServiceArea(input) {

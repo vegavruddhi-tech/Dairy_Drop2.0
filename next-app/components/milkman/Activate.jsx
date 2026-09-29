@@ -5,38 +5,10 @@ import { toast } from 'sonner';
 
 import { cn, Card, CardBody, CardHeader, Notice, Badge } from '@/components/ui/index.jsx';
 import { Button, Input } from '@/components/ui/interactive.jsx';
-import { startTrial, submitSaasPayment, quickVerifyMyDairy } from '@/actions/milkman.actions.js';
+import { startTrial, submitSaasPayment } from '@/actions/milkman.actions.js';
 import { formatPaise, toPaise } from '@/domain/money.js';
 import { CheckIcon, CopyIcon, PhoneIcon, UsersIcon, PaymentsIcon } from '@/components/ui/Icons.jsx';
 import { useT } from '@/i18n/provider.jsx';
-
-export function QuickVerifyDairy() {
-  const [pending, startTransition] = useTransition();
-  const { locale } = useT();
-  const isHi = locale === 'hi';
-
-  return (
-    <Button
-      variant="outline"
-      size="md"
-      className="w-full font-semibold"
-      loading={pending}
-      onClick={() =>
-        startTransition(async () => {
-          const result = await quickVerifyMyDairy();
-          if (result.ok) {
-            toast.success(isHi ? 'आपकी डेयरी अब सत्यापित हो गई है! आप मुफ़्त परीक्षण शुरू कर सकते हैं।' : 'Your dairy is now verified! You can start your free trial.');
-            window.location.reload();
-          } else {
-            toast.error(result.message ?? (isHi ? 'डेयरी सत्यापित नहीं हो सकी।' : 'Could not verify dairy.'));
-          }
-        })
-      }
-    >
-      {isHi ? 'मेरी डेयरी तुरंत सत्यापित करें (एक-क्लिक सक्रियण)' : 'Instant Verify My Dairy (One-Click Activation)'}
-    </Button>
-  );
-}
 
 export function StartTrial() {
   const [pending, startTransition] = useTransition();

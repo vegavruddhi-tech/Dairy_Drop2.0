@@ -28,6 +28,7 @@ import { ROLES, ROLE_HOME, SCOPES, roleHas, scopeFor } from './roles.js';
 import { evaluateGates, evaluateSaasAccess, GATE, GATE_MESSAGE } from './policy.js';
 import { findAccountByClerkId, upsertFromClerk } from './provision.js';
 import { findCurrentSaasSubscription } from '@/repositories/saas.repo.js';
+import { AccountConflictError } from '@/domain/errors.js';
 import {
   UnauthenticatedError,
   ForbiddenError,
@@ -71,13 +72,21 @@ export const getActor = cache(async () => {
       const clerkUser = await currentUser();
       if (!clerkUser) return null;
 
-      account = await upsertFromClerk({
-        clerkId,
-        email: clerkUser.primaryEmailAddress?.emailAddress ?? clerkUser.emailAddresses?.[0]?.emailAddress,
-        name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username,
-        imageUrl: clerkUser.imageUrl,
-        phone: clerkUser.primaryPhoneNumber?.phoneNumber,
-      });
+      try {
+        account = await upsertFromClerk({
+          clerkId,
+          email: clerkUser.primaryEmailAddress?.emailAddress ?? clerkUser.emailAddresses?.[0]?.emailAddress,
+          name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username,
+          imageUrl: clerkUser.imageUrl,
+          phone: clerkUser.primaryPhoneNumber?.phoneNumber,
+        });
+      } catch (error) {
+        // Two identities, one email: a page that explains it, not a 500 on
+        // every request. `/account-locked` does not call getActor, so no loop.
+        // redirect() throws a NEXT_ error, which the outer catch re-throws.
+        if (error instanceof AccountConflictError) redirect('/account-locked');
+        throw error;
+      }
     }
 
     if (!account) return null;

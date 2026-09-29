@@ -159,29 +159,6 @@ const applyToBecomeMilkmanAction = defineAction({
   revalidate: ['/milkman/activate', '/dashboard', '/admin', '/admin/milkmen'],
 });
 
-const quickApproveCustomerAction = defineAction({
-  authorize: async () => {
-    const { requireActor } = await import('@/auth/session.js');
-    return requireActor();
-  },
-  handler: async ({ actor }) => {
-    const { db } = await import('@/db/index.js');
-    const { users } = await import('@/db/schema/index.js');
-    const { eq } = await import('drizzle-orm');
-    await db
-      .update(users)
-      .set({
-        approvalStatus: 'APPROVED',
-        approvedAt: new Date(),
-        approvedBy: actor.tenantId ?? actor.userId,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, actor.userId));
-    return { ok: true };
-  },
-  revalidate: ['/pending', '/dashboard'],
-});
-
 /**
  * Step off a retired plan onto one still on offer.
  *
@@ -279,10 +256,6 @@ export async function setVacation(input) {
 
 export async function cancelVacation(input) {
   return cancelVacationAction(input);
-}
-
-export async function quickApproveCustomer(input) {
-  return quickApproveCustomerAction(input);
 }
 
 export async function updateCustomerProfile(input) {

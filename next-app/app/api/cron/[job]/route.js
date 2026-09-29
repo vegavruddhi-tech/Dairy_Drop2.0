@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { JOBS } from '@/jobs/index.js';
+import { isCronAuthorized } from '@/auth/cron-secret.js';
 
 /**
  * HTTP trigger for scheduled jobs.
@@ -26,10 +27,7 @@ export async function POST(request, context) {
 async function run(request, { params }) {
   const { job } = await params;
 
-  const secret = process.env.CRON_SECRET;
-  const provided = request.headers.get('authorization')?.replace('Bearer ', '');
-
-  if (!secret || provided !== secret) {
+  if (!isCronAuthorized(request.headers.get('authorization'), process.env.CRON_SECRET)) {
     return NextResponse.json({ message: 'Not found' }, { status: 404 });
   }
 

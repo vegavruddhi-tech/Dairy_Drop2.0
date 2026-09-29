@@ -152,4 +152,20 @@ export function paginate({ limit = 50, offset = 0 } = {}, max = 200) {
   };
 }
 
+/**
+ * A search term as a `%term%` pattern with its wildcards neutralised.
+ *
+ * Without this a typed `%` or `_` is a wildcard: searching `%` matched every
+ * row. Postgres treats backslash as the default LIKE escape, so escaping `\`,
+ * `%` and `_` is enough — no ESCAPE clause needed. Capped at 100 characters so
+ * a pasted essay does not become a slow scan.
+ *
+ * @returns {string|null} null for an empty term, so callers can skip the filter
+ */
+export function likeContains(term) {
+  const clean = String(term ?? '').trim().slice(0, 100);
+  if (!clean) return null;
+  return `%${clean.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
 export { and, eq, or, isNull };
