@@ -293,7 +293,7 @@ export function ApprovalCard({ customer, summary, atLimit, subscriptions = [], p
             <p className="mt-1.5 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
               <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <span>
-                {[customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ') ||
+                {formatAddress(customer) ||
                   t('common.noData', {}, 'No address provided')}
                 {customer.addressLandmark ? (
                   <span className="block text-xs font-semibold text-blue-600">{t('auth.landmark', {}, 'Near')} {customer.addressLandmark}</span>
@@ -410,35 +410,27 @@ export function ApprovalCard({ customer, summary, atLimit, subscriptions = [], p
 export function CustomerRow({ customer, summary, subscriptions = [], plans = [] }) {
   const { t } = useT();
   const [editing, setEditing] = useState(false);
-  const address =
-    [customer.addressLine1, customer.addressArea, customer.addressPincode].filter(Boolean).join(', ');
+  const address = formatAddress(customer);
   const monthlyPaise = Math.round(Number(summary?.totalMonthly ?? 0) * 100);
 
   return (
     <>
       <li className="px-4 py-4 transition-colors hover:bg-slate-50 sm:px-5">
-        <div className="flex items-start gap-3.5">
+        {/*
+          Name and the three shortcuts share the top row; the address gets its
+          own full-width row underneath. With the address beside the buttons
+          it was squeezed into a column one word wide on a phone.
+        */}
+        <div className="flex items-center gap-3">
           <Avatar name={customer.name} />
 
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h3 className="font-heading text-base font-black tracking-tight text-slate-950">{customer.name}</h3>
-              {customer.deliveryArea ? <Badge tone="brand">{customer.deliveryArea}</Badge> : null}
-            </div>
-
-            <p className="mt-1 flex items-start gap-1.5 text-xs sm:text-sm font-medium text-slate-600">
-              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-              <span className="min-w-0">
-                {address || t('common.noData', {}, 'No address saved')}
-                {customer.deliveryInstructions ? (
-                  <span className="block text-xs font-semibold text-slate-500">“{customer.deliveryInstructions}”</span>
-                ) : null}
-              </span>
-            </p>
+            <h3 className="font-heading text-base font-black leading-tight tracking-tight text-slate-950 break-words">{customer.name}</h3>
+            {customer.deliveryArea ? <Badge tone="brand" className="mt-1">{customer.deliveryArea}</Badge> : null}
           </div>
 
           {/* Action shortcuts */}
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <EditPlanButton customer={customer} subscriptions={subscriptions} plans={plans} />
             <button
               type="button"
@@ -461,6 +453,16 @@ export function CustomerRow({ customer, summary, subscriptions = [], plans = [] 
             ) : null}
           </div>
         </div>
+
+        <p className="mt-3 flex items-start gap-1.5 text-sm font-medium leading-snug text-slate-600 sm:ml-[3.5rem]">
+          <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <span className="min-w-0 break-words">
+            {address || t('common.noData', {}, 'No address saved')}
+            {customer.deliveryInstructions ? (
+              <span className="mt-0.5 block text-xs font-semibold text-slate-500">“{customer.deliveryInstructions}”</span>
+            ) : null}
+          </span>
+        </p>
 
         {/* Plan overview pill */}
         <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 border border-slate-200/70 px-3.5 py-2.5 sm:ml-[3.5rem]">
@@ -496,6 +498,20 @@ export function CustomerRow({ customer, summary, subscriptions = [], plans = [] 
       <EditAddressModal customer={customer} open={editing} onClose={() => setEditing(false)} />
     </>
   );
+}
+
+/**
+ * "Line 1, area, pincode" without repeating what line 1 already says.
+ * People often type the whole address into line 1, which produced
+ * "…surat 394210, Bamroli, 394210".
+ */
+function formatAddress(customer) {
+  const line1 = (customer.addressLine1 ?? '').trim();
+  const lower = line1.toLowerCase();
+  const extra = [customer.addressArea, customer.addressPincode]
+    .map((part) => (part ?? '').trim())
+    .filter((part) => part && !lower.includes(part.toLowerCase()));
+  return [line1, ...extra].filter(Boolean).join(', ');
 }
 
 /** Initial in a tinted tile; blue for the book, amber while waiting. */
