@@ -61,7 +61,7 @@ export async function expireSubscriptions() {
 }
 
 /**
- * Warn milkmen whose subscription is nearly up. Run daily.
+ * Warn milkman whose subscription is nearly up. Run daily.
  * Three days out and one day out — enough notice to act, not enough to nag.
  */
 export async function remindExpiring() {

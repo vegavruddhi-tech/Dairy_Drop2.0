@@ -25,7 +25,7 @@ export default async function BecomeMilkmanPage() {
         <header className="mb-6">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 border border-blue-200 shadow-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
-            For Milkmen & Dairies • Vendor Registration
+            For Milkman & Dairies • Vendor Registration
           </span>
           <h1 className="mt-3 font-heading text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
             Sell on DairyDrop

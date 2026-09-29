@@ -111,8 +111,8 @@ export function LandingInteractiveSection() {
           a: 'At the end of each billing cycle, DairyDrop automatically compiles your exact delivered litres into an itemized bill. You pay 100% directly to your milkman via UPI QR code.',
         },
         {
-          q: 'How do milkmen and dairies use DairyDrop?',
-          a: 'Milkmen get a dedicated vendor portal with a daily digital route sheet, instant vacation notifications, automatic customer ledgers, and automated WhatsApp billing reminders. Dairies enjoy a 7-day free trial with zero commission on milk revenue.',
+          q: 'How do milkman and dairies use DairyDrop?',
+          a: 'Milkman get a dedicated vendor portal with a daily digital route sheet, instant vacation notifications, automatic customer ledgers, and automated WhatsApp billing reminders. Dairies enjoy a 7-day free trial with zero commission on milk revenue.',
         },
         {
           q: 'Are there any hidden subscription charges for households?',

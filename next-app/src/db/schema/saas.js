@@ -1,5 +1,5 @@
 /**
- * The SaaS layer: what the platform sells to milkmen.
+ * The SaaS layer: what the platform sells to milkman.
  *
  * Renamed from `platform_subscription_plans` / `milkman_subscriptions` /
  * `platform_payments`. The old names sat one letter away from the *customer*
@@ -154,7 +154,7 @@ export const saasPayments = pgTable(
 );
 
 /**
- * Single-row platform configuration: where milkmen send their SaaS payment.
+ * Single-row platform configuration: where milkman send their SaaS payment.
  * `id` is pinned to 1 so there can only ever be one row.
  */
 export const platformSettings = pgTable('platform_settings', {

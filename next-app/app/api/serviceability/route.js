@@ -13,7 +13,7 @@ import { toErrorResponse } from '@/domain/errors.js';
 export async function GET(request) {
   try {
     const pincode = request.nextUrl.searchParams.get('pincode');
-    const result = await onboardingService.findMilkmenForPincode(pincode);
+    const result = await onboardingService.findMilkmanForPincode(pincode);
     return NextResponse.json(result);
   } catch (error) {
     const { status, body } = toErrorResponse(error);

@@ -134,7 +134,7 @@ export function evaluateGates(account, now = new Date()) {
  * This is the rule the old system wrote and never mounted. Treat a subscription
  * as live only when it is a trial or an active plan whose end date is still in
  * the future. Nothing else — in particular, never expire a subscription for
- * lacking a payment reference, which is the bug that locked out paying milkmen
+ * lacking a payment reference, which is the bug that locked out paying milkman
  * on day 8.
  *
  * @param {object|null|undefined} saas

@@ -24,7 +24,7 @@ export function ChangeMilkmanModal({
   const [pincode, setPincode] = useState(customerAddress?.pincode || '');
   const [selectedArea, setSelectedArea] = useState(customerAddress?.area || '');
   const [loadingSearch, setLoadingSearch] = useState(false);
-  const [milkmen, setMilkmen] = useState([]);
+  const [milkmanList, setMilkmanList] = useState([]);
   const [selectedMilkman, setSelectedMilkman] = useState(null);
   const [selectedPlanIds, setSelectedPlanIds] = useState([]);
   // Litres per delivery for each chosen plan; the plan is a per-litre rate.
@@ -45,10 +45,10 @@ export function ChangeMilkmanModal({
       const data = await res.json();
       if (res.ok) {
         // Filter out current milkman
-        const filtered = (data.milkmen || []).filter(
+        const filtered = (data.milkman || []).filter(
           (m) => m.id !== currentMilkman?.id && m.tenantId !== currentMilkman?.id,
         );
-        setMilkmen(filtered);
+        setMilkmanList(filtered);
         if (filtered.length === 0) {
           toast.info(isHi ? 'इस पिनकोड पर वर्तमान में कोई अन्य डेयरी प्रदाता उपलब्ध नहीं है।' : 'No other dairy providers currently serve this pincode.');
         }
@@ -201,7 +201,7 @@ export function ChangeMilkmanModal({
         <div className="flex w-full items-center justify-between gap-2.5">
           {step === 'plans' ? (
             <Button type="button" variant="outline" size="sm" onClick={() => setStep('search')}>
-              {isHi ? '← वापस सूची पर जाएं' : '← Back to Milkmen'}
+              {isHi ? '← वापस सूची पर जाएं' : '← Back to Milkman'}
             </Button>
           ) : (
             <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
@@ -260,27 +260,27 @@ export function ChangeMilkmanModal({
             </div>
           </div>
 
-          {/* List of Available Milkmen */}
+          {/* List of Available Milkman */}
           <div className="space-y-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-              {isHi ? `उपलब्ध डेयरी प्रदाता (${milkmen.length})` : `Available Dairy Providers (${milkmen.length})`}
+              {isHi ? `उपलब्ध डेयरी प्रदाता (${milkmanList.length})` : `Available Dairy Providers (${milkmanList.length})`}
             </label>
 
             {loadingSearch ? (
               <div className="p-8 text-center text-xs text-slate-400">
                 {isHi ? 'प्रदाताओं की खोज की जा रही है...' : 'Searching providers...'}
               </div>
-            ) : milkmen.length === 0 ? (
+            ) : milkmanList.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
                 {isHi ? (
                   <>पिनकोड <span className="font-bold text-slate-800">{pincode}</span> के लिए कोई अन्य सत्यापित दूधवाला नहीं मिला।</>
                 ) : (
-                  <>No other verified milkmen found for pincode <span className="font-bold text-slate-800">{pincode}</span>.</>
+                  <>No other verified milkman found for pincode <span className="font-bold text-slate-800">{pincode}</span>.</>
                 )}
               </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {milkmen.map((m) => {
+                {milkmanList.map((m) => {
                   const isSelected = selectedMilkman?.id === m.id;
                   return (
                     <div

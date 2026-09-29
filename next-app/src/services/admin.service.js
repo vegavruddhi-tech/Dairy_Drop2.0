@@ -41,7 +41,7 @@ export async function getDashboard() {
   const month = businessMonth();
 
   const [counts, revenue, pending] = await Promise.all([
-    usersRepo.platformCounts().catch(() => ({ milkmen: 0, customers: 0, approvedCustomers: 0, pendingCustomers: 0 })),
+    usersRepo.platformCounts().catch(() => ({ milkman: 0, customers: 0, approvedCustomers: 0, pendingCustomers: 0 })),
     db
       .select({
         monthPaise: sql`coalesce(sum(${saasPayments.amount}) filter (
@@ -76,11 +76,11 @@ export async function getDashboard() {
 
   return {
     month,
-    milkmen: counts?.milkmen ?? 0,
+    milkman: counts?.milkman ?? 0,
     customers: counts?.customers ?? 0,
     approvedCustomers: counts?.approvedCustomers ?? 0,
     pendingCustomers: counts?.pendingCustomers ?? 0,
-    unverifiedMilkmen: unverified?.count ?? 0,
+    unverifiedMilkman: unverified?.count ?? 0,
     subscriptions: {
       active: subs.active ?? 0,
       trial: subs.trial ?? 0,
@@ -121,8 +121,8 @@ export async function getPlanDistribution() {
   }
 }
 
-export async function listMilkmen(options) {
-  return usersRepo.listMilkmen(options);
+export async function listMilkman(options) {
+  return usersRepo.listMilkman(options);
 }
 
 export async function getMilkman(milkmanId) {

@@ -7,11 +7,11 @@ import Link from 'next/link';
 import { PageHeader, Card, CardBody, EmptyState, Badge, Notice, Table, Th, Td } from '@/components/ui/index.jsx';
 import { DeliveryIcon, PaymentsIcon } from '@/components/ui/Icons.jsx';
 import { TabLinks, Button } from '@/components/ui/interactive.jsx';
-import { MilkmanActions } from '@/components/admin/Milkmen.jsx';
+import { MilkmanActions } from '@/components/admin/Milkman.jsx';
 
-export const metadata = { title: 'Milkmen' };
+export const metadata = { title: 'Milkman' };
 
-export default async function MilkmenPage({ searchParams }) {
+export default async function MilkmanPage({ searchParams }) {
   await requireAdmin();
   const params = await searchParams;
 
@@ -29,16 +29,16 @@ export default async function MilkmenPage({ searchParams }) {
   const tab = explicitTab ?? (pendingApplications > 0 ? 'unverified' : 'all');
   const verified = tab === 'verified' ? true : tab === 'unverified' ? false : undefined;
 
-  const milkmen = await adminService.listMilkmen({ verified, limit: 200 });
+  const milkmanList = await adminService.listMilkman({ verified, limit: 200 });
 
   return (
     <>
       <PageHeader
-        title="Milkmen"
+        title="Milkman"
         description={
           pendingApplications > 0
             ? `${pendingApplications} application${pendingApplications === 1 ? '' : 's'} waiting`
-            : `${milkmen.length} shown`
+            : `${milkmanList.length} shown`
         }
       />
 
@@ -48,7 +48,7 @@ export default async function MilkmenPage({ searchParams }) {
             tone="caution"
             title={`${pendingApplications} business${pendingApplications === 1 ? '' : 'es'} waiting on you`}
             action={
-              <Link href="/admin/milkmen?tab=unverified">
+              <Link href="/admin/milkman?tab=unverified">
                 <Button size="sm">Review</Button>
               </Link>
             }
@@ -59,7 +59,7 @@ export default async function MilkmenPage({ searchParams }) {
       ) : null}
 
       <TabLinks
-        basePath="/admin/milkmen"
+        basePath="/admin/milkman"
         current={tab}
         tabs={[
           { value: 'all', label: 'All' },
@@ -68,10 +68,10 @@ export default async function MilkmenPage({ searchParams }) {
         ]}
       />
 
-      {milkmen.length === 0 ? (
+      {milkmanList.length === 0 ? (
         <EmptyState
           icon={<DeliveryIcon className="h-6 w-6 text-blue-600" />}
-          title={tab === 'unverified' ? 'No applications waiting' : 'No milkmen here'}
+          title={tab === 'unverified' ? 'No applications waiting' : 'No milkman here'}
           description={
             tab === 'unverified'
               ? 'New applications appear here as soon as someone applies.'
@@ -92,7 +92,7 @@ export default async function MilkmenPage({ searchParams }) {
                 </tr>
               </thead>
               <tbody>
-                {milkmen.map((milkman) => (
+                {milkmanList.map((milkman) => (
                   <tr key={milkman.id}>
                     <Td>
                       <span className="font-medium">{milkman.businessName ?? '—'}</span>

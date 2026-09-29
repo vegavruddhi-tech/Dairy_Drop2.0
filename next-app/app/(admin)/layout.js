@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }) {
 
   const nav = [
     { href: '/admin', label: 'Overview', icon: <EarningsIcon />, exact: true },
-    { href: '/admin/milkmen', label: 'Milkmen', icon: <UsersIcon />, count: applications },
+    { href: '/admin/milkman', label: 'Milkman', icon: <UsersIcon />, count: applications },
     { href: '/admin/verifications', label: 'Verify', icon: <MembershipIcon />, count: verifications.length },
     { href: '/admin/payments', label: 'Payments', icon: <PaymentsIcon /> },
   ];

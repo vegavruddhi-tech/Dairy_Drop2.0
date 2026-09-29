@@ -1,7 +1,7 @@
 /**
  * Seed a development database.
  *
- * Creates one platform admin, two milkmen (one trialing, one paying), a handful
+ * Creates one platform admin, two milkman (one trialing, one paying), a handful
  * of customers, plans, products, and a month of realistic delivery history so
  * every screen has something to show.
  *
@@ -98,7 +98,7 @@ await upsertUser({ email: adminEmail, name: 'Platform Admin', role: 'ADMIN', isA
 await db.insert(adminAllowlist).values({ email: adminEmail, note: 'Seeded' }).onConflictDoNothing();
 console.log(`  admin: ${adminEmail}`);
 
-// ── Milkmen ──────────────────────────────────────────────────────────────────
+// ── Milkman ──────────────────────────────────────────────────────────────────
 const milkmanSpecs = [
   {
     email: 'ramesh@dairydrop.example', name: 'Ramesh Kumar', phone: '9811100001',
@@ -117,7 +117,7 @@ const milkmanSpecs = [
   },
 ];
 
-const milkmen = [];
+const milkmanList = [];
 for (const spec of milkmanSpecs) {
   const user = await upsertUser({
     email: spec.email, name: spec.name, phone: spec.phone, role: 'MILKMAN', isActive: true,
@@ -163,11 +163,11 @@ for (const spec of milkmanSpecs) {
     paymentReference: spec.paid ? 'SEED000111222' : null,
   });
 
-  milkmen.push({ ...spec, user });
+  milkmanList.push({ ...spec, user });
   console.log(`  milkman: ${spec.business} (${spec.paid ? 'paying' : 'trial'})`);
 }
 
-const ramesh = milkmen[0];
+const ramesh = milkmanList[0];
 
 // ── Milk plans ───────────────────────────────────────────────────────────────
 const milkPlanSpecs = [

@@ -1,5 +1,5 @@
 /**
- * Milk Plan Presets and Predefined Dropdown Choices for Milkmen.
+ * Milk Plan Presets and Predefined Dropdown Choices for Milkman.
  * When milkman selects milk type and quantity:
  * - Plan Name, Product Name, Quantity, Unit, Market Price, and Description are filled automatically.
  * - Milkman can customize time slot (Morning/Evening), delivery window, and adjust price.

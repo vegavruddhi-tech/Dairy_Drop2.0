@@ -269,7 +269,7 @@ export function RegisterFlow({ defaultName }) {
               Step 1 of 3 • Delivery Pincode
             </span>
             <h1 className="mt-2.5 font-heading text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-              Find Milkmen in Your Area
+              Find Milkman in Your Area
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
               Enter your 6-digit delivery pincode to discover verified local dairies serving your doorstep.
@@ -296,13 +296,13 @@ export function RegisterFlow({ defaultName }) {
                   size="lg"
                   loading={pending}
                 >
-                  Find Milkmen Near Me →
+                  Find Milkman Near Me →
                 </Button>
               </form>
             </CardBody>
           </Card>
 
-          {/* Quick Switch for Milkmen */}
+          {/* Quick Switch for Milkman */}
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm">
             <p className="text-xs font-semibold text-slate-700">
               Are you a Milkman or Dairy Owner looking to sell milk?
@@ -364,7 +364,7 @@ export function RegisterFlow({ defaultName }) {
                     Available Dairies in {pincode}
                   </h1>
                   <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 border border-blue-200">
-                    {result.milkmen.length} Available
+                    {result.milkman.length} Available
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mt-1">
@@ -373,7 +373,7 @@ export function RegisterFlow({ defaultName }) {
               </header>
 
               <div className="space-y-3">
-                {result.milkmen.map((option) => (
+                {result.milkman.map((option) => (
                   <div
                     key={option.id}
                     className="group flex flex-col justify-between gap-3 rounded-3xl border-2 border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-blue-600 hover:shadow-md"

@@ -129,7 +129,7 @@ export default async function LandingPage() {
           <p className="mx-auto max-w-2xl text-base text-slate-600 sm:text-lg leading-relaxed font-normal">
             {isHi
               ? 'सीधे अपने स्थानीय सत्यापित दूध विक्रेता से जुड़ें। कभी भी मात्रा बदलें, 1-क्लिक में छुट्टी पॉज़ करें और UPI से पारदर्शी मासिक बिल भरें।'
-              : 'Connect directly with verified local milkmen. Modify delivery quantities anytime, skip vacations in 1-click, and pay transparent monthly bills with UPI.'}
+              : 'Connect directly with verified local milkman. Modify delivery quantities anytime, skip vacations in 1-click, and pay transparent monthly bills with UPI.'}
           </p>
 
           {/* Floating Live Notification Badge */}
@@ -379,7 +379,7 @@ export default async function LandingPage() {
                   {
                     step: '01',
                     title: 'Find Local Dairies',
-                    desc: 'Enter your 6-digit delivery pincode to discover verified milkmen serving your specific apartment or sector.',
+                    desc: 'Enter your 6-digit delivery pincode to discover verified milkman serving your specific apartment or sector.',
                   },
                   {
                     step: '02',

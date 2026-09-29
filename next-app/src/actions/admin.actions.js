@@ -18,14 +18,14 @@ const verifyMilkmanAction = defineAction({
   authorize: requireAdmin,
   schema: V.verifyMilkmanSchema,
   handler: ({ actor, input }) => adminService.verifyMilkman(actor, input),
-  revalidate: ['/admin/milkmen', '/admin'],
+  revalidate: ['/admin/milkman', '/admin'],
 });
 
 const suspendMilkmanAction = defineAction({
   authorize: requireAdmin,
   schema: V.suspendMilkmanSchema,
   handler: ({ actor, input }) => adminService.suspendMilkman(actor, input),
-  revalidate: ['/admin/milkmen', '/admin'],
+  revalidate: ['/admin/milkman', '/admin'],
 });
 
 const verifySaasPaymentAction = defineAction({

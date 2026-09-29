@@ -6,7 +6,7 @@ import { Card, CardBody, Badge } from '@/components/ui/index.jsx';
 import { Button } from '@/components/ui/interactive.jsx';
 import { PublicBar } from '@/components/layout/PublicBar.jsx';
 
-export const metadata = { title: 'Pricing for milkmen' };
+export const metadata = { title: 'Pricing for milkman' };
 
 /**
  * Reads live plan data, so it is rendered per request rather than prerendered
@@ -23,7 +23,7 @@ export default async function PricingPage() {
       <PublicBar showBrand={false} />
 
       <header className="mb-10 text-center">
-        <p className="text-sm font-medium text-brand">DairyDrop for milkmen</p>
+        <p className="text-sm font-medium text-brand">DairyDrop for milkman</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
           Run your round from your phone
         </h1>

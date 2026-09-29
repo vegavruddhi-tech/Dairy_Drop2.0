@@ -26,7 +26,7 @@ export default async function AdminDashboard() {
       <HeroBanner
         eyebrow="Platform"
         name="Overview"
-        subtitle={`${formatMonth(stats.month)} · ${stats.milkmen} milkmen, ${stats.approvedCustomers} customers`}
+        subtitle={`${formatMonth(stats.month)} · ${stats.milkman} milkman, ${stats.approvedCustomers} customers`}
       />
 
       {stats.paymentsAwaiting > 0 ? (
@@ -40,18 +40,18 @@ export default async function AdminDashboard() {
               </Link>
             }
           >
-            Milkmen are waiting for their panels to open.
+            Milkman are waiting for their panels to open.
           </Notice>
         </div>
       ) : null}
 
-      {stats.unverifiedMilkmen > 0 ? (
+      {stats.unverifiedMilkman > 0 ? (
         <div className="mb-5">
           <Notice
             tone="caution"
-            title={`${stats.unverifiedMilkmen} milkman application${stats.unverifiedMilkmen === 1 ? '' : 's'} waiting`}
+            title={`${stats.unverifiedMilkman} milkman application${stats.unverifiedMilkman === 1 ? '' : 's'} waiting`}
             action={
-              <Link href="/admin/milkmen?tab=unverified">
+              <Link href="/admin/milkman?tab=unverified">
                 <Button size="sm">Review</Button>
               </Link>
             }
@@ -74,7 +74,7 @@ export default async function AdminDashboard() {
       <section className="mb-6" aria-labelledby="network-heading">
         <h2 id="network-heading" className="mb-3 text-sm font-semibold text-ink">Network</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat icon={<DeliveryIcon className="h-5 w-5" />} tone="info" label="Milkmen" value={stats.milkmen ?? 0} />
+          <Stat icon={<DeliveryIcon className="h-5 w-5" />} tone="info" label="Milkman" value={stats.milkman ?? 0} />
           <Stat icon={<UsersIcon className="h-5 w-5" />} tone="brand" label="Customers" value={stats.approvedCustomers ?? 0} hint={`${stats.pendingCustomers ?? 0} pending`} />
           <Stat icon={<PaymentsIcon className="h-5 w-5" />} tone="caution" label="Awaiting payment" value={stats.subscriptions?.awaiting ?? 0} />
           <Stat icon={<CalendarIcon className="h-5 w-5" />} tone="critical" label="Lapsed" value={stats.subscriptions?.expired ?? 0} />
@@ -88,7 +88,7 @@ export default async function AdminDashboard() {
             <thead>
               <tr>
                 <Th>Plan</Th>
-                <Th numeric>Milkmen</Th>
+                <Th numeric>Milkman</Th>
                 <Th numeric>Monthly run rate</Th>
               </tr>
             </thead>

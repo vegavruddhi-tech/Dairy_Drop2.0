@@ -53,7 +53,7 @@ const nonEmpty = (max, message) => z.string().trim().min(1, message).max(max);
 
 // ── Onboarding ───────────────────────────────────────────────────────────────
 
-export const findMilkmenSchema = z.object({ pincode });
+export const findMilkmanSchema = z.object({ pincode });
 
 export const registerCustomerSchema = z.object({
   milkmanId: uuid,

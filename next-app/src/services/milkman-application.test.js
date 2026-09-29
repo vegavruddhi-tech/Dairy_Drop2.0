@@ -120,7 +120,7 @@ suite('milkman application', () => {
   });
 
   it('THE BUG: the application now reaches the admin queue', async () => {
-    const pending = await adminService.listMilkmen({ verified: false, limit: 100 });
+    const pending = await adminService.listMilkman({ verified: false, limit: 100 });
     const found = pending.find((m) => m.id === applicantId);
 
     expect(found).toBeDefined();
@@ -159,7 +159,7 @@ suite('milkman application', () => {
     expect(row.is_verified).toBe(true);
 
     // And they leave the queue.
-    const stillPending = await adminService.listMilkmen({ verified: false, limit: 100 });
+    const stillPending = await adminService.listMilkman({ verified: false, limit: 100 });
     expect(stillPending.find((m) => m.id === applicantId)).toBeUndefined();
   });
 

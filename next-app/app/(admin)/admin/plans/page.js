@@ -15,7 +15,7 @@ export default async function AdminPlansPage() {
     <>
       <PageHeader
         title="Plans"
-        description="What milkmen pay to use DairyDrop."
+        description="What milkman pay to use DairyDrop."
         action={<SaasPlanEditor />}
       />
 

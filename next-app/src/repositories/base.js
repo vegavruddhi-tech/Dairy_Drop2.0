@@ -1,7 +1,7 @@
 /**
  * Tenant scoping.
  *
- * The previous system isolated milkmen from one another with roughly 150
+ * The previous system isolated milkman from one another with roughly 150
  * hand-written `.eq('milkman_id', …)` clauses, connected to Postgres with the
  * service-role key (so RLS was bypassed), and defined zero RLS policies. A
  * single forgotten filter was a cross-tenant data leak with no second line of

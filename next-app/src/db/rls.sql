@@ -8,7 +8,7 @@
 --
 -- The previous system had neither: it connected with Supabase's service-role
 -- key (which bypasses RLS entirely) and defined zero policies, so isolation
--- between milkmen rested on remembering `.eq('milkman_id', …)` roughly 150 times.
+-- between milkman rested on remembering `.eq('milkman_id', …)` roughly 150 times.
 --
 -- ── How to use ──────────────────────────────────────────────────────────────
 --

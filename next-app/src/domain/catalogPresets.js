@@ -1,5 +1,5 @@
 /**
- * Predefined Top 10 Dairy Catalog Products for Milkmen.
+ * Predefined Top 10 Dairy Catalog Products for Milkman.
  * When milkman selects an item from the dropdown, all details (Name, Unit, Price, Description, Image)
  * are populated automatically. Milkman only sets stock and tweaks price if needed.
  */

@@ -22,7 +22,7 @@ export async function create(tx, values) {
    * else. Loaded lazily so this repository does not pull `web-push` into
    * every import graph.
    */
-  // Never from the test runner: suites write notifications to real milkmen's
+  // Never from the test runner: suites write notifications to real milkman's
   // inboxes, and a push would buzz their phones.
   if (process.env.VITEST) return inserted;
 

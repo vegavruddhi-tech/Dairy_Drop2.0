@@ -256,12 +256,12 @@ export async function findMilkmanPaymentInfo(milkmanId) {
 // ── Signup discovery (public) ────────────────────────────────────────────────
 
 /**
- * Milkmen who deliver to a pincode and are open for business.
+ * Milkman who deliver to a pincode and are open for business.
  *
  * One exact-match join, replacing the previous system's five-fallback cascade
  * with bidirectional substring matching across three different tables.
  */
-export async function findMilkmenServingPincode(pincode) {
+export async function findMilkmanServingPincode(pincode) {
   return db
     .selectDistinctOn([users.id], {
       id: users.id,
@@ -324,7 +324,7 @@ export async function deleteServiceArea(tx, actor, id) {
 // ── Admin ────────────────────────────────────────────────────────────────────
 
 /** Every milkman, with tenancy and commercial state. Admin only. */
-export async function listMilkmen({ search, verified, ...page } = {}) {
+export async function listMilkman({ search, verified, ...page } = {}) {
   const { limit, offset } = paginate(page);
 
   const filters = [eq(users.role, 'MILKMAN')];
@@ -369,7 +369,7 @@ export async function listMilkmen({ search, verified, ...page } = {}) {
 export async function platformCounts() {
   const [row] = await db
     .select({
-      milkmen: sql`count(*) filter (where ${users.role} = 'MILKMAN')::int`,
+      milkman: sql`count(*) filter (where ${users.role} = 'MILKMAN')::int`,
       customers: sql`count(*) filter (where ${users.role} = 'CUSTOMER')::int`,
       approvedCustomers: sql`count(*) filter (where ${users.role} = 'CUSTOMER' and ${users.approvalStatus} = 'APPROVED')::int`,
       pendingCustomers: sql`count(*) filter (where ${users.role} = 'CUSTOMER' and ${users.approvalStatus} = 'PENDING')::int`,

@@ -7,7 +7,7 @@ import { DownloadIcon, CloseIcon, AppleIcon, AndroidIcon } from '@/components/ui
 
 /**
  * Universal Floating PWA Install Prompt Banner
- * Appears smoothly for customers, milkmen, and visitors when the web app is opened in a browser.
+ * Appears smoothly for customers, milkman, and visitors when the web app is opened in a browser.
  * Completely responsive, non-blocking, and dismissable.
  */
 export function PwaInstallPrompt() {

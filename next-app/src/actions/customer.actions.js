@@ -156,7 +156,7 @@ const applyToBecomeMilkmanAction = defineAction({
   handler: ({ actor, input }) => onboardingService.applyToBecomeMilkman(actor, input),
   // The applicant's role changed and an application is now waiting on an
   // administrator, so both sides of the screen are stale.
-  revalidate: ['/milkman/activate', '/dashboard', '/admin', '/admin/milkmen'],
+  revalidate: ['/milkman/activate', '/dashboard', '/admin', '/admin/milkman'],
 });
 
 /**

@@ -32,18 +32,18 @@ import * as subscriptionsRepo from '@/repositories/subscriptions.repo.js';
 import * as notificationsRepo from '@/repositories/notifications.repo.js';
 import * as auditService from './audit.service.js';
 
-/** Milkmen serving a pincode. Public — used before anyone signs in. */
-export async function findMilkmenForPincode(pincode) {
+/** Milkman serving a pincode. Public — used before anyone signs in. */
+export async function findMilkmanForPincode(pincode) {
   const cleaned = String(pincode ?? '').trim();
   if (!/^\d{6}$/.test(cleaned)) {
     throw new ValidationError('Enter a valid 6-digit pincode.');
   }
 
-  const milkmen = await usersRepo.findMilkmenServingPincode(cleaned);
+  const candidates = await usersRepo.findMilkmanServingPincode(cleaned);
 
-  // Only show milkmen who can actually take the customer on.
+  // Only show milkman who can actually take the customer on.
   const available = [];
-  for (const milkman of milkmen) {
+  for (const milkman of candidates) {
     const saas = await saasRepo.findCurrentSaasSubscription(milkman.id);
     if (!evaluateSaasAccess(saas).ok) continue;
 
@@ -56,7 +56,7 @@ export async function findMilkmenForPincode(pincode) {
     available.push({ ...milkman, areas, plans });
   }
 
-  return { pincode: cleaned, serviceable: available.length > 0, milkmen: available };
+  return { pincode: cleaned, serviceable: available.length > 0, milkman: available };
 }
 
 /**
@@ -745,7 +745,7 @@ export async function applyToBecomeMilkman(actor, input) {
         type: 'APPROVAL',
         title: 'New milkman application',
         body: `${input.businessName} (${input.areaName}, ${input.pincode}) is waiting for verification.`,
-        href: '/admin/milkmen?tab=unverified',
+        href: '/admin/milkman?tab=unverified',
         subjectType: 'milkman_profile',
         subjectId: actor.userId,
       })),

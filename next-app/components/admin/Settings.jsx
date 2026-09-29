@@ -51,7 +51,7 @@ export function SettingsForm({ settings }) {
       }}
     >
       <Card>
-        <CardHeader title="Collecting payment" description="Where milkmen send their SaaS subscription fees" />
+        <CardHeader title="Collecting payment" description="Where milkman send their SaaS subscription fees" />
         <CardBody className="space-y-4">
           <Input name="upiId" label="Platform UPI ID" defaultValue={settings.upiId ?? ''} error={errors.upiId} placeholder="dairydrop@upi" />
           
@@ -68,7 +68,7 @@ export function SettingsForm({ settings }) {
                 </div>
                 <div className="space-y-2 text-center sm:text-left">
                   <p className="font-heading text-sm font-bold text-slate-900">QR Code Active</p>
-                  <p className="text-xs text-slate-500">Milkmen will scan this QR image on PhonePe / GooglePay to pay SaaS plans.</p>
+                  <p className="text-xs text-slate-500">Milkman will scan this QR image on PhonePe / GooglePay to pay SaaS plans.</p>
                   <button
                     type="button"
                     onClick={() => setQrCodeUrl('')}
@@ -129,7 +129,7 @@ export function SettingsForm({ settings }) {
       </Card>
 
       <Card>
-        <CardHeader title="Support" description="Shown to milkmen who need help" />
+        <CardHeader title="Support" description="Shown to milkman who need help" />
         <CardBody className="grid gap-4 sm:grid-cols-2">
           <Input name="supportPhone" label="Phone" defaultValue={settings.supportPhone ?? ''} error={errors.supportPhone} />
           <Input name="supportEmail" label="Email" type="email" defaultValue={settings.supportEmail ?? ''} error={errors.supportEmail} />
