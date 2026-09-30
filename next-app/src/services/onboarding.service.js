@@ -501,8 +501,18 @@ export async function updateCustomerProfile(actor, input) {
  * Hard Rule: Customer MUST clear all outstanding dues with previous milkman before switching.
  */
 export async function switchMilkman(actor, input) {
+  /*
+   * The milkman they are leaving — if that account still exists. A customer
+   * can be linked to a milkman whose account was since deleted; checking their
+   * bill or notifying them would then insert rows pointing at a user that is
+   * not there, and the foreign key failed the whole switch.
+   */
+  const [previous] = actor.tenantId
+    ? await db.select({ id: users.id }).from(users).where(eq(users.id, actor.tenantId)).limit(1)
+    : [];
+
   // 1. Dues Settlement Check
-  if (actor.tenantId) {
+  if (previous) {
     const { getBill } = await import('@/services/billing.service.js');
     const { formatPaise } = await import('@/domain/money.js');
     const currentBill = await getBill(actor, { month: businessMonth() });
@@ -536,7 +546,8 @@ export async function switchMilkman(actor, input) {
     throw new ConflictError('That dairy provider does not deliver to your pincode.');
   }
 
-  const oldMilkmanId = actor.tenantId;
+  const oldMilkmanId = previous?.id ?? null;
+  const today = businessDate();
 
   return transaction(async (tx) => {
     // 3. Update customer's milkman (milkmanId) and set approval status to PENDING
@@ -550,13 +561,21 @@ export async function switchMilkman(actor, input) {
       })
       .where(eq(users.id, actor.userId));
 
-    // 4. Cancel active subscriptions under the previous milkman
+    // 4. End every current subscription under the previous milkman. Closing
+    // them (effective_to) as well as cancelling releases their delivery slots;
+    // one dated ahead of today ends on its own start date, never before it.
     await tx
       .update(milkSubscriptions)
-      .set({ status: 'CANCELLED', updatedAt: new Date() })
+      .set({
+        status: 'CANCELLED',
+        effectiveTo: sql`greatest(${milkSubscriptions.effectiveFrom}, ${today}::date)`,
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(
         and(
           eq(milkSubscriptions.customerId, actor.userId),
+          isNull(milkSubscriptions.effectiveTo),
           ne(milkSubscriptions.status, 'CANCELLED'),
         ),
       );
@@ -622,7 +641,9 @@ export async function switchMilkman(actor, input) {
     if (oldMilkmanId) {
       await notificationsRepo.create(tx, {
         userId: oldMilkmanId,
-        type: 'CUSTOMER_REMOVED',
+        // 'CUSTOMER_REMOVED' is not a notification type; the insert failed
+        // on the enum and took every switch down with it.
+        type: 'SYSTEM',
         title: 'Customer transferred out',
         body: `${actor.name || 'A customer'} in ${input.area} has cleared all dues and switched to another dairy provider.`,
         href: '/milkman/customers',

@@ -161,9 +161,9 @@ export default async function CustomerDashboard() {
 
       {/* ── Scheduled Delivery Section (Today or Tomorrow) ──────────────── */}
       <section aria-labelledby="today-heading">
-        <div className="mb-3.5 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="mb-3.5 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 id="today-heading" className="font-heading text-sm font-extrabold uppercase tracking-wider text-slate-500">
                 {isTomorrowTarget ? (isHi ? 'कल की डिलीवरी' : "Tomorrow's Delivery") : (isHi ? 'आज की डिलीवरी' : "Today's Delivery")} · {formatDate(targetDate)}
               </h2>
@@ -179,7 +179,11 @@ export default async function CustomerDashboard() {
                 : (isHi ? 'दैनिक डोरस्टेप डिलीवरी समय: 6:00 AM – 7:30 AM' : 'Daily doorstep arrival window: 6:00 AM – 7:30 AM')}
             </p>
           </div>
-          {active.length > 0 && <CalendarVacationButton />}
+          {active.length > 0 && (
+            <div className="self-start sm:self-auto sm:shrink-0">
+              <CalendarVacationButton />
+            </div>
+          )}
         </div>
 
         {targetDeliveries.length === 0 ? (

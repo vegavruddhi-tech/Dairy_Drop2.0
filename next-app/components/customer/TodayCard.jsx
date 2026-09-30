@@ -54,7 +54,7 @@ export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false, 
     <>
       <div
         className={cn(
-          'group relative h-full overflow-hidden rounded-3xl border-2 p-5 sm:p-6 shadow-sm transition-all',
+          'group relative h-full overflow-hidden rounded-3xl border-2 p-4 pt-5 sm:p-5 sm:pt-6 shadow-sm transition-all',
           successor
             ? 'border-slate-200 bg-slate-50 grayscale opacity-70 hover:opacity-90'
             : 'border-slate-200/90 bg-white hover:border-blue-400 hover:shadow-md',
@@ -72,38 +72,38 @@ export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false, 
           )}
         />
 
-        <div className="space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                  <MilkDropIcon className="h-4 w-4" />
-                </span>
-                <h3 className="font-heading text-lg font-black tracking-tight text-slate-900">
-                  {delivery.productName}
-                </h3>
-              </div>
-              <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <MilkDropIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-heading text-base font-black leading-tight tracking-tight text-slate-900 sm:text-lg">
+                {delivery.productName}
+              </h3>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">
                 <SlotLine delivery={delivery} isHi={isHi} />
               </p>
               <EndingNote delivery={delivery} successor={successor} isHi={isHi} />
             </div>
-            <StatusBadge status={delivery.status} locale={locale} />
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <p className="leading-none">
+                <span className="font-heading text-3xl font-black text-slate-950 tnum">
+                  {delivery.status === 'DELIVERED' ? Number(delivery.deliveredQuantity) : quantity}
+                </span>
+                <span className="ml-1 font-heading text-sm font-bold text-slate-600">{delivery.unit}</span>
+              </p>
+              <StatusBadge status={delivery.status} locale={locale} />
+            </div>
           </div>
 
-          <div className="flex items-baseline gap-2 rounded-2xl bg-slate-50/90 border border-slate-200/70 px-4 py-3">
-            <span className="font-heading text-3xl font-black text-slate-950 tnum">
-              {delivery.status === 'DELIVERED' ? Number(delivery.deliveredQuantity) : quantity}
-            </span>
-            <span className="font-heading text-sm font-bold text-slate-600">{delivery.unit}</span>
-            {adjusted ? (
-              <span className="ml-auto rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">
-                {isHi
-                  ? `${isTomorrow ? 'कल' : 'आज'} के लिए बदला गया (सामान्यतः ${planned} ${delivery.unit})`
-                  : `Changed for ${isTomorrow ? 'tomorrow' : 'today'} (usually ${planned} ${delivery.unit})`}
-              </span>
-            ) : null}
-          </div>
+          {adjusted ? (
+            <p className="inline-flex rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700 border border-amber-200">
+              {isHi
+                ? `${isTomorrow ? 'कल' : 'आज'} के लिए बदला गया (सामान्यतः ${planned} ${delivery.unit})`
+                : `Changed for ${isTomorrow ? 'tomorrow' : 'today'} (usually ${planned} ${delivery.unit})`}
+            </p>
+          ) : null}
 
           {delivery.status === 'SKIPPED' ? (
             <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium text-slate-600">
@@ -123,7 +123,7 @@ export function TodayCard({ delivery, isTomorrow = false, cutoffPassed = false, 
           ) : null}
 
           {actionable ? (
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
               <button
                 type="button"
                 className="tap flex items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-white px-4 py-3 font-heading text-xs font-bold text-blue-700 shadow-xs hover:bg-blue-50 transition-all active:scale-[0.98]"

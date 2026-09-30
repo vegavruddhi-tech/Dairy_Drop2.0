@@ -44,10 +44,17 @@ export function ChangeMilkmanModal({
       const res = await fetch(`/api/serviceability?pincode=${code}`);
       const data = await res.json();
       if (res.ok) {
-        // Filter out current milkman
-        const filtered = (data.milkman || []).filter(
-          (m) => m.id !== currentMilkman?.id && m.tenantId !== currentMilkman?.id,
-        );
+        /*
+         * Leave out the milkman they already have — and only that one.
+         *
+         * This used to also compare `m.tenantId !== currentMilkman?.id`. A
+         * search result has no `tenantId`, and a customer with no milkman has
+         * no `currentMilkman.id`, so that read `undefined !== undefined`,
+         * which is false: every milkman was dropped and the list came back
+         * empty exactly for the customers who most needed one.
+         */
+        const currentId = currentMilkman?.id ?? null;
+        const filtered = (data.milkman || []).filter((m) => !currentId || m.id !== currentId);
         setMilkmanList(filtered);
         if (filtered.length === 0) {
           toast.info(isHi ? 'इस पिनकोड पर वर्तमान में कोई अन्य डेयरी प्रदाता उपलब्ध नहीं है।' : 'No other dairy providers currently serve this pincode.');
